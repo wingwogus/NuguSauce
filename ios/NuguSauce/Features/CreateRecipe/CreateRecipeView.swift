@@ -1,31 +1,29 @@
 import SwiftUI
 
 struct CreateRecipeView: View {
+    let apiClient: APIClientProtocol
+    @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: CreateRecipeViewModel
+    private let quickAddColumns = [
+        GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
+    ]
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
+        self.apiClient = apiClient
+        self.authStore = authStore
         _viewModel = StateObject(wrappedValue: CreateRecipeViewModel(apiClient: apiClient, authStore: authStore))
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
-                topBar
-                photoUpload
-                titleFields
-                tasteTags
-                ingredientEditor
-                quickAdd
-                Button("레시피 등록하기") {
-                    Task {
-                        await viewModel.submit()
-                    }
-                }
-                .primarySauceButton()
-                .padding(.top, 20)
+            if authStore.isAuthenticated {
+                formContent
+            } else {
+                LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                    .padding(.horizontal, SauceSpacing.screen)
+                    .padding(.top, 28)
+                    .padding(.bottom, 42)
             }
-            .padding(.horizontal, SauceSpacing.screen)
-            .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
         .task {
@@ -33,16 +31,48 @@ struct CreateRecipeView: View {
         }
     }
 
+    private var formContent: some View {
+        VStack(alignment: .leading, spacing: 30) {
+            topBar
+            photoUpload
+            titleFields
+            ingredientEditor
+            quickAdd
+            statusBanners
+            Button {
+                Task {
+                    await viewModel.submit()
+                }
+            } label: {
+                Text(viewModel.isSubmitting ? "등록 중..." : "레시피 등록하기")
+            }
+            .primarySauceButton()
+            .opacity(viewModel.canSubmit ? 1 : 0.72)
+            .disabled(viewModel.isSubmitting)
+            .padding(.top, 6)
+        }
+        .padding(.horizontal, SauceSpacing.screen)
+        .padding(.bottom, 42)
+    }
+
     private var topBar: some View {
         HStack {
             Text("새 레시피 등록")
                 .font(.title2.weight(.black))
             Spacer()
-            Text("임시저장")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
         }
         .padding(.top, 18)
+    }
+
+    private var statusBanners: some View {
+        VStack(spacing: 10) {
+            if let errorMessage = viewModel.errorMessage {
+                SauceStatusBanner(message: errorMessage)
+            }
+            if viewModel.didSubmit, let title = viewModel.submittedRecipeTitle {
+                SauceStatusBanner(message: "\(title) 등록이 완료되었습니다.", isError: false)
+            }
+        }
     }
 
     private var photoUpload: some View {
@@ -62,7 +92,7 @@ struct CreateRecipeView: View {
                 Text("맛있는 소스 사진을 찍어주세요")
                     .font(.headline.weight(.bold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
-                Text("클릭하여 사진 업로드")
+                Text("사진 API 계약이 연결되면 imageUrl로 전송됩니다")
                     .font(.subheadline)
                     .foregroundStyle(SauceColor.muted)
             }
@@ -87,32 +117,28 @@ struct CreateRecipeView: View {
         }
     }
 
-    private var tasteTags: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("맛 태그 선택")
-                .font(.headline.weight(.black))
-            HStack {
-                ForEach(["매콤", "고소", "달달", "감칠맛"], id: \.self) { tag in
-                    SauceChip(title: tag, isSelected: viewModel.selectedTagNames.contains(tag))
-                }
-            }
-            SauceChip(title: "직접 입력", icon: "plus")
-        }
-    }
-
     private var ingredientEditor: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("재료 배합하기")
                     .font(.title2.weight(.black))
                 Spacer()
-                Label("베이스 추가", systemImage: "plus")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(SauceColor.primaryContainer)
+                Button {
+                    viewModel.addNextIngredient()
+                } label: {
+                    Label("베이스 추가", systemImage: "plus")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                }
+                .buttonStyle(.plain)
             }
 
-            ForEach(viewModel.ingredients) { ingredient in
-                ingredientCard(ingredient)
+            if viewModel.ingredients.isEmpty {
+                SauceStatusBanner(message: "빠른 추가에서 재료를 선택해주세요.", isError: false)
+            } else {
+                ForEach(viewModel.ingredients) { ingredient in
+                    ingredientCard(ingredient)
+                }
             }
         }
     }
@@ -128,7 +154,7 @@ struct CreateRecipeView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(ingredient.ingredient.name)
                         .font(.headline.weight(.bold))
-                    Text(ingredient.ingredient.category)
+                    Text(viewModel.categoryTitle(for: ingredient.ingredient))
                         .font(.caption)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
@@ -139,6 +165,17 @@ struct CreateRecipeView: View {
                 Text("비율")
                     .font(.caption)
                     .foregroundStyle(SauceColor.onSurfaceVariant)
+                Button {
+                    viewModel.removeIngredient(ingredient)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                        .frame(width: 30, height: 30)
+                        .background(SauceColor.surfaceContainerLow)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
             Slider(
                 value: Binding(
@@ -155,22 +192,88 @@ struct CreateRecipeView: View {
     }
 
     private var quickAdd: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("빠른 추가")
-                .font(.subheadline.weight(.bold))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("빠른 추가")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(SauceColor.onSurface)
+                Spacer()
+                Text("\(viewModel.quickAddIngredients.count)개")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(SauceColor.primaryContainer)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(SauceColor.redTint)
+                    .clipShape(Capsule())
+            }
+
+            Text("카테고리별 전체 재료를 눌러 배합에 추가하세요.")
+                .font(.caption)
                 .foregroundStyle(SauceColor.onSurfaceVariant)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(viewModel.quickAddIngredients.prefix(8)) { ingredient in
-                        Button {
-                            viewModel.addIngredient(ingredient)
-                        } label: {
-                            SauceChip(title: ingredient.name)
-                        }
-                        .buttonStyle(.plain)
+
+            if viewModel.quickAddIngredients.isEmpty {
+                SauceStatusBanner(message: "불러온 재료가 없습니다.", isError: false)
+            } else {
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(viewModel.quickAddSections) { section in
+                        quickAddSection(section)
                     }
                 }
             }
         }
+        .padding(16)
+        .background(SauceColor.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func quickAddSection(_ section: IngredientQuickAddSection) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(section.title)
+                .font(.caption.weight(.black))
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+
+            LazyVGrid(columns: quickAddColumns, alignment: .leading, spacing: 10) {
+                ForEach(section.ingredients) { ingredient in
+                    quickAddIngredientButton(ingredient)
+                }
+            }
+        }
+    }
+
+    private func quickAddIngredientButton(_ ingredient: IngredientDTO) -> some View {
+        let isSelected = viewModel.isIngredientSelected(ingredient)
+
+        return Button {
+            viewModel.addIngredient(ingredient)
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(isSelected ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ingredient.name)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(SauceColor.onSurface)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+
+                    Text(viewModel.categoryTitle(for: ingredient))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isSelected ? SauceColor.redTint : SauceColor.surfaceLowest)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: SauceColor.primary.opacity(isSelected ? 0.08 : 0.03), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("quick-add-ingredient-\(ingredient.id)")
+        .accessibilityLabel("\(ingredient.name) 재료 추가")
+        .accessibilityValue(isSelected ? "선택됨" : viewModel.categoryTitle(for: ingredient))
     }
 }

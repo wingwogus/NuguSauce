@@ -25,7 +25,7 @@ struct RecipeDetailView: View {
 
     private var hero: some View {
         ZStack(alignment: .topTrailing) {
-            SauceArtwork(recipeID: viewModel.recipeID, height: 310)
+            RecipeImage(imageURL: viewModel.detail?.imageUrl, recipeID: viewModel.recipeID, height: 310)
                 .overlay(
                     LinearGradient(
                         colors: [.clear, SauceColor.surface.opacity(0.96)],
@@ -33,12 +33,14 @@ struct RecipeDetailView: View {
                         endPoint: .bottom
                     )
                 )
-            Button {} label: {
-                Image(systemName: "heart.fill")
-                    .foregroundStyle(SauceColor.primaryContainer)
-                    .frame(width: 42, height: 42)
-                    .background(.white.opacity(0.9))
-                    .clipShape(Circle())
+            SauceIconButton(
+                systemName: viewModel.isFavorite ? "heart.fill" : "heart",
+                foreground: SauceColor.primaryContainer,
+                background: .white.opacity(0.9)
+            ) {
+                Task {
+                    await viewModel.toggleFavorite()
+                }
             }
             .padding(18)
         }
@@ -47,11 +49,18 @@ struct RecipeDetailView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 30) {
             if let detail = viewModel.detail {
-                SauceChip(title: "매움", isSelected: false, icon: "flame.fill")
+                if let errorMessage = viewModel.errorMessage {
+                    SauceStatusBanner(message: errorMessage)
+                }
+                if let firstTag = detail.reviewTags.first {
+                    SauceChip(title: firstTag.name, isSelected: false, icon: "flame.fill")
+                }
                 titleBlock(detail)
                 ingredients(detail.ingredients)
                 pairings(detail.reviewTags)
-                chefTip(detail.tips)
+                if let tips = detail.tips, !tips.isEmpty {
+                    chefTip(tips)
+                }
                 reviewSection
             } else if viewModel.isLoading {
                 ProgressView()
@@ -80,7 +89,7 @@ struct RecipeDetailView: View {
             HStack(spacing: 10) {
                 Image(systemName: "person.crop.circle.fill")
                     .foregroundStyle(SauceColor.onSurfaceVariant)
-                Text(detail.authorType == .curated ? "by 소스 마스터" : "by 셰프 웨이")
+                Text(detail.authorType == .curated ? "by NuguSauce" : "by 사용자")
                 Text("·")
                     .foregroundStyle(SauceColor.muted)
                 Image(systemName: "star.fill")
@@ -111,9 +120,9 @@ struct RecipeDetailView: View {
                         Text(ingredient.name)
                             .font(.subheadline.weight(.bold))
                         Spacer()
-                        Text("\(ingredient.amount.formatted())")
+                        Text((ingredient.amount ?? ingredient.ratio ?? 0).formatted())
                             .font(.headline.weight(.black))
-                        Text(ingredient.unit)
+                        Text(ingredient.unit ?? "비율")
                             .font(.caption)
                             .foregroundStyle(SauceColor.onSurfaceVariant)
                     }
@@ -135,8 +144,12 @@ struct RecipeDetailView: View {
             Text("추천 조합 (꿀조합)")
                 .font(.headline.weight(.bold))
             HStack {
-                ForEach(tags.prefix(4)) { tag in
-                    SauceChip(title: tag.name)
+                if tags.isEmpty {
+                    SauceChip(title: "리뷰 태그 없음")
+                } else {
+                    ForEach(tags.prefix(4)) { tag in
+                        SauceChip(title: tag.name)
+                    }
                 }
             }
         }
@@ -192,7 +205,7 @@ struct RecipeDetailView: View {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.title2)
                             .foregroundStyle(SauceColor.onSurfaceVariant)
-                        Text(review.id == 1001 ? "Sarah K." : "Mike T.")
+                        Text("리뷰 #\(review.id)")
                             .font(.subheadline.weight(.bold))
                         Spacer()
                         Text("최근")
@@ -206,7 +219,7 @@ struct RecipeDetailView: View {
                                 .foregroundStyle(index <= review.rating ? SauceColor.secondary : SauceColor.surfaceContainer)
                         }
                     }
-                    Text(review.text)
+                    Text(review.text ?? "")
                         .font(.subheadline)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }

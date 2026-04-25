@@ -2,10 +2,10 @@ import SwiftUI
 
 struct ProfileView: View {
     let apiClient: APIClientProtocol
-    let authStore: AuthSessionStoreProtocol
+    @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: ProfileViewModel
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         self.apiClient = apiClient
         self.authStore = authStore
         _viewModel = StateObject(wrappedValue: ProfileViewModel(apiClient: apiClient, authStore: authStore))
@@ -15,14 +15,17 @@ struct ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 topBar
-                profileHero
-                recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
-                recipeSection(title: "찜한 레시피", recipes: viewModel.favoriteRecipes)
-                NavigationLink(value: AppRoute.publicProfile(2)) {
-                    Text("상대페이지 미리보기")
-                        .primarySauceButton()
+                if authStore.isAuthenticated {
+                    profileHero
+                    recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
+                    NavigationLink(value: AppRoute.publicProfile(2)) {
+                        Text("상대페이지")
+                            .primarySauceButton()
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    LoginRequiredView(apiClient: apiClient, authStore: authStore)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, SauceSpacing.screen)
             .padding(.bottom, 42)
@@ -35,12 +38,22 @@ struct ProfileView: View {
             case .publicProfile:
                 PublicProfilePlaceholderView()
             case .loginRequired:
-                LoginRequiredView(authStore: authStore)
+                LoginRequiredView(apiClient: apiClient, authStore: authStore)
             }
         }
         .task {
-            viewModel.restoreSession()
-            await viewModel.load()
+            if authStore.isAuthenticated {
+                await viewModel.load()
+            }
+        }
+        .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                Task {
+                    await viewModel.load()
+                }
+            } else {
+                viewModel.clearData()
+            }
         }
     }
 
@@ -50,7 +63,6 @@ struct ProfileView: View {
                 .font(.headline.weight(.bold))
                 .foregroundStyle(SauceColor.primaryContainer)
             Spacer()
-            Image(systemName: "ellipsis")
         }
         .padding(.top, 18)
     }
@@ -62,13 +74,15 @@ struct ProfileView: View {
                 .foregroundStyle(SauceColor.onSurfaceVariant)
             Text(viewModel.session?.displayName ?? "게스트")
                 .font(.largeTitle.weight(.black))
-            Text("사천 요리 전문가")
+            Text("실제 백엔드 세션")
                 .foregroundStyle(SauceColor.onSurfaceVariant)
             HStack(spacing: 44) {
-                stat("15.2k", "FOLLOWERS")
-                stat("450", "FOLLOWING")
+                stat("\(viewModel.myRecipes.count)", "MY RECIPES")
+                stat("\(viewModel.favoriteRecipes.count)", "FAVORITES")
             }
-            Button("팔로우") {}
+            Button("로그아웃") {
+                authStore.clear()
+            }
                 .font(.headline.weight(.bold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 48)
@@ -114,7 +128,7 @@ struct PublicProfilePlaceholderView: View {
                 .foregroundStyle(SauceColor.primaryContainer)
             Text("상대페이지 준비 중")
                 .font(.title.weight(.black))
-            Text("공개 프로필 API 계약이 추가되면 실제 셰프 페이지를 연결합니다.")
+            Text("공개 프로필 API 계약이 추가되면 백엔드 데이터로 연결합니다.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(SauceColor.onSurfaceVariant)
         }
@@ -124,25 +138,69 @@ struct PublicProfilePlaceholderView: View {
 }
 
 struct LoginRequiredView: View {
-    let authStore: AuthSessionStoreProtocol
+    let apiClient: APIClientProtocol
+    @ObservedObject var authStore: AuthSessionStore
+    private let kakaoLoginService = KakaoLoginService()
+    @State private var isLoggingIn = false
+    @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 22) {
-            Text("Sauce Master")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("NuguSauce")
                 .font(.largeTitle.weight(.black).italic())
                 .foregroundStyle(SauceColor.primaryContainer)
             Text("로그인이 필요한 기능입니다.")
                 .font(.headline)
-            Button("카카오로 시작하기") {
-                authStore.saveMockSession()
+
+            Button {
+                Task {
+                    await loginWithKakao()
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "bubble.left.fill")
+                    Text(isLoggingIn ? "카카오 로그인 중..." : "카카오로 시작하기")
+                }
+                .font(.headline.weight(.bold))
             }
             .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
             .background(Color(red: 1.0, green: 0.82, blue: 0.0))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .disabled(isLoggingIn)
+
+            if let errorMessage {
+                SauceStatusBanner(message: errorMessage)
+            }
         }
         .padding(28)
-        .background(SauceColor.surface.ignoresSafeArea())
+        .sauceCard(cornerRadius: 18)
+    }
+
+    @MainActor
+    private func loginWithKakao() async {
+        guard !isLoggingIn else {
+            return
+        }
+
+        isLoggingIn = true
+        errorMessage = nil
+        defer {
+            isLoggingIn = false
+        }
+
+        do {
+            let credential = try await kakaoLoginService.login()
+            let tokens = try await apiClient.authenticateWithKakao(
+                idToken: credential.idToken,
+                nonce: credential.nonce,
+                kakaoAccessToken: credential.kakaoAccessToken
+            )
+            authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, displayName: "카카오 사용자")
+            errorMessage = nil
+        } catch {
+            errorMessage = KakaoLoginErrorMessage.message(for: error)
+        }
     }
 }

@@ -16,6 +16,28 @@ final class SearchViewModel: ObservableObject {
         self.apiClient = apiClient
     }
 
+    var selectedTagSummary: String {
+        let selectedTags = tags.filter { selectedTagIDs.contains($0.id) }
+        guard let firstTag = selectedTags.first else {
+            return "전체 맛"
+        }
+        guard selectedTags.count > 1 else {
+            return firstTag.name
+        }
+        return "\(firstTag.name) 외 \(selectedTags.count - 1)개"
+    }
+
+    var selectedIngredientSummary: String {
+        let selectedIngredients = ingredients.filter { selectedIngredientIDs.contains($0.id) }
+        guard let firstIngredient = selectedIngredients.first else {
+            return "전체 재료"
+        }
+        guard selectedIngredients.count > 1 else {
+            return firstIngredient.name
+        }
+        return "\(firstIngredient.name) 외 \(selectedIngredients.count - 1)개"
+    }
+
     var queryModel: RecipeListQuery {
         RecipeListQuery(keyword: query, tagIDs: selectedTagIDs, ingredientIDs: selectedIngredientIDs, sort: sort)
     }
@@ -38,6 +60,14 @@ final class SearchViewModel: ObservableObject {
         } else {
             selectedTagIDs.insert(tag.id)
         }
+    }
+
+    func clearTags() {
+        selectedTagIDs.removeAll()
+    }
+
+    func clearIngredients() {
+        selectedIngredientIDs.removeAll()
     }
 
     func toggleIngredient(_ ingredient: IngredientDTO) {

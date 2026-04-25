@@ -18,11 +18,15 @@ final class ProfileViewModel: ObservableObject {
         authStore.currentSession
     }
 
-    func restoreSession() {
-        authStore.restore()
+    var isAuthenticated: Bool {
+        authStore.isAuthenticated
     }
 
     func load() async {
+        guard authStore.isAuthenticated else {
+            clearData()
+            return
+        }
         do {
             async let myRecipes = apiClient.fetchMyRecipes()
             async let favoriteRecipes = apiClient.fetchFavoriteRecipes()
@@ -31,5 +35,11 @@ final class ProfileViewModel: ObservableObject {
         } catch {
             errorMessage = "프로필 정보를 불러오지 못했어요."
         }
+    }
+
+    func clearData() {
+        myRecipes = []
+        favoriteRecipes = []
+        errorMessage = nil
     }
 }

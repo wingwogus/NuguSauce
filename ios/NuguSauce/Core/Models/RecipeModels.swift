@@ -25,8 +25,8 @@ struct RecipeIngredientDTO: Codable, Identifiable, Equatable {
     var id: Int { ingredientId }
     let ingredientId: Int
     let name: String
-    let amount: Double
-    let unit: String
+    let amount: Double?
+    let unit: String?
     let ratio: Double?
 }
 
@@ -47,7 +47,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let title: String
     let description: String
     let imageUrl: String?
-    let tips: String
+    let tips: String?
     let authorType: AuthorType
     let visibility: RecipeVisibility
     let ingredients: [RecipeIngredientDTO]
@@ -61,7 +61,7 @@ struct RecipeReviewDTO: Codable, Identifiable, Equatable {
     let id: Int
     let recipeId: Int
     let rating: Int
-    let text: String
+    let text: String?
     let tasteTags: [ReviewTagDTO]
     let createdAt: String
 }
@@ -69,7 +69,7 @@ struct RecipeReviewDTO: Codable, Identifiable, Equatable {
 struct IngredientDTO: Codable, Identifiable, Equatable {
     let id: Int
     let name: String
-    let category: String
+    let category: String?
 }
 
 struct TagDTO: Codable, Identifiable, Equatable {
@@ -79,8 +79,8 @@ struct TagDTO: Codable, Identifiable, Equatable {
 
 struct CreateRecipeIngredientRequestDTO: Codable, Equatable {
     let ingredientId: Int
-    let amount: Double
-    let unit: String
+    let amount: Double?
+    let unit: String?
     let ratio: Double?
 }
 
@@ -94,7 +94,7 @@ struct CreateRecipeRequestDTO: Codable, Equatable {
 
 struct CreateReviewRequestDTO: Codable, Equatable {
     let rating: Int
-    let text: String
+    let text: String?
     let tasteTagIds: [Int]
 }
 

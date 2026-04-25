@@ -9,6 +9,8 @@ final class RecipeDetailViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var didSubmitReview = false
+    @Published private(set) var isFavorite = false
+    @Published private(set) var isUpdatingFavorite = false
 
     let recipeID: Int
     private let apiClient: APIClientProtocol
@@ -47,7 +49,7 @@ final class RecipeDetailViewModel: ObservableObject {
         do {
             let review = try await apiClient.createReview(
                 recipeID: recipeID,
-                request: CreateReviewRequestDTO(rating: selectedRating, text: reviewText, tasteTagIds: [1, 2])
+                request: CreateReviewRequestDTO(rating: selectedRating, text: reviewText, tasteTagIds: [])
             )
             reviews.insert(review, at: 0)
             reviewText = ""
@@ -55,5 +57,34 @@ final class RecipeDetailViewModel: ObservableObject {
         } catch {
             errorMessage = "리뷰를 저장하지 못했어요."
         }
+    }
+
+    func toggleFavorite() async {
+        guard authStore.isAuthenticated else {
+            errorMessage = "로그인이 필요합니다."
+            return
+        }
+        guard !isUpdatingFavorite else {
+            return
+        }
+
+        errorMessage = nil
+        isUpdatingFavorite = true
+        do {
+            if isFavorite {
+                try await apiClient.deleteFavorite(recipeID: recipeID)
+                isFavorite = false
+            } else {
+                _ = try await apiClient.addFavorite(recipeID: recipeID)
+                isFavorite = true
+            }
+        } catch {
+            if let apiError = error as? ApiError {
+                errorMessage = apiError.message
+            } else {
+                errorMessage = "찜 상태를 변경하지 못했어요."
+            }
+        }
+        isUpdatingFavorite = false
     }
 }

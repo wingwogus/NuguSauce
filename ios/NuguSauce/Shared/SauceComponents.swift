@@ -39,6 +39,105 @@ struct RatingBadge: View {
     }
 }
 
+struct SauceIconButton: View {
+    let systemName: String
+    var foreground = SauceColor.primaryContainer
+    var background = Color.white.opacity(0.9)
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(foreground)
+                .frame(width: 42, height: 42)
+                .background(background)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SauceStatusBanner: View {
+    let message: String
+    var isError = true
+
+    var body: some View {
+        Text(message)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(isError ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(isError ? SauceColor.redTint : SauceColor.surfaceContainerLow)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct SauceSearchBar: View {
+    private let placeholder: String
+    private let isEditable: Bool
+    private let action: () -> Void
+    @Binding private var text: String
+
+    init(placeholder: String = "새로운 맛을 찾아보세요...", action: @escaping () -> Void = {}) {
+        self.placeholder = placeholder
+        self.isEditable = false
+        self.action = action
+        _text = .constant("")
+    }
+
+    init(text: Binding<String>, placeholder: String = "새로운 맛을 찾아보세요...", action: @escaping () -> Void) {
+        self.placeholder = placeholder
+        self.isEditable = true
+        self.action = action
+        _text = text
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+
+            if isEditable {
+                TextField(placeholder, text: $text)
+                    .font(.subheadline)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onSubmit(action)
+            } else {
+                Text(placeholder)
+                    .font(.subheadline)
+                    .foregroundStyle(SauceColor.muted)
+            }
+
+            Spacer()
+
+            Button(action: action) {
+                Text("검색")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(SauceColor.primaryContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        .background(SauceColor.surfaceLowest)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: 16, x: 0, y: 8)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isEditable {
+                action()
+            }
+        }
+    }
+}
+
 struct SauceArtwork: View {
     let recipeID: Int
     var height: CGFloat = 220
@@ -90,13 +189,45 @@ struct SauceArtwork: View {
     }
 }
 
+struct RecipeImage: View {
+    let imageURL: String?
+    let recipeID: Int
+    var height: CGFloat = 220
+
+    var body: some View {
+        if let imageURL, let url = URL(string: imageURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure:
+                    SauceArtwork(recipeID: recipeID, height: height)
+                case .empty:
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: height)
+                        .background(SauceColor.surfaceContainerLow)
+                @unknown default:
+                    SauceArtwork(recipeID: recipeID, height: height)
+                }
+            }
+            .frame(height: height)
+            .clipped()
+        } else {
+            SauceArtwork(recipeID: recipeID, height: height)
+        }
+    }
+}
+
 struct RecipeCard: View {
     let recipe: RecipeSummaryDTO
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                SauceArtwork(recipeID: recipe.id, height: 240)
+                RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 240)
                 RatingBadge(rating: recipe.ratingSummary.averageRating)
                     .padding(14)
             }
@@ -121,9 +252,9 @@ struct RecipeCard: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                     Spacer()
-                    Image(systemName: "plus")
+                    Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.primary)
+                        .foregroundStyle(SauceColor.primaryContainer)
                         .frame(width: 36, height: 36)
                         .background(SauceColor.redTint)
                         .clipShape(Circle())
@@ -140,7 +271,7 @@ struct CompactRecipeRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            SauceArtwork(recipeID: recipe.id, height: 74)
+            RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 74)
                 .frame(width: 92)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
@@ -160,7 +291,7 @@ struct CompactRecipeRow: View {
                     Circle()
                         .fill(SauceColor.primary)
                         .frame(width: 7, height: 7)
-                    Text(recipe.reviewTags.first?.name ?? "추천")
+                    Text(recipe.reviewTags.first?.name ?? "태그 없음")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                     Spacer()

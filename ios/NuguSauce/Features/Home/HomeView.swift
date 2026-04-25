@@ -2,12 +2,14 @@ import SwiftUI
 
 struct HomeView: View {
     let apiClient: APIClientProtocol
-    let authStore: AuthSessionStoreProtocol
+    let authStore: AuthSessionStore
+    let openSearch: () -> Void
     @StateObject private var viewModel: HomeViewModel
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore, openSearch: @escaping () -> Void) {
         self.apiClient = apiClient
         self.authStore = authStore
+        self.openSearch = openSearch
         _viewModel = StateObject(wrappedValue: HomeViewModel(apiClient: apiClient))
     }
 
@@ -35,40 +37,22 @@ struct HomeView: View {
                 .font(.system(size: 38))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
             Spacer()
-            Text("소스 마스터")
+            Text("NuguSauce")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(SauceColor.primaryContainer)
                 .underline(color: SauceColor.primaryContainer)
             Spacer()
-            Image(systemName: "magnifyingglass")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
+            SauceIconButton(
+                systemName: "magnifyingglass",
+                background: SauceColor.surfaceLowest,
+                action: openSearch
+            )
         }
         .padding(.top, 18)
     }
 
     private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-            Text("새로운 맛을 찾아보세요...")
-                .font(.subheadline)
-                .foregroundStyle(SauceColor.muted)
-            Spacer()
-            Text("검색")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(SauceColor.primaryContainer)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .padding(.leading, 16)
-        .padding(.trailing, 6)
-        .padding(.vertical, 6)
-        .background(SauceColor.surfaceLowest)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: 16, x: 0, y: 8)
+        SauceSearchBar(action: openSearch)
     }
 
     private var weeklyPopular: some View {
@@ -77,7 +61,7 @@ struct HomeView: View {
                 Text("주간 인기 TOP 5")
                     .font(.title.weight(.black))
                 Spacer()
-                Text("전체보기")
+                Button("전체보기", action: openSearch)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
             }
@@ -96,7 +80,7 @@ struct HomeView: View {
             case .publicProfile:
                 PublicProfilePlaceholderView()
             case .loginRequired:
-                LoginRequiredView(authStore: authStore)
+                LoginRequiredView(apiClient: apiClient, authStore: authStore)
             }
         }
     }
@@ -107,8 +91,12 @@ struct HomeView: View {
                 Text("최신 소스 조합")
                     .font(.title.weight(.black))
                 Spacer()
-                Image(systemName: "line.3.horizontal.decrease")
-                    .foregroundStyle(SauceColor.primaryContainer)
+                Button(action: openSearch) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                }
+                .buttonStyle(.plain)
             }
             ForEach(viewModel.recipes.dropFirst(2).prefix(3)) { recipe in
                 CompactRecipeRow(recipe: recipe)
