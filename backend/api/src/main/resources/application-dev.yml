@@ -51,5 +51,6 @@ auth:
       issuer: https://kauth.kakao.com
       audience: ${KAKAO_NATIVE_APP_KEY}
       discovery-uri: https://kauth.kakao.com/.well-known/openid-configuration
+      user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
       allowed-clock-skew-seconds: 60
       nonce-replay-ttl-seconds: 600

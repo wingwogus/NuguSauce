@@ -65,7 +65,13 @@ class AuthController(
     fun kakaoLogin(
         @Valid @RequestBody request: AuthRequests.KakaoLoginRequest
     ): ResponseEntity<ApiResponse<AuthResponses.TokenResponse>> {
-        val result = kakaoLoginService.login(AuthCommand.KakaoLogin(request.idToken, request.nonce))
+        val result = kakaoLoginService.login(
+            AuthCommand.KakaoLogin(
+                idToken = request.idToken,
+                nonce = request.nonce,
+                kakaoAccessToken = request.kakaoAccessToken
+            )
+        )
         return ResponseEntity.ok(ApiResponse.ok(AuthResponses.TokenResponse.from(result)))
     }
 

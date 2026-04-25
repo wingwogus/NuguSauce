@@ -53,9 +53,10 @@ auth:
       issuer: https://kauth.kakao.com
       audience: ${KAKAO_NATIVE_APP_KEY:test-kakao-native-app-key}
       discovery-uri: https://kauth.kakao.com/.well-known/openid-configuration
+      user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
       allowed-clock-skew-seconds: 60
       nonce-replay-ttl-seconds: 600
 
 nugusauce:
   seed:
-    enabled: ${NUGUSAUCE_SEED_ENABLED:false}
+    enabled: ${NUGUSAUCE_SEED_ENABLED:true}

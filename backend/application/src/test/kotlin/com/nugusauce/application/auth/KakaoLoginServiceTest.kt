@@ -6,6 +6,8 @@ import com.nugusauce.application.redis.KakaoNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
 import com.nugusauce.application.security.KakaoOidcClaims
 import com.nugusauce.application.security.KakaoOidcTokenVerifier
+import com.nugusauce.application.security.KakaoUserInfo
+import com.nugusauce.application.security.KakaoUserInfoClient
 import com.nugusauce.application.security.TokenProvider
 import com.nugusauce.domain.member.AuthProvider
 import com.nugusauce.domain.member.ExternalIdentity
@@ -35,6 +37,9 @@ class KakaoLoginServiceTest {
     private lateinit var kakaoOidcTokenVerifier: KakaoOidcTokenVerifier
 
     @Mock
+    private lateinit var kakaoUserInfoClient: KakaoUserInfoClient
+
+    @Mock
     private lateinit var externalIdentityRepository: ExternalIdentityRepository
 
     @Mock
@@ -54,6 +59,7 @@ class KakaoLoginServiceTest {
         nonceRepository = RecordingNonceRepository()
         service = KakaoLoginService(
             kakaoOidcTokenVerifier,
+            kakaoUserInfoClient,
             nonceRepository,
             externalIdentityRepository,
             memberRepository,
@@ -76,7 +82,7 @@ class KakaoLoginServiceTest {
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+        val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         assertEquals(AuthResult.TokenPair("access-token", "refresh-token"), result)
         assertEquals("nonce", nonceRepository.lastNonce)
@@ -98,7 +104,7 @@ class KakaoLoginServiceTest {
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         val identityCaptor = ArgumentCaptor.forClass(ExternalIdentity::class.java)
         verify(externalIdentityRepository).save(identityCaptor.capture())
@@ -122,7 +128,7 @@ class KakaoLoginServiceTest {
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         val memberCaptor = ArgumentCaptor.forClass(Member::class.java)
         verify(memberRepository).save(memberCaptor.capture())
@@ -138,10 +144,51 @@ class KakaoLoginServiceTest {
             .thenReturn(null)
 
         val exception = assertThrows(BusinessException::class.java) {
-            service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+            service.login(AuthCommand.KakaoLogin("id-token", "nonce", null))
         }
 
         assertEquals(ErrorCode.KAKAO_VERIFIED_EMAIL_REQUIRED, exception.errorCode)
+    }
+
+    @Test
+    fun `login verifies email through kakao userinfo when id token has no email verification`() {
+        val savedMember = Member(4L, "userinfo@example.com", null, "ROLE_USER")
+
+        `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce"))
+            .thenReturn(claims(email = "userinfo@example.com", emailVerified = false))
+        `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
+            .thenReturn(null)
+        `when`(kakaoUserInfoClient.fetch("kakao-access-token"))
+            .thenReturn(KakaoUserInfo("kakao-sub", "userinfo@example.com", true))
+        `when`(memberRepository.findByEmail("userinfo@example.com")).thenReturn(null)
+        `when`(memberRepository.save(Mockito.any(Member::class.java))).thenReturn(savedMember)
+        `when`(externalIdentityRepository.save(Mockito.any(ExternalIdentity::class.java)))
+            .thenAnswer { it.getArgument(0) }
+        `when`(tokenProvider.generateToken(4L, "ROLE_USER"))
+            .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
+        `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
+
+        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+
+        val memberCaptor = ArgumentCaptor.forClass(Member::class.java)
+        verify(memberRepository).save(memberCaptor.capture())
+        assertEquals("userinfo@example.com", memberCaptor.value.email)
+    }
+
+    @Test
+    fun `login rejects kakao userinfo subject mismatch`() {
+        `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce"))
+            .thenReturn(claims(email = null, emailVerified = false))
+        `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
+            .thenReturn(null)
+        `when`(kakaoUserInfoClient.fetch("kakao-access-token"))
+            .thenReturn(KakaoUserInfo("other-sub", "user@example.com", true))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+        }
+
+        assertEquals(ErrorCode.INVALID_KAKAO_TOKEN, exception.errorCode)
     }
 
     @Test
@@ -150,7 +197,7 @@ class KakaoLoginServiceTest {
         `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims())
 
         val exception = assertThrows(BusinessException::class.java) {
-            service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+            service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
         }
 
         assertEquals(ErrorCode.KAKAO_NONCE_REPLAY, exception.errorCode)
@@ -169,7 +216,7 @@ class KakaoLoginServiceTest {
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        service.login(AuthCommand.KakaoLogin("id-token", "nonce"))
+        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         val ttl = nonceRepository.lastTtl ?: error("nonce TTL was not recorded")
         assertTrue(ttl > Duration.ZERO)

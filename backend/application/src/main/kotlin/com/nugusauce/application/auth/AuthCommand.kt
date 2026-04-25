@@ -22,7 +22,8 @@ object AuthCommand {
 
     data class KakaoLogin(
         val idToken: String,
-        val nonce: String
+        val nonce: String,
+        val kakaoAccessToken: String?
     )
 
     data class Reissue(

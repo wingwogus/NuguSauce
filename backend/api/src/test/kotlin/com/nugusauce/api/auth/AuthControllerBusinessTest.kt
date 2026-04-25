@@ -92,13 +92,13 @@ class AuthControllerBusinessTest(
 
     @Test
     fun `kakao login returns token pair from service`() {
-        `when`(kakaoLoginService.login(AuthCommand.KakaoLogin("id-token", "nonce")))
+        `when`(kakaoLoginService.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token")))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
 
         mockMvc.perform(
             post("/api/v1/auth/kakao/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"idToken":"id-token","nonce":"nonce"}""")
+                .content("""{"idToken":"id-token","nonce":"nonce","kakaoAccessToken":"kakao-access-token"}""")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.success").value(true))
@@ -110,12 +110,12 @@ class AuthControllerBusinessTest(
     fun `kakao login maps invalid token to unauthorized`() {
         doThrow(object : BusinessException(ErrorCode.INVALID_KAKAO_TOKEN) {})
             .`when`(kakaoLoginService)
-            .login(AuthCommand.KakaoLogin("bad-token", "nonce"))
+            .login(AuthCommand.KakaoLogin("bad-token", "nonce", "bad-access-token"))
 
         mockMvc.perform(
             post("/api/v1/auth/kakao/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"idToken":"bad-token","nonce":"nonce"}""")
+                .content("""{"idToken":"bad-token","nonce":"nonce","kakaoAccessToken":"bad-access-token"}""")
         )
             .andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.success").value(false))

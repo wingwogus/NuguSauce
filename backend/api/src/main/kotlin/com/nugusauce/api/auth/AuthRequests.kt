@@ -41,7 +41,9 @@ object AuthRequests {
         @field:NotBlank(message = "카카오 ID 토큰을 입력해주세요")
         val idToken: String,
         @field:NotBlank(message = "nonce를 입력해주세요")
-        val nonce: String
+        val nonce: String,
+        @field:NotBlank(message = "카카오 액세스 토큰을 입력해주세요")
+        val kakaoAccessToken: String? = null
     )
 
     data class ReissueRequest(

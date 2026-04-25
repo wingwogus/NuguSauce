@@ -62,7 +62,19 @@ class AuthControllerValidationTest(
         mockMvc.perform(
             post("/api/v1/auth/kakao/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"idToken":"","nonce":"nonce"}""")
+                .content("""{"idToken":"","nonce":"nonce","kakaoAccessToken":"kakao-access-token"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `kakao login rejects missing kakao access token`() {
+        mockMvc.perform(
+            post("/api/v1/auth/kakao/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"idToken":"id-token","nonce":"nonce","kakaoAccessToken":""}""")
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.success").value(false))

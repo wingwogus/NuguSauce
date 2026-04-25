@@ -20,17 +20,18 @@ App flow:
 
 1. Generate a cryptographically random nonce before Kakao login.
 2. Call Kakao SDK `loginWithKakaoTalk()` and fall back to `loginWithKakaoAccount()`.
-3. Request OIDC so Kakao returns an ID token containing the nonce.
+3. Request OIDC plus `account_email` consent so Kakao returns an ID token and an access token that can read OIDC userinfo.
 4. Call `POST /api/v1/auth/kakao/login`.
 
 ```json
 {
   "idToken": "<kakao_oidc_id_token>",
-  "nonce": "<client_generated_nonce>"
+  "nonce": "<client_generated_nonce>",
+  "kakaoAccessToken": "<kakao_oauth_access_token>"
 }
 ```
 
-The backend verifies Kakao JWKS-backed signature, issuer, audience, expiry, issued-at, and nonce, then stores the nonce with Redis SETNX semantics to prevent replay. It returns NuguSauce service `accessToken` and `refreshToken` in the response body for iOS Keychain storage.
+The backend verifies Kakao JWKS-backed signature, issuer, audience, expiry, issued-at, and nonce, then calls Kakao OIDC userinfo to confirm the subject and verified email before storing the nonce with Redis SETNX semantics to prevent replay. It returns NuguSauce service `accessToken` and `refreshToken` in the response body for iOS Keychain storage.
 
 Required config:
 
@@ -41,6 +42,7 @@ auth:
       issuer: https://kauth.kakao.com
       audience: ${KAKAO_NATIVE_APP_KEY}
       discovery-uri: https://kauth.kakao.com/.well-known/openid-configuration
+      user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
       allowed-clock-skew-seconds: 60
       nonce-replay-ttl-seconds: 600
 ```
