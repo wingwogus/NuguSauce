@@ -16,13 +16,14 @@ This file applies to future iOS work under `ios/`.
 - Design system: `DESIGN.md` for iOS/front-end UI and visual design work
 - API contracts: `../docs/contracts/api.md`
 - Error shape: `../docs/contracts/errors.md`
-- Fixtures: `../docs/contracts/fixtures.md`
+- Fixtures: `../docs/contracts/fixtures.md` for backend test and seed semantics only
 - Security: `../SECURITY.md` for auth session, Keychain, Kakao, token, or PII changes
 
 ## iOS Harness Rules
 
 - Keep networking decodable from `docs/contracts/api.md`.
-- Use mock API data from `docs/contracts/fixtures.md` before relying on live backend behavior.
+- iOS runtime must use the live backend through `BackendAPIClient`; do not add fixture-backed or mock-backed app data loaders.
+- Test-only doubles may exist in `NuguSauceTests`, but they must not be linked into the app target or used as product data.
 - Cover critical state transitions with unit tests before adding broad UI flow.
 - Add XCUITest smoke coverage for the product flows named in `.omx/plans/test-spec-nugusauce-v0.md`.
 - Do not introduce a new package or SDK without explicit user request.

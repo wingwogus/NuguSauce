@@ -159,4 +159,4 @@ The attached visual references define the first-pass mobile UI direction. Treat 
 - Use large corner radii for editorial recipe surfaces, but keep compact controls ergonomically stable.
 - Do not use strong black text. Use warm near-black and brown variants from the palette.
 - Use thin borders only for input affordances or accessibility focus. Do not use line dividers as the main layout mechanism.
-- Use fixture images or generated placeholder imagery for early UI harnesses; avoid blank gray boxes in visual QA.
+- Use backend `imageUrl` values when present. If a response has no image URL, use a neutral visual placeholder only as presentation chrome; do not bundle fixture product imagery into the app target.

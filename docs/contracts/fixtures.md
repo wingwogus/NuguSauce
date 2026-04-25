@@ -1,6 +1,13 @@
 # Fixture Contracts
 
-Fixtures define stable product context for tests, local smoke checks, and iOS mock networking.
+Fixtures define stable product context for backend tests and optional local backend seed data.
+
+## Runtime Data Policy
+
+- iOS runtime must not load fixture-backed, mock-backed, or hard-coded product records.
+- iOS must load recipe, ingredient, tag, review, profile, and favorite data only through the live backend API in `docs/contracts/api.md`.
+- Fixture JSON may be transformed into persisted backend seed data for local development, but the app still consumes it only after the backend serves it through HTTP.
+- Any future offline cache must be populated from successful backend responses, not bundled fixture files.
 
 ## Canonical Fixture Groups
 
@@ -35,7 +42,7 @@ Current file:
 
 - `docs/fixtures/nugusauce-mvp.json`
 
-The JSON is intentionally portable so backend tests and iOS mock networking can reuse the same product context. Backend integration tests may transform it into persisted entities during setup.
+The JSON is intentionally portable so backend tests and local seed flows can reuse the same product context. Backend integration tests may transform it into persisted entities during setup. iOS app targets must not bundle or decode this JSON directly.
 
 ## Required MVP Fixture Semantics
 

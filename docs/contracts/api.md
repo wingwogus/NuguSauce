@@ -2,6 +2,13 @@
 
 This document is the shared API contract surface for backend and iOS work.
 
+## Client Data Loading Rule
+
+iOS app runtime must load product data only from these backend endpoints. Do not
+ship fixture-backed, mock-backed, or hard-coded recipe/ingredient/tag/review/profile
+records in the app target. Test-only doubles may validate decoding and request
+composition, but production screens must be backed by HTTP responses.
+
 ## Backend Contract Shape
 
 Backend code keeps transport DTOs separate from application use-case models.
@@ -96,9 +103,16 @@ Request:
 ```json
 {
   "idToken": "<kakao_oidc_id_token>",
-  "nonce": "<client_generated_nonce>"
+  "nonce": "<client_generated_nonce>",
+  "kakaoAccessToken": "<kakao_oauth_access_token>"
 }
 ```
+
+Backend verifies the ID token signature, issuer, audience, timestamps, and nonce,
+then calls Kakao OIDC userinfo with `kakaoAccessToken` to confirm `sub` matches
+and `email_verified` is true before linking or creating a local member. iOS must
+request `openid` and `account_email` scopes so the access token can read the
+verified email claim.
 
 Success data:
 
