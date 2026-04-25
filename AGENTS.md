@@ -37,6 +37,11 @@ Harness engineering means contract, fixture, scenario, and automated verificatio
 
 A feature is not done unless at least one requirement is locked by an automated check or a documented manual smoke check. If verification is skipped, report the reason and residual risk.
 
+## Commit Convention
+
+- Commit subjects must always use `feat:{변경사항 한국어로}`.
+- Write the text after `feat:` in Korean and summarize the actual committed change.
+
 ## Boundaries
 
 - Prefer small, reversible changes.
