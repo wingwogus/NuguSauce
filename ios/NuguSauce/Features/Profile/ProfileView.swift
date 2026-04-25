@@ -1,0 +1,148 @@
+import SwiftUI
+
+struct ProfileView: View {
+    let apiClient: APIClientProtocol
+    let authStore: AuthSessionStoreProtocol
+    @StateObject private var viewModel: ProfileViewModel
+
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+        self.apiClient = apiClient
+        self.authStore = authStore
+        _viewModel = StateObject(wrappedValue: ProfileViewModel(apiClient: apiClient, authStore: authStore))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                topBar
+                profileHero
+                recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
+                recipeSection(title: "찜한 레시피", recipes: viewModel.favoriteRecipes)
+                NavigationLink(value: AppRoute.publicProfile(2)) {
+                    Text("상대페이지 미리보기")
+                        .primarySauceButton()
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, SauceSpacing.screen)
+            .padding(.bottom, 42)
+        }
+        .background(SauceColor.surface.ignoresSafeArea())
+        .navigationDestination(for: AppRoute.self) { route in
+            switch route {
+            case .recipeDetail(let id):
+                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
+            case .publicProfile:
+                PublicProfilePlaceholderView()
+            case .loginRequired:
+                LoginRequiredView(authStore: authStore)
+            }
+        }
+        .task {
+            viewModel.restoreSession()
+            await viewModel.load()
+        }
+    }
+
+    private var topBar: some View {
+        HStack {
+            Text("Chef Profile")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(SauceColor.primaryContainer)
+            Spacer()
+            Image(systemName: "ellipsis")
+        }
+        .padding(.top, 18)
+    }
+
+    private var profileHero: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 82))
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+            Text(viewModel.session?.displayName ?? "게스트")
+                .font(.largeTitle.weight(.black))
+            Text("사천 요리 전문가")
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+            HStack(spacing: 44) {
+                stat("15.2k", "FOLLOWERS")
+                stat("450", "FOLLOWING")
+            }
+            Button("팔로우") {}
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 48)
+                .padding(.vertical, 13)
+                .background(SauceColor.primaryContainer)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+        .background(SauceColor.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.title3.weight(.black))
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+        }
+    }
+
+    private func recipeSection(title: String, recipes: [RecipeSummaryDTO]) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.title2.weight(.black))
+            ForEach(recipes) { recipe in
+                NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                    RecipeCard(recipe: recipe)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+struct PublicProfilePlaceholderView: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 72))
+                .foregroundStyle(SauceColor.primaryContainer)
+            Text("상대페이지 준비 중")
+                .font(.title.weight(.black))
+            Text("공개 프로필 API 계약이 추가되면 실제 셰프 페이지를 연결합니다.")
+                .multilineTextAlignment(.center)
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+        }
+        .padding(28)
+        .background(SauceColor.surface.ignoresSafeArea())
+    }
+}
+
+struct LoginRequiredView: View {
+    let authStore: AuthSessionStoreProtocol
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Text("Sauce Master")
+                .font(.largeTitle.weight(.black).italic())
+                .foregroundStyle(SauceColor.primaryContainer)
+            Text("로그인이 필요한 기능입니다.")
+                .font(.headline)
+            Button("카카오로 시작하기") {
+                authStore.saveMockSession()
+            }
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+            .background(Color(red: 1.0, green: 0.82, blue: 0.0))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .padding(28)
+        .background(SauceColor.surface.ignoresSafeArea())
+    }
+}
