@@ -1,0 +1,21 @@
+.DS_Store
+.idea/
+.codex/
+
+# OMX runtime noise; keep .omx/plans available for explicit plan commits.
+.omx/context/
+.omx/logs/
+.omx/state/
+.omx/metrics.json
+.omx/tmux-hook.json
+
+# Xcode local state and build products
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# Gradle / Kotlin build products
+.gradle/
+build/
+**/build/
+.kotlin/

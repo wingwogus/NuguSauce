@@ -1,0 +1,61 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+    open-in-view: false
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    auth-code-expiration-millis: 1800000
+    verified-state-expiration-millis: 1800000
+# Base64 인코딩된 dummy key. (실서버에서는 secret을 프로필마다 override)
+jwt:
+  secret: t2oRk29vBQZWS8GEt4xr8AJznlPK0ipBKUwdyqe10SOGZB26vVBMjzqualdJsjcOY1wX9DOqJC9V1DFl58F0tQ==
+
+redis:
+  host: localhost
+  port: 6379
+
+app:
+  mail:
+    from-name: ${MAIL_FROM_NAME:NuguSauce}
+
+auth:
+  kakao:
+    oidc:
+      issuer: https://kauth.kakao.com
+      audience: ${KAKAO_NATIVE_APP_KEY:test-kakao-native-app-key}
+      discovery-uri: https://kauth.kakao.com/.well-known/openid-configuration
+      allowed-clock-skew-seconds: 60
+      nonce-replay-ttl-seconds: 600
+
+nugusauce:
+  seed:
+    enabled: ${NUGUSAUCE_SEED_ENABLED:false}

@@ -1,0 +1,55 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${PROD_DB_URL}
+    username: ${PROD_DB_USERNAME}
+    password: ${PROD_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: false
+    open-in-view: false
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    auth-code-expiration-millis: 1800000
+    verified-state-expiration-millis: 1800000
+jwt:
+  secret: ${PROD_JWT_SECRET}
+
+redis:
+  host: ${REDIS_HOST}
+  port: ${REDIS_PORT}
+
+app:
+  mail:
+    from-name: ${PROD_MAIL_FROM_NAME:NuguSauce}
+
+auth:
+  kakao:
+    oidc:
+      issuer: https://kauth.kakao.com
+      audience: ${KAKAO_NATIVE_APP_KEY}
+      discovery-uri: https://kauth.kakao.com/.well-known/openid-configuration
+      allowed-clock-skew-seconds: 60
+      nonce-replay-ttl-seconds: 600

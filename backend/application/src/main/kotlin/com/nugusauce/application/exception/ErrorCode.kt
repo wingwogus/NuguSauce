@@ -1,0 +1,40 @@
+package com.nugusauce.application.exception
+
+enum class ErrorCode(
+    val code: String,
+    val messageKey: String,
+    val status: Int
+) {
+
+    INVALID_INPUT("COMMON_001", "error.invalid_input", 400),
+    INVALID_JSON("COMMON_002", "error.invalid_json", 400),
+    INTERNAL_ERROR("COMMON_999", "error.internal_error", 500),
+    RESOURCE_NOT_FOUND("RESOURCE_001","error.resource_not_found", 404),
+    USER_NOT_FOUND("USER_001", "error.user_not_found", 404),
+    USER_ALREADY_EXISTS("USER_002", "error.user_already_exists", 409),
+    DUPLICATE_EMAIL("AUTH_003", "error.duplicate_email", 409),
+    EMAIL_NOT_VERIFIED("AUTH_004", "error.email_not_verified", 400),
+    AUTH_CODE_NOT_FOUND("AUTH_005", "error.auth_code_not_found", 404),
+    AUTH_CODE_MISMATCH("AUTH_006", "error.auth_code_mismatch", 400),
+    ALREADY_LOGGED_OUT("AUTH_007", "error.already_logged_out", 400),
+    MALFORMED_JWT("AUTH_008", "error.malformed_jwt", 400),
+    INVALID_KAKAO_TOKEN("AUTH_009", "error.invalid_kakao_token", 401),
+    KAKAO_NONCE_MISMATCH("AUTH_010", "error.kakao_nonce_mismatch", 401),
+    KAKAO_NONCE_REPLAY("AUTH_011", "error.kakao_nonce_replay", 401),
+    KAKAO_VERIFIED_EMAIL_REQUIRED("AUTH_012", "error.kakao_verified_email_required", 422),
+    SOCIAL_ONLY_MEMBER_LOCAL_LOGIN_FORBIDDEN("AUTH_013", "error.social_only_member_local_login_forbidden", 400),
+    UNAUTHORIZED("AUTH_001", "error.unauthorized", 401),
+    FORBIDDEN("AUTH_002", "error.forbidden", 403),
+    RECIPE_NOT_FOUND("RECIPE_001", "error.recipe_not_found", 404),
+    HIDDEN_RECIPE("RECIPE_002", "error.hidden_recipe", 404),
+    INGREDIENT_NOT_FOUND("RECIPE_003", "error.ingredient_not_found", 404),
+    TAG_NOT_FOUND("RECIPE_004", "error.tag_not_found", 404),
+    DUPLICATE_REVIEW("RECIPE_005", "error.duplicate_review", 409),
+    DUPLICATE_REPORT("RECIPE_006", "error.duplicate_report", 409),
+    INVALID_RATING("RECIPE_007", "error.invalid_rating", 400),
+    INVALID_RECIPE_INGREDIENT_AMOUNT("RECIPE_008", "error.invalid_recipe_ingredient_amount", 400),
+    FORBIDDEN_ADMIN_ACTION("RECIPE_009", "error.forbidden_admin_action", 403),
+    DUPLICATE_FAVORITE("RECIPE_010", "error.duplicate_favorite", 409),
+    FAVORITE_NOT_FOUND("RECIPE_011", "error.favorite_not_found", 404),
+
+}

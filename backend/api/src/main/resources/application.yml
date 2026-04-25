@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: local  # 기본은 local 환경
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [traceId=%X{traceId}] [eventId=%X{eventId}] [userId=%X{userId}] [ip=%X{clientIp}] %-5level %logger{36} - %msg%n"

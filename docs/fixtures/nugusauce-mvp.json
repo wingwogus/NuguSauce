@@ -1,0 +1,286 @@
+{
+  "users": [
+    { "id": 1, "email": "normal.user@example.test", "role": "ROLE_USER" },
+    { "id": 2, "email": "reviewer@example.test", "role": "ROLE_USER" },
+    { "id": 3, "email": "reported.user@example.test", "role": "ROLE_USER" },
+    { "id": 99, "email": "admin@example.test", "role": "ROLE_ADMIN" }
+  ],
+  "ingredients_master": [
+    { "id": 1, "name": "참기름", "category": "oil" },
+    { "id": 2, "name": "땅콩소스", "category": "sauce" },
+    { "id": 3, "name": "다진 마늘", "category": "aromatic" },
+    { "id": 4, "name": "고수", "category": "herb" },
+    { "id": 5, "name": "다진 고추", "category": "spicy" },
+    { "id": 6, "name": "해선장", "category": "sauce" },
+    { "id": 7, "name": "간장", "category": "sauce" },
+    { "id": 8, "name": "식초", "category": "acid" },
+    { "id": 9, "name": "설탕", "category": "sweetener" },
+    { "id": 10, "name": "파", "category": "aromatic" },
+    { "id": 11, "name": "깨", "category": "topping" },
+    { "id": 12, "name": "고추기름", "category": "spicy" },
+    { "id": 13, "name": "스위트 칠리소스", "category": "sauce" },
+    { "id": 14, "name": "땅콩가루", "category": "topping" },
+    { "id": 15, "name": "고춧가루", "category": "spicy" },
+    { "id": 16, "name": "볶음 소고기장", "category": "umami" },
+    { "id": 17, "name": "마라소스", "category": "spicy" },
+    { "id": 18, "name": "참깨소스", "category": "sauce" },
+    { "id": 19, "name": "굴소스", "category": "sauce" },
+    { "id": 20, "name": "중국식초", "category": "acid" },
+    { "id": 21, "name": "흑식초", "category": "acid" },
+    { "id": 22, "name": "와사비", "category": "pungent" },
+    { "id": 23, "name": "레몬즙", "category": "acid" },
+    { "id": 24, "name": "소금", "category": "seasoning" },
+    { "id": 25, "name": "맛소금", "category": "seasoning" },
+    { "id": 26, "name": "연유", "category": "sweetener" },
+    { "id": 27, "name": "들깨가루", "category": "topping" },
+    { "id": 28, "name": "양파", "category": "aromatic" },
+    { "id": 29, "name": "태국 고추", "category": "spicy" },
+    { "id": 30, "name": "다진 고기", "category": "umami" },
+    { "id": 31, "name": "마라시즈닝", "category": "spicy" },
+    { "id": 32, "name": "청유 훠궈 소스", "category": "spicy" },
+    { "id": 33, "name": "버섯소스", "category": "sauce" },
+    { "id": 34, "name": "오향 우육", "category": "umami" },
+    { "id": 35, "name": "매운 소고기 소스", "category": "spicy" },
+    { "id": 36, "name": "쪽파", "category": "aromatic" },
+    { "id": 37, "name": "대파", "category": "aromatic" },
+    { "id": 38, "name": "참깨가루", "category": "topping" }
+  ],
+  "tags": [
+    { "id": 1, "name": "고소함" },
+    { "id": 2, "name": "매콤함" },
+    { "id": 3, "name": "달달함" },
+    { "id": 4, "name": "상큼함" },
+    { "id": 5, "name": "초보추천" },
+    { "id": 6, "name": "마라강함" },
+    { "id": 7, "name": "감칠맛" },
+    { "id": 8, "name": "담백함" },
+    { "id": 9, "name": "마늘향" },
+    { "id": 10, "name": "해산물추천" },
+    { "id": 11, "name": "채식추천" },
+    { "id": 12, "name": "유명조합" },
+    { "id": 13, "name": "한국식" },
+    { "id": 14, "name": "셀럽추천" }
+  ],
+  "recipes_curated": [
+    {
+      "id": 1,
+      "title": "건희 소스 오리지널",
+      "description": "원어스 건희가 팬 소통 채널과 SNS를 통해 알린 대표 하이디라오 소스",
+      "spiceLevel": 3,
+      "richnessLevel": 4,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 3, 12, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 13, "amount": 2.5, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 11, "amount": 1.0, "unit": "티스푼" },
+        { "ingredientId": 14, "amount": 1.0, "unit": "티스푼" },
+        { "ingredientId": 15, "amount": 0.5, "unit": "티스푼" },
+        { "ingredientId": 12, "amount": 1.0, "unit": "티스푼" },
+        { "ingredientId": 9, "amount": 0.3, "unit": "티스푼" },
+        { "ingredientId": 16, "amount": 0.5, "unit": "티스푼" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "건희 소스 2025 버전",
+      "description": "원어스 건희의 2025년식 하이디라오 소스 조합",
+      "spiceLevel": 3,
+      "richnessLevel": 5,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 7, 12, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 13, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 12, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 35, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 19, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 29, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 14, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 38, "amount": 0.3, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "마크 소스",
+      "description": "마크가 SNS로 공개한 땅콩, 간장, 굴소스 기반 하이디라오 소스",
+      "spiceLevel": 4,
+      "richnessLevel": 4,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 7, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.5, "unit": "스푼" },
+        { "ingredientId": 28, "amount": 1.5, "unit": "스푼" },
+        { "ingredientId": 19, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 29, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 7, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 30, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 14, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 15, "amount": 0.3, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "필릭스 소스",
+      "description": "필릭스가 SNS로 공개한 마라시즈닝과 청유 훠궈 소스를 섞은 조합",
+      "spiceLevel": 5,
+      "richnessLevel": 4,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 6, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 2.0, "unit": "꼬집" },
+        { "ingredientId": 31, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 28, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 32, "amount": 1.0, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "숨김 처리된 샘플",
+      "description": "공개 목록에서 제외되어야 하는 fixture",
+      "spiceLevel": 2,
+      "richnessLevel": 2,
+      "visibility": "HIDDEN",
+      "tagIds": [2],
+      "ingredients": [
+        { "ingredientId": 5, "amount": 1.0, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "아이엔 소스",
+      "description": "아이엔이 SNS로 공개한 버섯소스와 오향 우육 중심의 진한 조합",
+      "spiceLevel": 4,
+      "richnessLevel": 5,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 7, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 33, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.5, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 2.0, "unit": "꼬집" },
+        { "ingredientId": 34, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 35, "amount": 1.0, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "우기 소스",
+      "description": "우기가 SNS로 공개한 고수, 마늘, 식초를 강하게 쓰는 산뜻한 조합",
+      "spiceLevel": 2,
+      "richnessLevel": 3,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 4, 9, 14],
+      "ingredients": [
+        { "ingredientId": 2, "amount": 1.5, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 4, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 8, "amount": 3.0, "unit": "스푼" },
+        { "ingredientId": 14, "amount": 1.0, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "성찬 소스",
+      "description": "성찬이 SNS로 공개한 참깨소스, 칠리, 다진 고기를 넣은 고소한 조합",
+      "spiceLevel": 3,
+      "richnessLevel": 5,
+      "visibility": "VISIBLE",
+      "tagIds": [1, 2, 7, 14],
+      "ingredients": [
+        { "ingredientId": 18, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 13, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 30, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 36, "amount": 2.0, "unit": "스푼" },
+        { "ingredientId": 14, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 37, "amount": 0.5, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "소희 소스",
+      "description": "소희가 SNS로 공개한 참기름, 마늘, 굴소스 중심의 담백한 조합",
+      "spiceLevel": 2,
+      "richnessLevel": 3,
+      "visibility": "VISIBLE",
+      "tagIds": [7, 8, 9, 14],
+      "ingredients": [
+        { "ingredientId": 1, "amount": 3.0, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 16, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 13, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 19, "amount": 1.0, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "지수 특제 고수 간장 소스",
+      "description": "블랙핑크 지수가 에스콰이어 일일 에디터 글에서 직접 소개한 고수 듬뿍 간장 소스",
+      "spiceLevel": 1,
+      "richnessLevel": 1,
+      "visibility": "VISIBLE",
+      "tagIds": [4, 8, 10, 14],
+      "ingredients": [
+        { "ingredientId": 4, "amount": 3.0, "unit": "스푼" },
+        { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 22, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 3, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 5, "amount": 0.5, "unit": "스푼" },
+        { "ingredientId": 7, "amount": 3.0, "unit": "스푼" },
+        { "ingredientId": 9, "amount": 0.3, "unit": "스푼" },
+        { "ingredientId": 20, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+      ]
+    }
+  ],
+  "recipes_user_generated": [
+    {
+      "id": 101,
+      "authorUserId": 1,
+      "title": "마늘 듬뿍 고소 소스",
+      "description": "마늘 향이 강한 사용자 조합",
+      "visibility": "VISIBLE",
+      "ingredients": [
+        { "ingredientId": 3, "amount": 1.5, "unit": "스푼" },
+        { "ingredientId": 1, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 2, "amount": 0.5, "unit": "스푼" }
+      ]
+    },
+    {
+      "id": 102,
+      "authorUserId": 2,
+      "title": "고수 상큼 소스",
+      "description": "고수와 식초 중심의 산뜻한 조합",
+      "visibility": "VISIBLE",
+      "ingredients": [
+        { "ingredientId": 4, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 8, "amount": 1.0, "unit": "스푼" },
+        { "ingredientId": 7, "amount": 0.5, "unit": "스푼" }
+      ]
+    }
+  ],
+  "reviews": [
+    { "id": 1001, "recipeId": 1, "authorUserId": 1, "rating": 5, "text": "단짠 균형이 좋아서 계속 손이 감", "tasteTagIds": [1, 12] },
+    { "id": 1002, "recipeId": 1, "authorUserId": 2, "rating": 4, "text": "고소하지만 살짝 더 매워도 좋음", "tasteTagIds": [1, 2] },
+    { "id": 1003, "recipeId": 2, "authorUserId": 2, "rating": 5, "text": "감칠맛이 더 진한 버전", "tasteTagIds": [1, 7] },
+    { "id": 1004, "recipeId": 3, "authorUserId": 1, "rating": 4, "text": "간장과 땅콩 베이스가 묵직함", "tasteTagIds": [1, 7] }
+  ],
+  "reports": [
+    { "id": 2001, "recipeId": 5, "reporterUserId": 1, "reason": "부적절한 내용" }
+  ],
+  "favorites": [
+    { "id": 3001, "recipeId": 1, "memberUserId": 1 },
+    { "id": 3002, "recipeId": 2, "memberUserId": 2 }
+  ]
+}
