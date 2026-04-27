@@ -28,6 +28,11 @@ This file applies to future iOS work under `ios/`.
 - Add XCUITest smoke coverage for the product flows named in `.omx/plans/test-spec-nugusauce-v0.md`.
 - Do not introduce a new package or SDK without explicit user request.
 
+## Commit Convention
+
+- Follow the repository root commit convention for iOS changes.
+- Commit subjects must use `feat:{변경사항 한국어로}` with the text after `feat:` written in Korean.
+
 ## Auth Boundary
 
 iOS obtains a Kakao OIDC ID token and sends it with a nonce to `POST /api/v1/auth/kakao/login`. Store NuguSauce service tokens in the platform-appropriate secure storage.
