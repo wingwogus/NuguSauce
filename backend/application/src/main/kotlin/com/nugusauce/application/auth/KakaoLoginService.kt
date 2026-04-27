@@ -2,6 +2,7 @@ package com.nugusauce.application.auth
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.member.MemberResult
 import com.nugusauce.application.redis.KakaoNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
 import com.nugusauce.application.security.KakaoOidcClaims
@@ -37,7 +38,7 @@ class KakaoLoginService(
     private val maxNonceReplayTtl = Duration.ofSeconds(nonceReplayTtlSeconds)
     private val allowedClockSkew = Duration.ofSeconds(allowedClockSkewSeconds)
 
-    fun login(command: AuthCommand.KakaoLogin): AuthResult.TokenPair {
+    fun login(command: AuthCommand.KakaoLogin): AuthResult.KakaoLogin {
         val claims = kakaoOidcTokenVerifier.verify(command.idToken, command.nonce)
         reserveNonce(claims)
 
@@ -104,13 +105,17 @@ class KakaoLoginService(
         return userInfo.email?.takeIf { it.isNotBlank() && userInfo.emailVerified }
     }
 
-    private fun issueAndStoreTokens(member: Member): AuthResult.TokenPair {
+    private fun issueAndStoreTokens(member: Member): AuthResult.KakaoLogin {
         val tokenPair = tokenProvider.generateToken(member.id, member.role)
         refreshTokenRepository.save(
             member.id,
             tokenPair.refreshToken,
             tokenProvider.getRefreshTokenValiditySeconds()
         )
-        return tokenPair
+        return AuthResult.KakaoLogin(
+            accessToken = tokenPair.accessToken,
+            refreshToken = tokenPair.refreshToken,
+            member = MemberResult.me(member)
+        )
     }
 }

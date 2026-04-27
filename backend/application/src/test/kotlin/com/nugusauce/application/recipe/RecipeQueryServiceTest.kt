@@ -2,7 +2,9 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
+import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.review.RecipeReviewTagCountProjection
 import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
@@ -11,6 +13,7 @@ import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -94,6 +97,26 @@ class RecipeQueryServiceTest {
         }
 
         assertEquals(ErrorCode.HIDDEN_RECIPE, exception.errorCode)
+    }
+
+    @Test
+    fun `listReviews includes safe public author name`() {
+        val recipe = recipe()
+        val review = RecipeReview(
+            id = 30L,
+            recipe = recipe,
+            author = Member(7L, "reviewer@example.test", null),
+            rating = 4,
+            text = "고소해요"
+        )
+        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe))
+        `when`(recipeReviewRepository.findAllByRecipeIdOrderByCreatedAtDesc(10L)).thenReturn(listOf(review))
+
+        val results = service.listReviews(10L)
+
+        assertEquals("사용자 7", results.first().authorName)
+        assertNotEquals("reviewer@example.test", results.first().authorName)
+        assertEquals("고소해요", results.first().text)
     }
 
     private fun recipe(

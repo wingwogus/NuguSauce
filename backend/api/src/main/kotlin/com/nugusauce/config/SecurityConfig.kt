@@ -42,6 +42,7 @@ class SecurityConfig(
             "/api/v1/recipes/*/reviews",
             "/api/v1/ingredients",
             "/api/v1/tags",
+            "/api/v1/members/*",
         )
     }
 
@@ -77,6 +78,8 @@ class SecurityConfig(
                 it
                     .requestMatchers(*PUBLIC_ENDPOINTS.toTypedArray())
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/members/me")
+                    .authenticated()
                     .requestMatchers(HttpMethod.GET, *PUBLIC_GET_ENDPOINTS.toTypedArray())
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")

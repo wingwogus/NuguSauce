@@ -159,6 +159,15 @@ class AuthSecurityIntegrationTest(
     }
 
     @Test
+    fun `member self endpoint requires authentication but public member profile is readable`() {
+        mockMvc.perform(get("/api/v1/members/me"))
+            .andExpect(status().isUnauthorized)
+
+        mockMvc.perform(get("/api/v1/members/999"))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
     fun `favorite mutation endpoints require authentication`() {
         mockMvc.perform(post("/api/v1/me/favorite-recipes/1"))
             .andExpect(status().isUnauthorized)

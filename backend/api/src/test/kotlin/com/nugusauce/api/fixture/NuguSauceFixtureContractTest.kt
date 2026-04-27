@@ -12,6 +12,17 @@ import kotlin.io.path.exists
 
 class NuguSauceFixtureContractTest {
     private val fixture = loadFixture()
+    private val allowedIngredientCategories = setOf(
+        "sauce_paste",
+        "oil",
+        "vinegar_citrus",
+        "fresh_aromatic",
+        "dry_seasoning",
+        "sweet_dairy",
+        "topping_seed",
+        "protein",
+        "other"
+    )
 
     @Test
     fun `curated recipes include visible celebrity sauce set and hidden sample`() {
@@ -38,6 +49,18 @@ class NuguSauceFixtureContractTest {
             val ids = fixture.requiredArray(groupName).map { it.requiredLong("id") }
 
             assertEquals(ids.size, ids.toSet().size, "Duplicate IDs in $groupName")
+        }
+    }
+
+    @Test
+    fun `ingredient categories are physical groupings`() {
+        fixture.requiredArray("ingredients_master").forEach { ingredient ->
+            val category = ingredient.requiredText("category")
+
+            assertTrue(
+                category in allowedIngredientCategories,
+                "Unsupported ingredient category $category for ${ingredient.requiredText("name")}"
+            )
         }
     }
 

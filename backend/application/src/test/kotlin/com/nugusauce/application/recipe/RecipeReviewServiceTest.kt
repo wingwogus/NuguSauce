@@ -68,6 +68,7 @@ class RecipeReviewServiceTest {
             )
         )
 
+        assertEquals("사용자 1", result.authorName)
         assertEquals(5, result.rating)
         assertEquals(1, recipe.reviewCount)
         assertEquals(5.0, recipe.averageRating)

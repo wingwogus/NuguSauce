@@ -150,6 +150,7 @@ object RecipeResponses {
     data class ReviewResponse(
         val id: Long,
         val recipeId: Long,
+        val authorName: String,
         val rating: Int,
         val text: String?,
         val tasteTags: List<TagResponse>,
@@ -160,6 +161,7 @@ object RecipeResponses {
                 return ReviewResponse(
                     id = result.id,
                     recipeId = result.recipeId,
+                    authorName = result.authorName,
                     rating = result.rating,
                     text = result.text,
                     tasteTags = result.tasteTags.map(TagResponse::from),

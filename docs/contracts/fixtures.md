@@ -50,6 +50,10 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
 - `recipes_curated` contains visible celebrity/creator-attributed famous sauce combinations and at least one hidden recipe.
 - `recipes_user_generated` contains user-created recipes tied to fixture users and must not include `spiceLevel`, `richnessLevel`, or `tagIds`.
 - `ingredients_master` contains stable Haidilao sauce bar ingredients.
+- `ingredients_master[].category` is a physical ingredient grouping, not a taste
+  classification. Allowed values are `sauce_paste`, `oil`, `vinegar_citrus`,
+  `fresh_aromatic`, `dry_seasoning`, `sweet_dairy`, `topping_seed`, `protein`,
+  and `other`.
 - `tags` contains taste tags such as `고소함`, `매콤함`, `달달함`, `상큼함`.
 - `reviews` contains mixed ratings and `tasteTagIds`; user-generated recipe taste classification comes from review tags, not author input.
 - `reports` contains at least one report and must not expose reporter identity in public responses.

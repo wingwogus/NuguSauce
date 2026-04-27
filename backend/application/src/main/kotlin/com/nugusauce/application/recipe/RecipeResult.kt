@@ -78,6 +78,7 @@ object RecipeResult {
     data class ReviewItem(
         val id: Long,
         val recipeId: Long,
+        val authorName: String,
         val rating: Int,
         val text: String?,
         val tasteTags: List<TagItem>,
@@ -168,6 +169,7 @@ object RecipeResult {
         return ReviewItem(
             id = review.id,
             recipeId = review.recipe.id,
+            authorName = review.author.nickname ?: "사용자 ${review.author.id}",
             rating = review.rating,
             text = review.text,
             tasteTags = review.tasteTags.map(::fromTag).sortedBy { it.name },

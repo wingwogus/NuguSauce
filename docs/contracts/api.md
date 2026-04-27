@@ -119,15 +119,90 @@ Success data:
 ```json
 {
   "accessToken": "<nugusauce_access_token>",
-  "refreshToken": "<nugusauce_refresh_token>"
+  "refreshToken": "<nugusauce_refresh_token>",
+  "member": {
+    "id": 1,
+    "nickname": null,
+    "displayName": "사용자 1",
+    "profileSetupRequired": true
+  }
 }
 ```
+
+`member.email` is never returned from this endpoint. Kakao identity data proves
+login only; the public NuguSauce nickname is a service profile field.
 
 ### `POST /api/v1/auth/reissue`
 
 Refresh token may come from the request body or `refreshToken` cookie.
 
-Success data matches the token pair shape above.
+Success data:
+
+```json
+{
+  "accessToken": "<nugusauce_access_token>",
+  "refreshToken": "<nugusauce_refresh_token>"
+}
+```
+
+## Member API
+
+Member APIs use the shared response envelope above.
+
+### Profile rules
+
+- Member email and provider identity are never returned from member APIs.
+- `nickname` is the service-owned public nickname.
+- `displayName` is safe public display text. It is the nickname when set,
+  otherwise `"사용자 {id}"`.
+- `profileSetupRequired` is true when the authenticated member has no nickname.
+- Nicknames are trimmed before validation and storage.
+- Nicknames must be 2..20 characters and contain only Korean letters, English
+  letters, digits, or `_`.
+- Nicknames are globally unique.
+
+### `GET /api/v1/members/me`
+
+Requires JWT.
+
+Success data:
+
+```json
+{
+  "id": 1,
+  "nickname": "소스장인",
+  "displayName": "소스장인",
+  "profileSetupRequired": false
+}
+```
+
+### `PATCH /api/v1/members/me`
+
+Requires JWT.
+
+Request:
+
+```json
+{
+  "nickname": "소스장인"
+}
+```
+
+Success data matches the `GET /api/v1/members/me` shape.
+
+### `GET /api/v1/members/{memberId}`
+
+Public endpoint for another member's safe public profile.
+
+Success data:
+
+```json
+{
+  "id": 2,
+  "nickname": "마라초보",
+  "displayName": "마라초보"
+}
+```
 
 ## Recipe API
 
@@ -252,9 +327,16 @@ Success data:
 
 ```json
 [
-  { "id": 1, "name": "참기름", "category": "oil" }
+  { "id": 1, "name": "참기름", "category": "oil" },
+  { "id": 2, "name": "땅콩소스", "category": "sauce_paste" }
 ]
 ```
+
+Ingredient `category` is a physical ingredient grouping for sauce registration,
+not a taste classification. Current stable category values are `sauce_paste`,
+`oil`, `vinegar_citrus`, `fresh_aromatic`, `dry_seasoning`, `sweet_dairy`,
+`topping_seed`, `protein`, and `other`. Taste classification remains in
+review/tag data.
 
 ### `GET /api/v1/tags`
 
@@ -288,6 +370,7 @@ Success data:
 {
   "id": 10,
   "recipeId": 1,
+  "authorName": "사용자 1",
   "rating": 5,
   "text": "고소하고 초보자도 먹기 좋았어요",
   "tasteTags": [
@@ -306,6 +389,7 @@ Success data:
   {
     "id": 10,
     "recipeId": 1,
+    "authorName": "사용자 1",
     "rating": 5,
     "text": "고소하고 초보자도 먹기 좋았어요",
     "tasteTags": [
@@ -315,6 +399,8 @@ Success data:
   }
 ]
 ```
+
+`authorName` is safe public display text for the review author. It must not expose the author's email address.
 
 ### `POST /api/v1/recipes/{recipeId}/reports`
 

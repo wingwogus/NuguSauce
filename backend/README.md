@@ -52,10 +52,32 @@ auth:
 The imported OIDC branch expects these auth schema capabilities:
 
 * `member.password_hash` must be nullable.
+* `member.nickname` must be nullable and limited to 20 characters.
+* `member.nickname` must have a unique constraint named `uk_member_nickname`.
 * `external_identity` stores `member_id`, `provider`, `provider_subject`, and `email_at_link_time`.
 * `(provider, provider_subject)` must be unique.
 
 Flyway is not included yet. NuguSauce should add migrations when the production database choice is finalized.
+
+Until a migration tool is added, apply this manual MySQL rollout before deploying member profile endpoints to any `dev` or `prod` database:
+
+```sql
+ALTER TABLE member
+    ADD COLUMN nickname VARCHAR(20) NULL;
+
+ALTER TABLE member
+    ADD CONSTRAINT uk_member_nickname UNIQUE (nickname);
+```
+
+Rollback:
+
+```sql
+ALTER TABLE member
+    DROP INDEX uk_member_nickname;
+
+ALTER TABLE member
+    DROP COLUMN nickname;
+```
 
 ## Run
 

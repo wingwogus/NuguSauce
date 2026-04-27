@@ -47,6 +47,8 @@ Auth/user:
 - `AUTH_013`: social-only member local login forbidden
 - `USER_001`: user not found
 - `USER_002`: user already exists
+- `USER_003`: invalid nickname
+- `USER_004`: duplicate nickname
 
 Recipe MVP:
 

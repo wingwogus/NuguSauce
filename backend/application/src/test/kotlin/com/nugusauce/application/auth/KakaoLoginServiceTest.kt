@@ -84,7 +84,11 @@ class KakaoLoginServiceTest {
 
         val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
-        assertEquals(AuthResult.TokenPair("access-token", "refresh-token"), result)
+        assertEquals("access-token", result.accessToken)
+        assertEquals("refresh-token", result.refreshToken)
+        assertEquals(1L, result.member.id)
+        assertEquals("사용자 1", result.member.displayName)
+        assertTrue(result.member.profileSetupRequired)
         assertEquals("nonce", nonceRepository.lastNonce)
         verify(refreshTokenRepository).save(1L, "refresh-token", 120L)
     }

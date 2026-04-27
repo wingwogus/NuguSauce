@@ -7,6 +7,7 @@ import com.nugusauce.application.auth.AuthService
 import com.nugusauce.application.auth.KakaoLoginService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.member.MemberResult
 import com.nugusauce.application.security.TokenProvider
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
@@ -93,7 +94,18 @@ class AuthControllerBusinessTest(
     @Test
     fun `kakao login returns token pair from service`() {
         `when`(kakaoLoginService.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token")))
-            .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
+            .thenReturn(
+                AuthResult.KakaoLogin(
+                    accessToken = "access-token",
+                    refreshToken = "refresh-token",
+                    member = MemberResult.Me(
+                        id = 1L,
+                        nickname = null,
+                        displayName = "사용자 1",
+                        profileSetupRequired = true
+                    )
+                )
+            )
 
         mockMvc.perform(
             post("/api/v1/auth/kakao/login")
@@ -104,6 +116,9 @@ class AuthControllerBusinessTest(
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.accessToken", equalTo("access-token")))
             .andExpect(jsonPath("$.data.refreshToken", equalTo("refresh-token")))
+            .andExpect(jsonPath("$.data.member.id", equalTo(1)))
+            .andExpect(jsonPath("$.data.member.displayName", equalTo("사용자 1")))
+            .andExpect(jsonPath("$.data.member.profileSetupRequired", equalTo(true)))
     }
 
     @Test
