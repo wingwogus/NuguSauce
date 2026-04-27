@@ -89,6 +89,10 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
         currentSession?.accessToken
     }
 
+    var requiresProfileSetup: Bool {
+        currentSession?.profileSetupRequired == true
+    }
+
     func restore() {
         guard let accessToken = tokenStore.read(account: .accessToken) else {
             return
@@ -135,6 +139,15 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
         userDefaults.set(resolvedDisplayName, forKey: displayNameKey)
         clearPersistedMemberProfile()
         currentSession = AuthSession(displayName: resolvedDisplayName, accessToken: accessToken, refreshToken: persistedRefreshToken)
+        return true
+    }
+
+    @discardableResult
+    func saveSession(accessToken: String, refreshToken: String?, member: MemberProfileDTO) -> Bool {
+        guard saveSession(accessToken: accessToken, refreshToken: refreshToken, displayName: member.displayName) else {
+            return false
+        }
+        updateMemberProfile(member)
         return true
     }
 

@@ -15,10 +15,7 @@ struct SearchView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("검색")
-                    .font(.largeTitle.weight(.black))
-                    .padding(.top, 18)
-
+                SauceScreenTitle(title: "검색")
                 searchField
                 sortPicker
                 tagSection

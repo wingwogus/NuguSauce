@@ -4,6 +4,7 @@ struct ProfileView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: ProfileViewModel
+    @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         self.apiClient = apiClient
@@ -15,17 +16,13 @@ struct ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 topBar
+                appearanceSettingsCard
                 if authStore.isAuthenticated {
                     profileHero
                     if viewModel.profileSetupRequired {
                         nicknameSetupCard
                     }
                     recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
-                    NavigationLink(value: AppRoute.publicProfile(2)) {
-                        Text("상대페이지")
-                            .primarySauceButton()
-                    }
-                    .buttonStyle(.plain)
                 } else {
                     LoginRequiredView(apiClient: apiClient, authStore: authStore)
                 }
@@ -61,13 +58,42 @@ struct ProfileView: View {
     }
 
     private var topBar: some View {
-        HStack {
-            Text("Chef Profile")
-                .font(.headline.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
-            Spacer()
+        SauceScreenTitle(title: "내 프로필")
+    }
+
+    private var appearanceSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "circle.lefthalf.filled")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SauceColor.primaryContainer)
+                Text("화면 모드")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+            }
+
+            Picker("화면 모드", selection: themePreferenceBinding) {
+                ForEach(SauceThemePreference.allCases) { preference in
+                    Text(preference.title)
+                        .tag(preference)
+                }
+            }
+            .pickerStyle(.segmented)
         }
-        .padding(.top, 18)
+        .padding(16)
+        .background(SauceColor.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var themePreferenceBinding: Binding<SauceThemePreference> {
+        Binding(
+            get: {
+                SauceThemePreference(rawValue: themePreferenceRawValue) ?? .system
+            },
+            set: { preference in
+                themePreferenceRawValue = preference.rawValue
+            }
+        )
     }
 
     private var profileHero: some View {
@@ -77,17 +103,16 @@ struct ProfileView: View {
                 .foregroundStyle(SauceColor.onSurfaceVariant)
             Text(viewModel.displayName)
                 .font(.largeTitle.weight(.black))
-            Text("실제 백엔드 세션")
-                .foregroundStyle(SauceColor.onSurfaceVariant)
+                .foregroundStyle(SauceColor.onSurface)
             HStack(spacing: 44) {
-                stat("\(viewModel.myRecipes.count)", "MY RECIPES")
-                stat("\(viewModel.favoriteRecipes.count)", "FAVORITES")
+                stat("\(viewModel.myRecipes.count)", "내 레시피")
+                stat("\(viewModel.favoriteRecipes.count)", "찜한 레시피")
             }
             Button("로그아웃") {
                 authStore.clear()
             }
                 .font(.headline.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(SauceColor.onPrimary)
                 .padding(.horizontal, 48)
                 .padding(.vertical, 13)
                 .background(SauceColor.primaryContainer)
@@ -170,7 +195,93 @@ struct PublicProfilePlaceholderView: View {
     }
 }
 
+struct ProfileSetupGateView: View {
+    @StateObject private var viewModel: ProfileViewModel
+    @FocusState private var isNicknameFocused: Bool
+
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
+        _viewModel = StateObject(wrappedValue: ProfileViewModel(apiClient: apiClient, authStore: authStore))
+    }
+
+    var body: some View {
+        ZStack {
+            SauceColor.surfaceContainerLow.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("NuguSauce")
+                        .font(.largeTitle.weight(.black).italic())
+                        .foregroundStyle(SauceColor.primaryContainer)
+                    Text("닉네임을 정해주세요")
+                        .font(.title.weight(.black))
+                    Text("저장한 닉네임은 레시피와 리뷰에 표시됩니다.")
+                        .font(.subheadline)
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("닉네임")
+                        .font(.headline.weight(.bold))
+                    TextField("소스장인", text: $viewModel.nicknameDraft)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textContentType(.nickname)
+                        .submitLabel(.done)
+                        .focused($isNicknameFocused)
+                        .padding(16)
+                        .background(SauceColor.surfaceContainerLow)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .onSubmit {
+                            Task {
+                                await saveNickname()
+                            }
+                        }
+                }
+
+                Button {
+                    Task {
+                        await saveNickname()
+                    }
+                } label: {
+                    Text(viewModel.isSavingNickname ? "저장 중..." : "닉네임 저장")
+                        .frame(maxWidth: .infinity)
+                }
+                .primarySauceButton()
+                .disabled(!canSaveNickname)
+
+                if let nicknameErrorMessage = viewModel.nicknameErrorMessage {
+                    SauceStatusBanner(message: nicknameErrorMessage)
+                }
+            }
+            .padding(26)
+            .frame(maxWidth: 430)
+            .background(SauceColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, SauceSpacing.screen)
+        }
+        .task {
+            isNicknameFocused = true
+        }
+    }
+
+    private var canSaveNickname: Bool {
+        !viewModel.isSavingNickname &&
+            !viewModel.nicknameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    @MainActor
+    private func saveNickname() async {
+        guard canSaveNickname else {
+            return
+        }
+        _ = await viewModel.saveNickname()
+    }
+}
+
 struct LoginRequiredView: View {
+    private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
+    private static let kakaoLoginButtonMaxWidth: CGFloat = 300
+    private static let kakaoLoginButtonMaxHeight: CGFloat = 45
+
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     private let kakaoLoginService = KakaoLoginService()
@@ -190,18 +301,24 @@ struct LoginRequiredView: View {
                     await loginWithKakao()
                 }
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "bubble.left.fill")
-                    Text(isLoggingIn ? "카카오 로그인 중..." : "카카오로 시작하기")
+                GeometryReader { proxy in
+                    let buttonWidth = min(proxy.size.width, Self.kakaoLoginButtonMaxWidth)
+
+                    Image("KakaoLoginLargeWide")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: buttonWidth,
+                            height: buttonWidth / Self.kakaoLoginButtonAspectRatio
+                        )
+                        .opacity(isLoggingIn ? 0.65 : 1)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .font(.headline.weight(.bold))
+                .frame(height: Self.kakaoLoginButtonMaxHeight)
             }
-            .foregroundStyle(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(Color(red: 1.0, green: 0.82, blue: 0.0))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .buttonStyle(.plain)
             .disabled(isLoggingIn)
+            .accessibilityLabel(isLoggingIn ? "카카오 로그인 중" : "카카오로 시작하기")
 
             if let errorMessage {
                 SauceStatusBanner(message: errorMessage)
@@ -230,8 +347,7 @@ struct LoginRequiredView: View {
                 nonce: credential.nonce,
                 kakaoAccessToken: credential.kakaoAccessToken
             )
-            if authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, displayName: tokens.member.displayName) {
-                authStore.updateMemberProfile(tokens.member)
+            if authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, member: tokens.member) {
                 errorMessage = nil
             } else {
                 errorMessage = authStore.persistenceFailure?.message ?? "로그인 세션을 안전하게 저장하지 못했어요. 다시 시도해주세요."

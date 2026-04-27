@@ -41,24 +41,8 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        HStack {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 38))
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-            Spacer()
-            Text("NuguSauce")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
-                .underline(color: SauceColor.primaryContainer)
-            Spacer()
-            SauceIconButton(
-                systemName: "magnifyingglass",
-                background: SauceColor.surfaceLowest,
-                action: openSearch
-            )
-        }
-        .padding(.top, 18)
-        .padding(.horizontal, SauceSpacing.screen)
+        SauceScreenTitle(title: "NuguSauce")
+            .padding(.horizontal, SauceSpacing.screen)
     }
 
     private var searchBar: some View {

@@ -26,6 +26,7 @@ final class CreateRecipeViewModel: ObservableObject {
     @Published private(set) var didSubmit = false
     @Published private(set) var isSubmitting = false
     @Published private(set) var submittedRecipeTitle: String?
+    @Published private(set) var submittedRecipeID: Int?
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
@@ -80,16 +81,6 @@ final class CreateRecipeViewModel: ObservableObject {
         ingredientSearchText = ""
     }
 
-    func addNextIngredient() {
-        guard let ingredient = quickAddIngredients.first(where: { candidate in
-            !ingredients.contains { $0.ingredient.id == candidate.id }
-        }) else {
-            errorMessage = "추가할 재료가 없습니다."
-            return
-        }
-        addIngredient(ingredient)
-    }
-
     func removeIngredient(_ editableIngredient: EditableIngredient) {
         ingredients.removeAll { $0.id == editableIngredient.id }
     }
@@ -128,30 +119,34 @@ final class CreateRecipeViewModel: ObservableObject {
         )
     }
 
-    func submit() async {
+    @discardableResult
+    func submit() async -> Int? {
         guard !isSubmitting else {
-            return
+            return nil
         }
 
         errorMessage = nil
         didSubmit = false
         submittedRecipeTitle = nil
+        submittedRecipeID = nil
 
         guard isAuthenticated else {
             errorMessage = "로그인이 필요합니다."
-            return
+            return nil
         }
         guard canSubmit else {
             errorMessage = "소스 이름과 재료를 입력해주세요."
-            return
+            return nil
         }
 
         do {
             isSubmitting = true
+            defer { isSubmitting = false }
             let recipe = try await apiClient.createRecipe(makeRequest())
             submittedRecipeTitle = recipe.title
+            submittedRecipeID = recipe.id
             didSubmit = true
-            isSubmitting = false
+            return recipe.id
         } catch {
             isSubmitting = false
             if let apiError = error as? ApiError {
@@ -159,6 +154,7 @@ final class CreateRecipeViewModel: ObservableObject {
             } else {
                 errorMessage = "레시피를 등록하지 못했어요."
             }
+            return nil
         }
     }
 

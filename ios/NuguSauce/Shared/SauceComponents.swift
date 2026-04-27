@@ -14,7 +14,7 @@ struct SauceChip: View {
             Text(title)
                 .font(.caption.weight(.semibold))
         }
-        .foregroundStyle(isSelected ? .white : SauceColor.onSurfaceVariant)
+        .foregroundStyle(isSelected ? SauceColor.onPrimary : SauceColor.onSurfaceVariant)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
         .background(isSelected ? SauceColor.primaryContainer : SauceColor.chip)
@@ -34,7 +34,7 @@ struct RatingBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(.white.opacity(0.92))
+        .background(SauceColor.surfaceLowest.opacity(0.92))
         .clipShape(Capsule())
     }
 }
@@ -42,7 +42,7 @@ struct RatingBadge: View {
 struct SauceIconButton: View {
     let systemName: String
     var foreground = SauceColor.primaryContainer
-    var background = Color.white.opacity(0.9)
+    var background = SauceColor.surfaceLowest.opacity(0.9)
     let action: () -> Void
 
     var body: some View {
@@ -70,6 +70,20 @@ struct SauceStatusBanner: View {
             .padding(14)
             .background(isError ? SauceColor.redTint : SauceColor.surfaceContainerLow)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct SauceScreenTitle: View {
+    let title: String
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.largeTitle.weight(.black))
+                .foregroundStyle(SauceColor.onSurface)
+            Spacer()
+        }
+        .padding(.top, 18)
     }
 }
 
@@ -115,7 +129,7 @@ struct SauceSearchBar: View {
             Button(action: action) {
                 Text("검색")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(SauceColor.onPrimary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
                     .background(SauceColor.primaryContainer)
@@ -128,7 +142,7 @@ struct SauceSearchBar: View {
         .padding(.vertical, 6)
         .background(SauceColor.surfaceLowest)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: 16, x: 0, y: 8)
+        .shadow(color: SauceColor.cardShadow.opacity(0.04), radius: 16, x: 0, y: 8)
         .contentShape(Rectangle())
         .onTapGesture {
             if !isEditable {
@@ -159,16 +173,16 @@ struct SauceArtwork: View {
         ZStack {
             LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
             Circle()
-                .fill(.white.opacity(0.22))
+                .fill(SauceColor.onPrimary.opacity(0.22))
                 .frame(width: height * 0.72)
                 .blur(radius: 8)
                 .offset(y: height * 0.12)
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.white.opacity(0.26))
+                .fill(SauceColor.onPrimary.opacity(0.26))
                 .frame(width: height * 0.48, height: height * 0.64)
                 .overlay(alignment: .top) {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(.white.opacity(0.55))
+                        .fill(SauceColor.onPrimary.opacity(0.55))
                         .frame(width: height * 0.40, height: height * 0.08)
                         .offset(y: -8)
                 }
@@ -176,13 +190,13 @@ struct SauceArtwork: View {
                     VStack(spacing: 8) {
                         Image(systemName: "drop.fill")
                             .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.88))
+                            .foregroundStyle(SauceColor.onPrimary.opacity(0.88))
                         Text("SAUCE")
                             .font(.caption.weight(.black))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
                     }
                 }
-                .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+                .shadow(color: SauceColor.cardShadow.opacity(0.18), radius: 18, x: 0, y: 10)
         }
         .frame(height: height)
         .clipped()

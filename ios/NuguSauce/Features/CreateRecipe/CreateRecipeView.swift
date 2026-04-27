@@ -3,28 +3,33 @@ import SwiftUI
 struct CreateRecipeView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
+    let onCreatedRecipe: (Int) -> Void
     @StateObject private var viewModel: CreateRecipeViewModel
     @State private var expandedQuickAddSectionIDs: Set<String> = []
+    private let quickAddDisclosureAnimation = Animation.spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.08)
     private let quickAddColumns = [
         GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
     ]
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore, onCreatedRecipe: @escaping (Int) -> Void = { _ in }) {
         self.apiClient = apiClient
         self.authStore = authStore
+        self.onCreatedRecipe = onCreatedRecipe
         _viewModel = StateObject(wrappedValue: CreateRecipeViewModel(apiClient: apiClient, authStore: authStore))
     }
 
     var body: some View {
         ScrollView {
-            if authStore.isAuthenticated {
-                formContent
-            } else {
-                LoginRequiredView(apiClient: apiClient, authStore: authStore)
-                    .padding(.horizontal, SauceSpacing.screen)
-                    .padding(.top, 28)
-                    .padding(.bottom, 42)
+            VStack(alignment: .leading, spacing: 30) {
+                topBar
+                if authStore.isAuthenticated {
+                    formContent
+                } else {
+                    LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                }
             }
+            .padding(.horizontal, SauceSpacing.screen)
+            .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
         .task {
@@ -34,7 +39,6 @@ struct CreateRecipeView: View {
 
     private var formContent: some View {
         VStack(alignment: .leading, spacing: 30) {
-            topBar
             photoUpload
             titleFields
             ingredientEditor
@@ -42,7 +46,9 @@ struct CreateRecipeView: View {
             statusBanners
             Button {
                 Task {
-                    await viewModel.submit()
+                    if let recipeID = await viewModel.submit() {
+                        onCreatedRecipe(recipeID)
+                    }
                 }
             } label: {
                 Text(viewModel.isSubmitting ? "등록 중..." : "레시피 등록하기")
@@ -52,17 +58,10 @@ struct CreateRecipeView: View {
             .disabled(viewModel.isSubmitting)
             .padding(.top, 6)
         }
-        .padding(.horizontal, SauceSpacing.screen)
-        .padding(.bottom, 42)
     }
 
     private var topBar: some View {
-        HStack {
-            Text("새 레시피 등록")
-                .font(.title2.weight(.black))
-            Spacer()
-        }
-        .padding(.top, 18)
+        SauceScreenTitle(title: "새 레시피 등록")
     }
 
     private var statusBanners: some View {
@@ -81,7 +80,7 @@ struct CreateRecipeView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color(red: 0.86, green: 0.90, blue: 0.90), Color(red: 0.95, green: 0.92, blue: 0.88)],
+                        colors: [SauceColor.photoPlaceholderStart, SauceColor.photoPlaceholderEnd],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -124,14 +123,6 @@ struct CreateRecipeView: View {
                 Text("재료 배합하기")
                     .font(.title2.weight(.black))
                 Spacer()
-                Button {
-                    viewModel.addNextIngredient()
-                } label: {
-                    Label("베이스 추가", systemImage: "plus")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                }
-                .buttonStyle(.plain)
             }
 
             if viewModel.ingredients.isEmpty {
@@ -280,9 +271,10 @@ struct CreateRecipeView: View {
                         .background(SauceColor.redTint)
                         .clipShape(Capsule())
                     Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: "chevron.down")
                         .font(.caption.weight(.black))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
@@ -299,9 +291,13 @@ struct CreateRecipeView: View {
                         quickAddIngredientButton(ingredient)
                     }
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .padding(.top, 2)
+                .transition(
+                    .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+                )
             }
         }
+        .animation(quickAddDisclosureAnimation, value: isExpanded)
     }
 
     private func isQuickAddSectionExpanded(_ section: IngredientQuickAddSection) -> Bool {
@@ -309,7 +305,7 @@ struct CreateRecipeView: View {
     }
 
     private func toggleQuickAddSection(_ section: IngredientQuickAddSection) {
-        withAnimation(.easeInOut(duration: 0.18)) {
+        withAnimation(quickAddDisclosureAnimation) {
             if expandedQuickAddSectionIDs.contains(section.id) {
                 expandedQuickAddSectionIDs.remove(section.id)
             } else {

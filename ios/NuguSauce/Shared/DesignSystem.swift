@@ -1,19 +1,70 @@
 import SwiftUI
+import UIKit
+
+enum SauceThemePreference: String, CaseIterable, Identifiable {
+    static let storageKey = "sauce.themePreference"
+
+    case system
+    case light
+    case dark
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .system:
+            return "시스템"
+        case .light:
+            return "라이트"
+        case .dark:
+            return "다크"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+}
 
 enum SauceColor {
-    static let surface = Color(red: 0.976, green: 0.976, blue: 0.976)
-    static let surfaceContainer = Color(red: 0.933, green: 0.933, blue: 0.933)
-    static let surfaceContainerLow = Color(red: 0.953, green: 0.953, blue: 0.953)
-    static let surfaceLowest = Color.white
-    static let primary = Color(red: 0.718, green: 0.0, blue: 0.047)
-    static let primaryContainer = Color(red: 0.902, green: 0.0, blue: 0.071)
-    static let secondary = Color(red: 0.988, green: 0.831, blue: 0.0)
-    static let onSurface = Color(red: 0.102, green: 0.110, blue: 0.110)
-    static let onSurfaceVariant = Color(red: 0.372, green: 0.235, blue: 0.211)
-    static let muted = Color(red: 0.620, green: 0.580, blue: 0.590)
-    static let outline = Color(red: 0.580, green: 0.431, blue: 0.412)
-    static let chip = Color(red: 0.925, green: 0.914, blue: 0.910)
-    static let redTint = Color(red: 1.0, green: 0.918, blue: 0.925)
+    static let surface = dynamic(light: color(0.976, 0.976, 0.976), dark: color(0.082, 0.063, 0.059))
+    static let surfaceContainer = dynamic(light: color(0.933, 0.933, 0.933), dark: color(0.153, 0.118, 0.110))
+    static let surfaceContainerLow = dynamic(light: color(0.953, 0.953, 0.953), dark: color(0.118, 0.090, 0.086))
+    static let surfaceLowest = dynamic(light: color(1.000, 1.000, 1.000), dark: color(0.188, 0.141, 0.129))
+    static let primary = dynamic(light: color(0.718, 0.000, 0.047), dark: color(1.000, 0.314, 0.376))
+    static let primaryContainer = dynamic(light: color(0.902, 0.000, 0.071), dark: color(1.000, 0.392, 0.447))
+    static let secondary = dynamic(light: color(0.988, 0.831, 0.000), dark: color(1.000, 0.875, 0.239))
+    static let onSurface = dynamic(light: color(0.102, 0.110, 0.110), dark: color(0.973, 0.929, 0.918))
+    static let onSurfaceVariant = dynamic(light: color(0.372, 0.235, 0.211), dark: color(0.863, 0.753, 0.733))
+    static let muted = dynamic(light: color(0.620, 0.580, 0.590), dark: color(0.678, 0.600, 0.584))
+    static let outline = dynamic(light: color(0.580, 0.431, 0.412), dark: color(0.788, 0.580, 0.549))
+    static let chip = dynamic(light: color(0.925, 0.914, 0.910), dark: color(0.231, 0.176, 0.165))
+    static let redTint = dynamic(light: color(1.000, 0.918, 0.925), dark: color(0.267, 0.110, 0.129))
+    static let photoPlaceholderStart = dynamic(light: color(0.860, 0.900, 0.900), dark: color(0.169, 0.196, 0.188))
+    static let photoPlaceholderEnd = dynamic(light: color(0.950, 0.920, 0.880), dark: color(0.282, 0.216, 0.176))
+    static let onPrimary = Color.white
+    static let cardShadow = dynamic(light: color(0.718, 0.000, 0.047), dark: color(0.000, 0.000, 0.000))
+
+    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+        Color(
+            uiColor: UIColor { traitCollection in
+                traitCollection.userInterfaceStyle == .dark ? dark : light
+            }
+        )
+    }
+
+    private static func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> UIColor {
+        UIColor(red: red, green: green, blue: blue, alpha: 1)
+    }
 }
 
 enum SauceSpacing {
@@ -27,12 +78,12 @@ extension View {
     func sauceCard(cornerRadius: CGFloat = SauceSpacing.cardRadius) -> some View {
         background(SauceColor.surfaceLowest)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: SauceColor.primary.opacity(0.08), radius: 24, x: 0, y: 12)
+            .shadow(color: SauceColor.cardShadow.opacity(0.08), radius: 24, x: 0, y: 12)
     }
 
     func primarySauceButton() -> some View {
         font(.headline.weight(.bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(SauceColor.onPrimary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
             .background(

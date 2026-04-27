@@ -19,6 +19,18 @@ Treat the UI as a series of physical layers.
 - **Subtle Depth:** Use `surface_container` (#eeeeee) for secondary content areas.
 - **High Focus:** Use `surface_container_lowest` (#ffffff) for card backgrounds to make them "pop" against the off-white base.
 
+### Dark Mode Contract
+Dark mode is a first-class presentation mode, not an afterthought. The app supports three global appearance settings: `System`, `Light`, and `Dark`. The selected setting must be applied at the app shell via SwiftUI `preferredColorScheme`; feature screens should not set their own local color scheme.
+
+Use semantic `SauceColor` tokens everywhere so the same screen composition survives both appearances:
+- **Dark Base:** `surface` (#15100f)
+- **Dark Subtle Depth:** `surface_container_low` (#1e1716)
+- **Dark High Focus:** `surface_container_lowest` (#302421)
+- **Dark Text:** `on_surface` (#f8edeb) and `on_surface_variant` (#dcc0bb)
+- **Dark Accent:** keep Haidilao red vivid through `primary` / `primary_container`, adjusted brighter for dark contrast.
+
+Do not hardcode white card backgrounds, black text, or light-only placeholder gradients in feature views. Exceptions are deliberate brand assets and contrast-safe foregrounds such as white text on red primary CTAs.
+
 ### The Glass & Gradient Rule
 To prevent the UI from feeling "flat," use **Glassmorphism** for floating action buttons or ingredient overlays.
 - **Glass Token:** Use `surface` at 80% opacity with a `24px` backdrop blur.
@@ -148,7 +160,7 @@ The attached visual references define the first-pass mobile UI direction. Treat 
   - ingredient name is bold with category/subtitle below,
   - ratio value is emphasized on the trailing side in red,
   - slider track is pale gray with a red thumb/fill.
-- `+ 베이스 추가` should be a red tertiary action aligned with the section heading.
+- The ingredient section heading stays clean; ingredient additions happen through quick-add controls.
 - Quick-add ingredients sit in a horizontal scroll row of compact rounded chips. Use muted disabled-looking chips for unavailable or inactive items.
 - The primary submit CTA is a full-width red bottom button with strong vertical padding and soft red ambient shadow.
 - The bottom tab bar keeps `등록` active with a red circular plus treatment while other tabs stay muted gray.

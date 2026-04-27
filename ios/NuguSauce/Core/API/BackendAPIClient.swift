@@ -20,7 +20,7 @@ final class BackendAPIClient: APIClientProtocol {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
-    private weak var authStore: AuthSessionStoreProtocol?
+    private let authStore: AuthSessionStoreProtocol
 
     init(
         configuration: APIConfiguration = .current,
@@ -199,7 +199,7 @@ final class BackendAPIClient: APIClientProtocol {
         }
 
         if requiresAuthentication {
-            guard let accessToken = authStore?.accessToken, !accessToken.isEmpty else {
+            guard let accessToken = authStore.accessToken, !accessToken.isEmpty else {
                 throw APIClientError.missingAuthentication
             }
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")

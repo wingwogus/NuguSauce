@@ -36,7 +36,7 @@ struct RecipeDetailView: View {
             SauceIconButton(
                 systemName: viewModel.isFavorite ? "heart.fill" : "heart",
                 foreground: SauceColor.primaryContainer,
-                background: .white.opacity(0.9)
+                background: SauceColor.surfaceLowest.opacity(0.9)
             ) {
                 Task {
                     await viewModel.toggleFavorite()

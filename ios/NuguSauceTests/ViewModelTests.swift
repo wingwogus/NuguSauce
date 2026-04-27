@@ -1,8 +1,21 @@
+import SwiftUI
 import XCTest
 @testable import NuguSauce
 
 @MainActor
 final class ViewModelTests: XCTestCase {
+    func testThemePreferenceMapsToGlobalColorScheme() {
+        XCTAssertNil(SauceThemePreference.system.colorScheme)
+        XCTAssertEqual(SauceThemePreference.light.colorScheme, .light)
+        XCTAssertEqual(SauceThemePreference.dark.colorScheme, .dark)
+    }
+
+    func testThemePreferenceFallsBackToSystemForUnknownStoredValue() {
+        let restoredPreference = SauceThemePreference(rawValue: "legacy-or-corrupt-value") ?? .system
+
+        XCTAssertEqual(restoredPreference, .system)
+    }
+
     func testHomeLoadUsesClientResults() async {
         let viewModel = HomeViewModel(apiClient: TestAPIClient(recipes: [Self.recipe(id: 1, title: "건희 소스")]))
 
@@ -94,6 +107,22 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.canSubmit)
         XCTAssertNil(viewModel.makeRequest().imageUrl)
         XCTAssertFalse(viewModel.makeRequest().ingredients.isEmpty)
+    }
+
+    func testCreateRecipeSubmitReturnsCreatedRecipeID() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let viewModel = CreateRecipeViewModel(apiClient: TestAPIClient(ingredients: [ingredient]), authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "사천식 매콤 소스"
+
+        let recipeID = await viewModel.submit()
+
+        XCTAssertEqual(recipeID, 1)
+        XCTAssertEqual(viewModel.submittedRecipeID, 1)
+        XCTAssertTrue(viewModel.didSubmit)
     }
 
     func testCreateRecipeRatioIsTruncatedToTenthsInStateAndRequest() throws {
@@ -297,6 +326,38 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(restoredStore.currentSession?.refreshToken, "live-refresh-token")
         XCTAssertEqual(restoredStore.currentSession?.displayName, "테스터")
         XCTAssertNil(restoredStore.persistenceFailure)
+    }
+
+    func testAuthSessionPersistsKakaoMemberProfileSetupRequirement() {
+        let tokenStore = MemoryAuthTokenStore()
+        let userDefaults = makeUserDefaults()
+        let firstStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        let member = MemberProfileDTO(
+            id: 7,
+            nickname: nil,
+            displayName: "사용자 7",
+            profileSetupRequired: true
+        )
+
+        XCTAssertTrue(
+            firstStore.saveSession(
+                accessToken: "live-access-token",
+                refreshToken: "live-refresh-token",
+                member: member
+            )
+        )
+
+        XCTAssertTrue(firstStore.requiresProfileSetup)
+        XCTAssertEqual(firstStore.currentSession?.memberId, 7)
+        XCTAssertEqual(firstStore.currentSession?.displayName, "사용자 7")
+        XCTAssertNil(firstStore.currentSession?.nickname)
+
+        let restoredStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+
+        XCTAssertTrue(restoredStore.requiresProfileSetup)
+        XCTAssertEqual(restoredStore.currentSession?.memberId, 7)
+        XCTAssertEqual(restoredStore.currentSession?.displayName, "사용자 7")
+        XCTAssertNil(restoredStore.currentSession?.nickname)
     }
 
     func testAuthSessionSaveFailsClosedWhenAccessTokenCannotBePersisted() {

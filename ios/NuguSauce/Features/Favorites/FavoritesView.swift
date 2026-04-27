@@ -57,24 +57,12 @@ struct FavoritesView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "bookmark.fill")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
-                .frame(width: 42, height: 42)
-                .background(SauceColor.redTint)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("찜한 레시피")
-                    .font(.largeTitle.weight(.black))
-                    .foregroundStyle(SauceColor.onSurface)
-                Text("\(viewModel.recipes.count)개 저장됨")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            SauceScreenTitle(title: "찜한 레시피")
+            Text("\(viewModel.recipes.count)개 저장됨")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SauceColor.onSurfaceVariant)
         }
-        .padding(.top, 18)
     }
 
     @ViewBuilder

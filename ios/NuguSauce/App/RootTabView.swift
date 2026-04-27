@@ -12,6 +12,7 @@ struct RootTabView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @State private var selectedTab: RootTab = .home
+    @State private var createNavigationPath: [AppRoute] = []
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -43,8 +44,24 @@ struct RootTabView: View {
             }
             .tag(RootTab.favorites)
 
-            NavigationStack {
-                CreateRecipeView(apiClient: apiClient, authStore: authStore)
+            NavigationStack(path: $createNavigationPath) {
+                CreateRecipeView(
+                    apiClient: apiClient,
+                    authStore: authStore,
+                    onCreatedRecipe: { recipeID in
+                        createNavigationPath.append(.recipeDetail(recipeID))
+                    }
+                )
+                .navigationDestination(for: AppRoute.self) { route in
+                    switch route {
+                    case .recipeDetail(let id):
+                        RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
+                    case .publicProfile:
+                        PublicProfilePlaceholderView()
+                    case .loginRequired:
+                        LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                    }
+                }
             }
             .tabItem {
                 Label("등록", systemImage: "plus.circle.fill")
@@ -59,5 +76,18 @@ struct RootTabView: View {
             }
             .tag(RootTab.profile)
         }
+        .fullScreenCover(isPresented: profileSetupGateBinding) {
+            ProfileSetupGateView(apiClient: apiClient, authStore: authStore)
+                .interactiveDismissDisabled(true)
+        }
+    }
+
+    private var profileSetupGateBinding: Binding<Bool> {
+        Binding(
+            get: {
+                authStore.requiresProfileSetup
+            },
+            set: { _ in }
+        )
     }
 }
