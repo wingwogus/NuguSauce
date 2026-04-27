@@ -120,7 +120,7 @@ struct RecipeDetailView: View {
                         Text(ingredient.name)
                             .font(.subheadline.weight(.bold))
                         Spacer()
-                        Text((ingredient.amount ?? ingredient.ratio ?? 0).formatted())
+                        Text(RecipeMeasurementFormatter.oneDecimalText(ingredient.amount ?? ingredient.ratio))
                             .font(.headline.weight(.black))
                         Text(ingredient.unit ?? "비율")
                             .font(.caption)
@@ -171,33 +171,23 @@ struct RecipeDetailView: View {
 
     private var reviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("사용자 리뷰")
-                .font(.headline.weight(.bold))
-
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    ForEach(1...5, id: \.self) { rating in
-                        Image(systemName: rating <= viewModel.selectedRating ? "star.fill" : "star")
-                            .foregroundStyle(SauceColor.secondary)
-                            .onTapGesture {
-                                viewModel.selectedRating = rating
-                            }
-                    }
+            HStack {
+                Text("사용자 리뷰")
+                    .font(.headline.weight(.bold))
+                Spacer()
+                NavigationLink {
+                    ReviewComposeView(viewModel: viewModel)
+                } label: {
+                    Label("리뷰 쓰기", systemImage: "square.and.pencil")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(SauceColor.redTint)
+                        .clipShape(Capsule())
                 }
-                TextField("리뷰를 남겨주세요", text: $viewModel.reviewText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .padding(12)
-                    .background(SauceColor.surfaceContainerLow)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                Button("리뷰 등록") {
-                    Task {
-                        await viewModel.submitReview()
-                    }
-                }
-                .primarySauceButton()
+                .buttonStyle(.plain)
             }
-            .padding(16)
-            .sauceCard(cornerRadius: 18)
 
             ForEach(viewModel.reviews) { review in
                 VStack(alignment: .leading, spacing: 10) {
@@ -205,7 +195,7 @@ struct RecipeDetailView: View {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.title2)
                             .foregroundStyle(SauceColor.onSurfaceVariant)
-                        Text("리뷰 #\(review.id)")
+                        Text(review.authorName)
                             .font(.subheadline.weight(.bold))
                         Spacer()
                         Text("최근")
@@ -226,6 +216,225 @@ struct RecipeDetailView: View {
                 .padding(18)
                 .sauceCard(cornerRadius: 18)
             }
+        }
+    }
+}
+
+private struct ReviewComposeView: View {
+    @ObservedObject var viewModel: RecipeDetailViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var isSubmitting = false
+    private let tagColumns = [GridItem(.adaptive(minimum: 96), spacing: 10)]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                recipeSummaryBlock
+                ratingBlock
+                tagBlock
+                textBlock
+
+                if let errorMessage = viewModel.errorMessage {
+                    SauceStatusBanner(message: errorMessage)
+                } else if !viewModel.isAuthenticated {
+                    SauceStatusBanner(message: "로그인 후 리뷰를 작성할 수 있어요.")
+                }
+            }
+            .padding(.horizontal, SauceSpacing.screen)
+            .padding(.vertical, 24)
+        }
+        .background(SauceColor.redTint.opacity(0.18).ignoresSafeArea())
+        .navigationTitle("리뷰 작성")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(isSubmitting ? "저장 중" : "등록") {
+                    Task {
+                        await submit()
+                    }
+                }
+                .font(.headline.weight(.bold))
+                .foregroundStyle(SauceColor.primaryContainer)
+                .disabled(isSubmitting || !viewModel.canSubmitReview)
+            }
+        }
+        .onAppear {
+            viewModel.beginReviewDraft()
+        }
+        .task {
+            await viewModel.loadTasteTagsIfNeeded()
+        }
+    }
+
+    private var recipeSummaryBlock: some View {
+        HStack(spacing: 16) {
+            if let detail = viewModel.detail {
+                RecipeImage(imageURL: detail.imageUrl, recipeID: detail.id, height: 82)
+                    .frame(width: 82, height: 82)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(SauceColor.surfaceContainerLow)
+                    .frame(width: 82, height: 82)
+                    .overlay {
+                        Image(systemName: "drop.fill")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(SauceColor.primaryContainer)
+                    }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.detail?.title ?? "리뷰할 소스")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                    .lineLimit(2)
+                Text(summaryDescription)
+                    .font(.subheadline)
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding(24)
+        .sauceCard(cornerRadius: 28)
+    }
+
+    private var summaryDescription: String {
+        guard let description = viewModel.detail?.description.trimmingCharacters(in: .whitespacesAndNewlines),
+              !description.isEmpty else {
+            return "소스 조합에 대한 솔직한 후기를 남겨주세요."
+        }
+        return description
+    }
+
+    private var ratingBlock: some View {
+        VStack(spacing: 18) {
+            VStack(spacing: 8) {
+                Text("이 소스 어떠셨나요?")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                Text("별점을 선택해주세요")
+                    .font(.subheadline)
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+            }
+
+            HStack(spacing: 8) {
+                ForEach(1...5, id: \.self) { rating in
+                    Button {
+                        viewModel.selectedRating = rating
+                    } label: {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(rating <= viewModel.selectedRating ? SauceColor.secondary : SauceColor.surfaceContainer)
+                            .frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(rating)점")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 34)
+        .sauceCard(cornerRadius: 28)
+    }
+
+    private var tagBlock: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("맛 표현 (다중 선택)")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                Spacer()
+                if !viewModel.selectedTasteTagIDs.isEmpty {
+                    Text("\(viewModel.selectedTasteTagIDs.count)개 선택")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                }
+            }
+
+            if viewModel.isLoadingTasteTags {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let message = viewModel.tasteTagErrorMessage {
+                SauceStatusBanner(message: message)
+            } else if viewModel.availableTasteTags.isEmpty {
+                Text("선택할 맛 태그가 아직 없어요.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SauceColor.surfaceLowest)
+                    .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+            } else {
+                LazyVGrid(columns: tagColumns, alignment: .leading, spacing: 10) {
+                    ForEach(viewModel.availableTasteTags) { tag in
+                        let isSelected = viewModel.selectedTasteTagIDs.contains(tag.id)
+                        Button {
+                            viewModel.toggleTasteTag(tag)
+                        } label: {
+                            SauceChip(
+                                title: tag.name,
+                                isSelected: isSelected,
+                                icon: isSelected ? "checkmark" : nil
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(tag.name)
+                        .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
+                    }
+                }
+            }
+        }
+    }
+
+    private var textBlock: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("상세 리뷰")
+                .font(.headline.weight(.bold))
+
+            ZStack(alignment: .bottomTrailing) {
+                TextField(
+                    "소스 조합에 대한 솔직한 후기를 남겨주세요.\n(최소 10자 이상)",
+                    text: $viewModel.reviewText,
+                    axis: .vertical
+                )
+                .lineLimit(6, reservesSpace: true)
+                .textFieldStyle(.plain)
+                .padding(18)
+                .padding(.bottom, 26)
+                .background(SauceColor.surfaceLowest)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(SauceColor.primaryContainer.opacity(0.24), lineWidth: 1)
+                }
+                .onChange(of: viewModel.reviewText) { _, _ in
+                    viewModel.trimReviewTextIfNeeded()
+                }
+
+                Text("\(viewModel.reviewText.count) / \(viewModel.maxReviewTextLength)")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 14)
+            }
+        }
+    }
+
+    @MainActor
+    private func submit() async {
+        guard !isSubmitting else {
+            return
+        }
+
+        isSubmitting = true
+        let didSubmit = await viewModel.submitReview()
+        isSubmitting = false
+
+        if didSubmit {
+            dismiss()
         }
     }
 }

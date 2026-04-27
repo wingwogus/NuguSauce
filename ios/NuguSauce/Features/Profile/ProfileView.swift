@@ -17,6 +17,9 @@ struct ProfileView: View {
                 topBar
                 if authStore.isAuthenticated {
                     profileHero
+                    if viewModel.profileSetupRequired {
+                        nicknameSetupCard
+                    }
                     recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
                     NavigationLink(value: AppRoute.publicProfile(2)) {
                         Text("상대페이지")
@@ -72,7 +75,7 @@ struct ProfileView: View {
             Image(systemName: "person.crop.circle.fill")
                 .font(.system(size: 82))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
-            Text(viewModel.session?.displayName ?? "게스트")
+            Text(viewModel.displayName)
                 .font(.largeTitle.weight(.black))
             Text("실제 백엔드 세션")
                 .foregroundStyle(SauceColor.onSurfaceVariant)
@@ -94,6 +97,36 @@ struct ProfileView: View {
         .padding(.vertical, 34)
         .background(SauceColor.surfaceContainerLow)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var nicknameSetupCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("닉네임 설정")
+                .font(.title3.weight(.black))
+            TextField("소스장인", text: $viewModel.nicknameDraft)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(14)
+                .background(SauceColor.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Button {
+                Task {
+                    _ = await viewModel.saveNickname()
+                }
+            } label: {
+                Text(viewModel.isSavingNickname ? "저장 중..." : "저장")
+                    .frame(maxWidth: .infinity)
+            }
+            .primarySauceButton()
+            .disabled(viewModel.isSavingNickname)
+
+            if let nicknameErrorMessage = viewModel.nicknameErrorMessage {
+                SauceStatusBanner(message: nicknameErrorMessage)
+            }
+        }
+        .padding(18)
+        .background(SauceColor.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
@@ -197,8 +230,12 @@ struct LoginRequiredView: View {
                 nonce: credential.nonce,
                 kakaoAccessToken: credential.kakaoAccessToken
             )
-            authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, displayName: "카카오 사용자")
-            errorMessage = nil
+            if authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, displayName: tokens.member.displayName) {
+                authStore.updateMemberProfile(tokens.member)
+                errorMessage = nil
+            } else {
+                errorMessage = authStore.persistenceFailure?.message ?? "로그인 세션을 안전하게 저장하지 못했어요. 다시 시도해주세요."
+            }
         } catch {
             errorMessage = KakaoLoginErrorMessage.message(for: error)
         }

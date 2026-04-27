@@ -4,7 +4,11 @@ import Foundation
 final class RecipeDetailViewModel: ObservableObject {
     @Published private(set) var detail: RecipeDetailDTO?
     @Published private(set) var reviews: [RecipeReviewDTO] = []
+    @Published private(set) var availableTasteTags: [TagDTO] = []
+    @Published private(set) var isLoadingTasteTags = false
+    @Published private(set) var tasteTagErrorMessage: String?
     @Published var selectedRating = 5
+    @Published var selectedTasteTagIDs: Set<Int> = []
     @Published var reviewText = ""
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
@@ -15,6 +19,7 @@ final class RecipeDetailViewModel: ObservableObject {
     let recipeID: Int
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
+    let maxReviewTextLength = 500
 
     init(recipeID: Int, apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
         self.recipeID = recipeID
@@ -26,36 +31,94 @@ final class RecipeDetailViewModel: ObservableObject {
         authStore.isAuthenticated && !reviewText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var isAuthenticated: Bool {
+        authStore.isAuthenticated
+    }
+
+    func beginReviewDraft() {
+        selectedRating = 5
+        selectedTasteTagIDs.removeAll()
+        reviewText = ""
+        didSubmitReview = false
+        errorMessage = nil
+    }
+
     func load() async {
         isLoading = true
         errorMessage = nil
         do {
             async let detail = apiClient.fetchRecipeDetail(id: recipeID)
             async let reviews = apiClient.fetchReviews(recipeID: recipeID)
+            async let tags = apiClient.fetchTags()
             self.detail = try await detail
             self.reviews = try await reviews
+            do {
+                availableTasteTags = try await tags
+                tasteTagErrorMessage = nil
+            } catch {
+                availableTasteTags = []
+                tasteTagErrorMessage = "맛 태그를 불러오지 못했어요."
+            }
         } catch {
             errorMessage = "상세 정보를 불러오지 못했어요."
         }
         isLoading = false
     }
 
-    func submitReview() async {
+    func loadTasteTagsIfNeeded() async {
+        guard availableTasteTags.isEmpty, !isLoadingTasteTags else {
+            return
+        }
+
+        isLoadingTasteTags = true
+        tasteTagErrorMessage = nil
+        do {
+            availableTasteTags = try await apiClient.fetchTags()
+        } catch {
+            tasteTagErrorMessage = "맛 태그를 불러오지 못했어요."
+        }
+        isLoadingTasteTags = false
+    }
+
+    func toggleTasteTag(_ tag: TagDTO) {
+        if selectedTasteTagIDs.contains(tag.id) {
+            selectedTasteTagIDs.remove(tag.id)
+        } else {
+            selectedTasteTagIDs.insert(tag.id)
+        }
+    }
+
+    func trimReviewTextIfNeeded() {
+        guard reviewText.count > maxReviewTextLength else {
+            return
+        }
+        reviewText = String(reviewText.prefix(maxReviewTextLength))
+    }
+
+    @discardableResult
+    func submitReview() async -> Bool {
         guard canSubmitReview else {
             errorMessage = authStore.isAuthenticated ? "리뷰 내용을 입력해주세요." : "로그인이 필요합니다."
-            return
+            return false
         }
 
         do {
             let review = try await apiClient.createReview(
                 recipeID: recipeID,
-                request: CreateReviewRequestDTO(rating: selectedRating, text: reviewText, tasteTagIds: [])
+                request: CreateReviewRequestDTO(
+                    rating: selectedRating,
+                    text: reviewText,
+                    tasteTagIds: selectedTasteTagIDs.sorted()
+                )
             )
             reviews.insert(review, at: 0)
             reviewText = ""
+            selectedTasteTagIDs.removeAll()
             didSubmitReview = true
+            return true
         } catch {
             errorMessage = "리뷰를 저장하지 못했어요."
+            return false
         }
     }
 

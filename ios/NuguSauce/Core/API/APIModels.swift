@@ -45,6 +45,8 @@ enum ApiErrorCode {
     static let kakaoNonceMismatch = "AUTH_010"
     static let kakaoNonceReplay = "AUTH_011"
     static let kakaoVerifiedEmailRequired = "AUTH_012"
+    static let invalidNickname = "USER_003"
+    static let duplicateNickname = "USER_004"
     static let invalidInput = "COMMON_001"
     static let duplicateReview = "RECIPE_005"
     static let duplicateFavorite = "RECIPE_010"
@@ -82,6 +84,19 @@ struct TokenResponseDTO: Codable, Equatable {
     let refreshToken: String
 }
 
+struct MemberProfileDTO: Codable, Equatable, Identifiable {
+    let id: Int
+    let nickname: String?
+    let displayName: String
+    let profileSetupRequired: Bool?
+}
+
+struct KakaoLoginResponseDTO: Codable, Equatable {
+    let accessToken: String
+    let refreshToken: String
+    let member: MemberProfileDTO
+}
+
 enum APIClientError: Error, Equatable {
     case invalidBaseURL(String)
     case invalidURL
@@ -104,6 +119,9 @@ protocol APIClientProtocol {
     func fetchFavoriteRecipes() async throws -> [RecipeSummaryDTO]
     func addFavorite(recipeID: Int) async throws -> FavoriteResponseDTO
     func deleteFavorite(recipeID: Int) async throws
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> TokenResponseDTO
+    func fetchMyMember() async throws -> MemberProfileDTO
+    func fetchMember(id: Int) async throws -> MemberProfileDTO
+    func updateMyMember(nickname: String) async throws -> MemberProfileDTO
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO
     func reissue(refreshToken: String) async throws -> TokenResponseDTO
 }

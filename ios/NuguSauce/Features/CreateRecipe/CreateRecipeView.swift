@@ -4,6 +4,7 @@ struct CreateRecipeView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: CreateRecipeViewModel
+    @State private var expandedQuickAddSectionIDs: Set<String> = []
     private let quickAddColumns = [
         GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
     ]
@@ -159,7 +160,7 @@ struct CreateRecipeView: View {
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
                 Spacer()
-                Text(String(format: "%.1f", ingredient.ratio))
+                Text(RecipeMeasurementFormatter.oneDecimalText(ingredient.ratio))
                     .font(.title3.weight(.black))
                     .foregroundStyle(SauceColor.primaryContainer)
                 Text("비율")
@@ -198,7 +199,7 @@ struct CreateRecipeView: View {
                     .font(.headline.weight(.black))
                     .foregroundStyle(SauceColor.onSurface)
                 Spacer()
-                Text("\(viewModel.quickAddIngredients.count)개")
+                Text("\(viewModel.quickAddVisibleIngredientCount)개")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
                     .padding(.horizontal, 10)
@@ -207,12 +208,16 @@ struct CreateRecipeView: View {
                     .clipShape(Capsule())
             }
 
-            Text("카테고리별 전체 재료를 눌러 배합에 추가하세요.")
+            Text("재료를 검색하거나 카테고리를 펼쳐 배합에 추가하세요.")
                 .font(.caption)
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
+            ingredientSearchField
+
             if viewModel.quickAddIngredients.isEmpty {
                 SauceStatusBanner(message: "불러온 재료가 없습니다.", isError: false)
+            } else if viewModel.quickAddSections.isEmpty {
+                SauceStatusBanner(message: "검색 결과가 없습니다.", isError: false)
             } else {
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(viewModel.quickAddSections) { section in
@@ -226,16 +231,89 @@ struct CreateRecipeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func quickAddSection(_ section: IngredientQuickAddSection) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(section.title)
-                .font(.caption.weight(.black))
+    private var ingredientSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.bold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
-            LazyVGrid(columns: quickAddColumns, alignment: .leading, spacing: 10) {
-                ForEach(section.ingredients) { ingredient in
-                    quickAddIngredientButton(ingredient)
+            TextField("재료 검색", text: $viewModel.ingredientSearchText)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SauceColor.onSurface)
+                .autocorrectionDisabled()
+
+            if viewModel.hasIngredientSearchText {
+                Button {
+                    viewModel.clearIngredientSearch()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("재료 검색어 지우기")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .background(SauceColor.surfaceLowest)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityIdentifier("ingredient-search-field")
+    }
+
+    private func quickAddSection(_ section: IngredientQuickAddSection) -> some View {
+        let isExpanded = isQuickAddSectionExpanded(section)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Button {
+                toggleQuickAddSection(section)
+            } label: {
+                HStack(spacing: 10) {
+                    Text(section.title)
+                        .font(.subheadline.weight(.black))
+                        .foregroundStyle(SauceColor.onSurface)
+                    Text("\(section.ingredients.count)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(SauceColor.redTint)
+                        .clipShape(Capsule())
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background(SauceColor.surfaceLowest)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-add-section-\(section.id)")
+            .accessibilityValue(isExpanded ? "펼쳐짐" : "접힘")
+
+            if isExpanded {
+                LazyVGrid(columns: quickAddColumns, alignment: .leading, spacing: 10) {
+                    ForEach(section.ingredients) { ingredient in
+                        quickAddIngredientButton(ingredient)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func isQuickAddSectionExpanded(_ section: IngredientQuickAddSection) -> Bool {
+        viewModel.hasIngredientSearchText || expandedQuickAddSectionIDs.contains(section.id)
+    }
+
+    private func toggleQuickAddSection(_ section: IngredientQuickAddSection) {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            if expandedQuickAddSectionIDs.contains(section.id) {
+                expandedQuickAddSectionIDs.remove(section.id)
+            } else {
+                expandedQuickAddSectionIDs.insert(section.id)
             }
         }
     }

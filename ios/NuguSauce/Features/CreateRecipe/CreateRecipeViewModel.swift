@@ -19,6 +19,7 @@ final class CreateRecipeViewModel: ObservableObject {
     @Published var title = ""
     @Published var description = ""
     @Published var tips = ""
+    @Published var ingredientSearchText = ""
     @Published private(set) var ingredients: [EditableIngredient] = []
     @Published private(set) var quickAddIngredients: [IngredientDTO] = []
     @Published private(set) var errorMessage: String?
@@ -45,19 +46,17 @@ final class CreateRecipeViewModel: ObservableObject {
     }
 
     var quickAddSections: [IngredientQuickAddSection] {
-        let titles = quickAddIngredients.reduce(into: [String]()) { result, ingredient in
-            let title = categoryTitle(for: ingredient)
-            if !result.contains(title) {
-                result.append(title)
-            }
-        }
+        groupedIngredientSections(from: filteredQuickAddIngredients)
+    }
 
-        return titles.map { title in
-            IngredientQuickAddSection(
-                title: title,
-                ingredients: quickAddIngredients.filter { categoryTitle(for: $0) == title }
-            )
+    var quickAddVisibleIngredientCount: Int {
+        quickAddSections.reduce(0) { total, section in
+            total + section.ingredients.count
         }
+    }
+
+    var hasIngredientSearchText: Bool {
+        !normalizedIngredientSearchText.isEmpty
     }
 
     func load() async {
@@ -75,6 +74,10 @@ final class CreateRecipeViewModel: ObservableObject {
             return
         }
         ingredients.append(EditableIngredient(ingredient: ingredient, amount: 1.0, unit: "비율", ratio: 1.0))
+    }
+
+    func clearIngredientSearch() {
+        ingredientSearchText = ""
     }
 
     func addNextIngredient() {
@@ -103,8 +106,9 @@ final class CreateRecipeViewModel: ObservableObject {
         guard let index = ingredients.firstIndex(where: { $0.id == editableIngredient.id }) else {
             return
         }
-        ingredients[index].ratio = ratio
-        ingredients[index].amount = ratio
+        let truncatedRatio = RecipeMeasurementFormatter.truncatedTenths(ratio)
+        ingredients[index].ratio = truncatedRatio
+        ingredients[index].amount = truncatedRatio
     }
 
     func makeRequest() -> CreateRecipeRequestDTO {
@@ -116,9 +120,9 @@ final class CreateRecipeViewModel: ObservableObject {
             ingredients: ingredients.map {
                 CreateRecipeIngredientRequestDTO(
                     ingredientId: $0.ingredient.id,
-                    amount: $0.amount,
+                    amount: RecipeMeasurementFormatter.truncatedTenths($0.amount),
                     unit: $0.unit,
-                    ratio: $0.ratio
+                    ratio: RecipeMeasurementFormatter.truncatedTenths($0.ratio)
                 )
             }
         )
@@ -159,36 +163,74 @@ final class CreateRecipeViewModel: ObservableObject {
     }
 
     private static func categoryTitle(for category: String?) -> String {
-        let trimmed = category?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !trimmed.isEmpty else {
-            return "기타"
+        categoryTitles[normalizedCategory(category)] ?? "기타"
+    }
+
+    private var normalizedIngredientSearchText: String {
+        ingredientSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var filteredQuickAddIngredients: [IngredientDTO] {
+        let query = normalizedIngredientSearchText
+        guard !query.isEmpty else {
+            return quickAddIngredients
         }
 
-        switch trimmed.lowercased() {
-        case "acid":
-            return "산미"
-        case "aromatic":
-            return "향신 채소"
-        case "herb":
-            return "허브"
-        case "oil":
-            return "오일"
-        case "pungent":
-            return "알싸한 맛"
-        case "sauce":
-            return "소스"
-        case "seasoning":
-            return "조미료"
-        case "spicy":
-            return "매운맛"
-        case "sweetener":
-            return "단맛"
-        case "topping":
-            return "토핑"
-        case "umami":
-            return "감칠맛"
-        default:
-            return trimmed
+        return quickAddIngredients.filter { ingredient in
+            ingredient.name.localizedCaseInsensitiveContains(query) ||
+            categoryTitle(for: ingredient).localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private func groupedIngredientSections(from sourceIngredients: [IngredientDTO]) -> [IngredientQuickAddSection] {
+        let groupedIngredients = Dictionary(grouping: sourceIngredients) { ingredient in
+            Self.normalizedCategory(ingredient.category)
+        }
+
+        return Self.categoryOrder.compactMap { category in
+            guard let ingredients = groupedIngredients[category],
+                  let title = Self.categoryTitles[category] else {
+                return nil
+            }
+
+            return IngredientQuickAddSection(
+                title: title,
+                ingredients: ingredients.sorted { lhs, rhs in
+                    lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+                }
+            )
+        }
+    }
+
+    private static let categoryOrder = [
+        "sauce_paste",
+        "oil",
+        "vinegar_citrus",
+        "fresh_aromatic",
+        "dry_seasoning",
+        "sweet_dairy",
+        "topping_seed",
+        "protein",
+        "other"
+    ]
+
+    private static let categoryTitles = [
+        "sauce_paste": "소스/장류",
+        "oil": "오일류",
+        "vinegar_citrus": "식초/과즙",
+        "fresh_aromatic": "채소/향신 재료",
+        "dry_seasoning": "가루/시즈닝",
+        "sweet_dairy": "당류/유제품",
+        "topping_seed": "견과/씨앗 토핑",
+        "protein": "고기/단백질",
+        "other": "기타"
+    ]
+
+    private static func normalizedCategory(_ category: String?) -> String {
+        let trimmed = category?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        guard categoryTitles.keys.contains(trimmed) else {
+            return "other"
+        }
+        return trimmed
     }
 }

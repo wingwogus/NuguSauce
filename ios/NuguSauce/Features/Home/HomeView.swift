@@ -21,11 +21,20 @@ struct HomeView: View {
                 weeklyPopular
                 latestRecipes
             }
-            .padding(.horizontal, SauceSpacing.screen)
             .padding(.bottom, 34)
         }
         .background(SauceColor.surface.ignoresSafeArea())
         .navigationBarHidden(true)
+        .navigationDestination(for: AppRoute.self) { route in
+            switch route {
+            case .recipeDetail(let id):
+                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
+            case .publicProfile:
+                PublicProfilePlaceholderView()
+            case .loginRequired:
+                LoginRequiredView(apiClient: apiClient, authStore: authStore)
+            }
+        }
         .task {
             await viewModel.load()
         }
@@ -49,10 +58,12 @@ struct HomeView: View {
             )
         }
         .padding(.top, 18)
+        .padding(.horizontal, SauceSpacing.screen)
     }
 
     private var searchBar: some View {
         SauceSearchBar(action: openSearch)
+            .padding(.horizontal, SauceSpacing.screen)
     }
 
     private var weeklyPopular: some View {
@@ -65,22 +76,20 @@ struct HomeView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
             }
+            .padding(.horizontal, SauceSpacing.screen)
 
-            ForEach(viewModel.recipes.prefix(2)) { recipe in
-                NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                    RecipeCard(recipe: recipe)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 16) {
+                    ForEach(viewModel.weeklyPopularRecipes) { recipe in
+                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                            RecipeCard(recipe: recipe)
+                                .frame(width: 286)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
-            }
-        }
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .recipeDetail(let id):
-                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile:
-                PublicProfilePlaceholderView()
-            case .loginRequired:
-                LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                .padding(.horizontal, SauceSpacing.screen)
+                .padding(.bottom, 10)
             }
         }
     }
@@ -98,12 +107,25 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ForEach(viewModel.recipes.dropFirst(2).prefix(3)) { recipe in
-                CompactRecipeRow(recipe: recipe)
+            .padding(.horizontal, 18)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 14) {
+                    ForEach(viewModel.latestRecipeCards) { recipe in
+                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                            CompactRecipeRow(recipe: recipe)
+                                .frame(width: 306)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 8)
             }
         }
-        .padding(18)
+        .padding(.vertical, 18)
         .background(SauceColor.surfaceContainerLow)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(.horizontal, SauceSpacing.screen)
     }
 }

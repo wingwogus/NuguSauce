@@ -11,6 +11,21 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.recipes.map(\.title), ["건희 소스"])
     }
 
+    func testHomeLoadSeparatesPopularAndRecentRails() async {
+        let popularRecipes = (1...6).map { Self.recipe(id: $0, title: "인기 \($0)") }
+        let recentRecipes = (10...15).map { Self.recipe(id: $0, title: "최신 \($0)") }
+        let client = TestAPIClient(recipes: popularRecipes, recentRecipes: recentRecipes)
+        let viewModel = HomeViewModel(apiClient: client)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.weeklyPopularRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
+        XCTAssertEqual(viewModel.latestRecipeCards.map(\.title), ["최신 10", "최신 11", "최신 12", "최신 13", "최신 14"])
+        XCTAssertEqual(client.fetchRecipeSorts.count, 2)
+        XCTAssertTrue(client.fetchRecipeSorts.contains(.popular))
+        XCTAssertTrue(client.fetchRecipeSorts.contains(.recent))
+    }
+
     func testSearchQueryComposesFilters() {
         let viewModel = SearchViewModel(apiClient: TestAPIClient())
         viewModel.query = "건희"
@@ -50,8 +65,8 @@ final class ViewModelTests: XCTestCase {
             apiClient: TestAPIClient(
                 ingredients: [
                     IngredientDTO(id: 1, name: "참기름", category: "oil"),
-                    IngredientDTO(id: 2, name: "마늘", category: "aromatic"),
-                    IngredientDTO(id: 3, name: "고수", category: "herb")
+                    IngredientDTO(id: 2, name: "마늘", category: "fresh_aromatic"),
+                    IngredientDTO(id: 3, name: "고수", category: "fresh_aromatic")
                 ]
             )
         )
@@ -81,12 +96,32 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.makeRequest().ingredients.isEmpty)
     }
 
+    func testCreateRecipeRatioIsTruncatedToTenthsInStateAndRequest() throws {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let viewModel = CreateRecipeViewModel(apiClient: TestAPIClient(), authStore: authStore)
+
+        viewModel.addIngredient(ingredient)
+        let editableIngredient = try XCTUnwrap(viewModel.ingredients.first)
+        viewModel.updateRatio(for: editableIngredient, ratio: 0.39)
+        let requestIngredient = try XCTUnwrap(viewModel.makeRequest().ingredients.first)
+
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(requestIngredient.amount ?? -1, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(requestIngredient.ratio ?? -1, 0.3, accuracy: 0.0001)
+    }
+
+    func testRecipeMeasurementFormatterDisplaysTruncatedTenths() {
+        XCTAssertEqual(RecipeMeasurementFormatter.oneDecimalText(0.39), "0.3")
+        XCTAssertEqual(RecipeMeasurementFormatter.oneDecimalText(1.0), "1.0")
+    }
+
     func testCreateRecipeQuickAddSectionsKeepEveryLoadedIngredient() async {
         let ingredients = (1...12).map { index in
             IngredientDTO(
                 id: index,
                 name: "재료 \(index)",
-                category: index.isMultiple(of: 3) ? "sauce" : "spicy"
+                category: index.isMultiple(of: 3) ? "sauce_paste" : "fresh_aromatic"
             )
         }
         let viewModel = CreateRecipeViewModel(
@@ -99,7 +134,70 @@ final class ViewModelTests: XCTestCase {
         let sectionIngredientIDs = viewModel.quickAddSections.flatMap(\.ingredients).map(\.id)
         XCTAssertEqual(sectionIngredientIDs.count, ingredients.count)
         XCTAssertEqual(Set(sectionIngredientIDs), Set(ingredients.map(\.id)))
-        XCTAssertEqual(viewModel.quickAddSections.map(\.title), ["매운맛", "소스"])
+        XCTAssertEqual(viewModel.quickAddSections.map(\.title), ["소스/장류", "채소/향신 재료"])
+    }
+
+    func testCreateRecipeQuickAddSectionsUsePhysicalCategoryOrderAndIngredientNameSort() async {
+        let chiliOil = IngredientDTO(id: 1, name: "고추기름", category: "oil")
+        let vinegar = IngredientDTO(id: 2, name: "식초", category: "vinegar_citrus")
+        let thaiChili = IngredientDTO(id: 3, name: "태국 고추", category: "fresh_aromatic")
+        let peanutSauce = IngredientDTO(id: 4, name: "땅콩소스", category: "sauce_paste")
+        let garlic = IngredientDTO(id: 5, name: "다진 마늘", category: "fresh_aromatic")
+        let viewModel = CreateRecipeViewModel(
+            apiClient: TestAPIClient(ingredients: [thaiChili, peanutSauce, vinegar, garlic, chiliOil]),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.quickAddSections.map(\.title), ["소스/장류", "오일류", "식초/과즙", "채소/향신 재료"])
+        XCTAssertEqual(viewModel.quickAddSections.last?.ingredients.map(\.name), ["다진 마늘", "태국 고추"])
+    }
+
+    func testCreateRecipeQuickAddSearchFiltersByIngredientNameAndCategoryTitle() async {
+        let ingredients = [
+            IngredientDTO(id: 1, name: "고추기름", category: "oil"),
+            IngredientDTO(id: 2, name: "태국 고추", category: "fresh_aromatic"),
+            IngredientDTO(id: 3, name: "땅콩소스", category: "sauce_paste"),
+            IngredientDTO(id: 4, name: "간장", category: "sauce_paste")
+        ]
+        let viewModel = CreateRecipeViewModel(
+            apiClient: TestAPIClient(ingredients: ingredients),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.load()
+
+        viewModel.ingredientSearchText = "고추"
+        XCTAssertEqual(viewModel.quickAddSections.map(\.title), ["오일류", "채소/향신 재료"])
+        XCTAssertEqual(viewModel.quickAddSections.flatMap(\.ingredients).map(\.name), ["고추기름", "태국 고추"])
+        XCTAssertEqual(viewModel.quickAddVisibleIngredientCount, 2)
+
+        viewModel.ingredientSearchText = "소스"
+        XCTAssertEqual(viewModel.quickAddSections.map(\.title), ["소스/장류"])
+        XCTAssertEqual(viewModel.quickAddSections.first?.ingredients.map(\.name), ["간장", "땅콩소스"])
+    }
+
+    func testCreateRecipeQuickAddSearchCanBeCleared() async {
+        let viewModel = CreateRecipeViewModel(
+            apiClient: TestAPIClient(
+                ingredients: [
+                    IngredientDTO(id: 1, name: "참기름", category: "oil"),
+                    IngredientDTO(id: 2, name: "땅콩소스", category: "sauce_paste")
+                ]
+            ),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.load()
+
+        viewModel.ingredientSearchText = "없는 재료"
+        XCTAssertTrue(viewModel.quickAddSections.isEmpty)
+        XCTAssertTrue(viewModel.hasIngredientSearchText)
+
+        viewModel.clearIngredientSearch()
+        XCTAssertFalse(viewModel.hasIngredientSearchText)
+        XCTAssertEqual(viewModel.quickAddVisibleIngredientCount, 2)
     }
 
     func testCreateRecipeIngredientCategoryTitleUsesReadableKoreanLabels() {
@@ -108,8 +206,9 @@ final class ViewModelTests: XCTestCase {
             authStore: TestAuthSessionStore(accessToken: "real-access-token")
         )
 
-        XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 1, name: "다진 마늘", category: "aromatic")), "향신 채소")
-        XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 2, name: "기타 재료", category: nil)), "기타")
+        XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 1, name: "땅콩소스", category: "sauce_paste")), "소스/장류")
+        XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 2, name: "고춧가루", category: "dry_seasoning")), "가루/시즈닝")
+        XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 3, name: "기타 재료", category: nil)), "기타")
     }
 
     func testFavoritesLoadUsesFavoriteEndpointWhenAuthenticated() async {
@@ -155,15 +254,88 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(store.isAuthenticated)
     }
 
-    func testAuthSessionRestoreDoesNotClearCurrentSessionWhenTokenStoreIsUnavailable() {
-        let store = AuthSessionStore(tokenStore: UnavailableAuthTokenStore())
+    func testAuthSessionUpdatesMemberProfile() {
+        let store = TestAuthSessionStore(accessToken: "real-access-token")
 
-        store.saveSession(accessToken: "live-access-token", refreshToken: nil, displayName: "테스터")
+        store.updateMemberProfile(
+            MemberProfileDTO(
+                id: 1,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileSetupRequired: false
+            )
+        )
+
+        XCTAssertEqual(store.currentSession?.memberId, 1)
+        XCTAssertEqual(store.currentSession?.nickname, "소스장인")
+        XCTAssertEqual(store.currentSession?.displayName, "소스장인")
+        XCTAssertEqual(store.currentSession?.profileSetupRequired, false)
+    }
+
+    func testAuthSessionRestoreDoesNotClearCurrentSessionWhenTokenStoreIsUnavailable() {
+        let store = AuthSessionStore(tokenStore: ReadUnavailableAuthTokenStore(), userDefaults: makeUserDefaults())
+
+        XCTAssertTrue(store.saveSession(accessToken: "live-access-token", refreshToken: nil, displayName: "테스터"))
         store.restore()
 
         XCTAssertTrue(store.isAuthenticated)
         XCTAssertEqual(store.accessToken, "live-access-token")
         store.clear()
+    }
+
+    func testAuthSessionPersistsTokensForNextStoreInstance() {
+        let tokenStore = MemoryAuthTokenStore()
+        let userDefaults = makeUserDefaults()
+
+        let firstStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        XCTAssertTrue(firstStore.saveSession(accessToken: "live-access-token", refreshToken: "live-refresh-token", displayName: "테스터"))
+
+        let restoredStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+
+        XCTAssertTrue(restoredStore.isAuthenticated)
+        XCTAssertEqual(restoredStore.accessToken, "live-access-token")
+        XCTAssertEqual(restoredStore.currentSession?.refreshToken, "live-refresh-token")
+        XCTAssertEqual(restoredStore.currentSession?.displayName, "테스터")
+        XCTAssertNil(restoredStore.persistenceFailure)
+    }
+
+    func testAuthSessionSaveFailsClosedWhenAccessTokenCannotBePersisted() {
+        let tokenStore = MemoryAuthTokenStore(failingSaveAccounts: [.accessToken])
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+
+        let didSave = store.saveSession(accessToken: "live-access-token", refreshToken: "live-refresh-token", displayName: "테스터")
+
+        XCTAssertFalse(didSave)
+        XCTAssertFalse(store.isAuthenticated)
+        XCTAssertEqual(store.persistenceFailure, .accessTokenSaveFailed)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+    }
+
+    func testAuthSessionSaveFailsClosedWhenRefreshTokenCannotBePersisted() {
+        let tokenStore = MemoryAuthTokenStore(failingSaveAccounts: [.refreshToken])
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+
+        let didSave = store.saveSession(accessToken: "live-access-token", refreshToken: "live-refresh-token", displayName: "테스터")
+
+        XCTAssertFalse(didSave)
+        XCTAssertFalse(store.isAuthenticated)
+        XCTAssertEqual(store.persistenceFailure, .refreshTokenSaveFailed)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+    }
+
+    func testKeychainTokenStoreSavesUpdatesReadsAndDeletesWithIsolatedService() {
+        let store = KeychainTokenStore(service: "com.nugusauce.ios.auth.tests.\(UUID().uuidString)")
+
+        XCTAssertTrue(store.save("first-access-token", account: .accessToken))
+        XCTAssertEqual(store.read(account: .accessToken), "first-access-token")
+
+        XCTAssertTrue(store.save("updated-access-token", account: .accessToken))
+        XCTAssertEqual(store.read(account: .accessToken), "updated-access-token")
+
+        XCTAssertTrue(store.delete(account: .accessToken))
+        XCTAssertNil(store.read(account: .accessToken))
     }
 
     func testNonceGeneratorProducesURLSafeDistinctValues() throws {
@@ -217,6 +389,115 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(KakaoLoginRequiredScopes.needsAdditionalConsent(grantedScopes: ["openid", "account_email"]))
     }
 
+    func testRecipeDetailSubmitReviewAddsReturnedAuthorName() async {
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: TestAPIClient(),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+        viewModel.reviewText = "고소하고 좋아요"
+        viewModel.selectedRating = 4
+
+        let didSubmit = await viewModel.submitReview()
+
+        XCTAssertTrue(didSubmit)
+        XCTAssertEqual(viewModel.reviews.first?.authorName, "테스터")
+        XCTAssertEqual(viewModel.reviews.first?.rating, 4)
+        XCTAssertEqual(viewModel.reviewText, "")
+    }
+
+    func testRecipeDetailLoadFetchesTasteTagsForReviewCompose() async {
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: TestAPIClient(
+                tags: [
+                    TagDTO(id: 1, name: "매콤해요"),
+                    TagDTO(id: 2, name: "고소해요")
+                ]
+            ),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.availableTasteTags.map(\.name), ["매콤해요", "고소해요"])
+    }
+
+    func testRecipeDetailSubmitReviewSendsSelectedTasteTagIDs() async {
+        let client = TestAPIClient(
+            tags: [
+                TagDTO(id: 3, name: "달콤해요"),
+                TagDTO(id: 1, name: "매콤해요")
+            ]
+        )
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+        await viewModel.load()
+        viewModel.beginReviewDraft()
+        viewModel.reviewText = "매콤하고 달콤해서 좋아요"
+        viewModel.toggleTasteTag(TagDTO(id: 3, name: "달콤해요"))
+        viewModel.toggleTasteTag(TagDTO(id: 1, name: "매콤해요"))
+
+        let didSubmit = await viewModel.submitReview()
+
+        XCTAssertTrue(didSubmit)
+        XCTAssertEqual(client.createdReviewRequests.first?.tasteTagIds, [1, 3])
+        XCTAssertTrue(viewModel.selectedTasteTagIDs.isEmpty)
+    }
+
+    func testRecipeDetailRejectsReviewWhenLoggedOut() async {
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: TestAPIClient(),
+            authStore: TestAuthSessionStore()
+        )
+        viewModel.reviewText = "로그아웃 리뷰"
+
+        let didSubmit = await viewModel.submitReview()
+
+        XCTAssertFalse(didSubmit)
+        XCTAssertEqual(viewModel.errorMessage, "로그인이 필요합니다.")
+        XCTAssertTrue(viewModel.reviews.isEmpty)
+    }
+
+    func testProfileLoadFetchesMemberProfileAndUpdatesSession() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let viewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.member?.id, 7)
+        XCTAssertTrue(viewModel.profileSetupRequired)
+        XCTAssertEqual(authStore.currentSession?.memberId, 7)
+        XCTAssertEqual(authStore.currentSession?.displayName, "사용자 7")
+    }
+
+    func testProfileNicknameSaveUpdatesMemberProfile() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient()
+        let viewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+        viewModel.nicknameDraft = "소스장인"
+
+        let didSave = await viewModel.saveNickname()
+
+        XCTAssertTrue(didSave)
+        XCTAssertEqual(client.updatedNicknames, ["소스장인"])
+        XCTAssertEqual(viewModel.member?.nickname, "소스장인")
+        XCTAssertEqual(authStore.currentSession?.displayName, "소스장인")
+        XCTAssertEqual(authStore.currentSession?.profileSetupRequired, false)
+    }
+
     private static func recipe(id: Int, title: String) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
@@ -230,29 +511,51 @@ final class ViewModelTests: XCTestCase {
             createdAt: "2026-04-25T00:00:00Z"
         )
     }
+
+    private func makeUserDefaults() -> UserDefaults {
+        let suiteName = "NuguSauceTests.\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName)!
+        userDefaults.removePersistentDomain(forName: suiteName)
+        return userDefaults
+    }
 }
 
 private final class TestAPIClient: APIClientProtocol {
     private let recipes: [RecipeSummaryDTO]
+    private let recentRecipes: [RecipeSummaryDTO]
     private let favoriteRecipes: [RecipeSummaryDTO]
     private let ingredients: [IngredientDTO]
     private let tags: [TagDTO]
+    private var memberProfile: MemberProfileDTO
     private(set) var fetchFavoriteRecipesCallCount = 0
+    private(set) var fetchRecipeSorts: [RecipeSort] = []
+    private(set) var createdReviewRequests: [CreateReviewRequestDTO] = []
+    private(set) var updatedNicknames: [String] = []
 
     init(
         recipes: [RecipeSummaryDTO] = [],
+        recentRecipes: [RecipeSummaryDTO]? = nil,
         favoriteRecipes: [RecipeSummaryDTO]? = nil,
         ingredients: [IngredientDTO] = [],
-        tags: [TagDTO] = []
+        tags: [TagDTO] = [],
+        memberProfile: MemberProfileDTO = MemberProfileDTO(
+            id: 1,
+            nickname: "테스터",
+            displayName: "테스터",
+            profileSetupRequired: false
+        )
     ) {
         self.recipes = recipes
+        self.recentRecipes = recentRecipes ?? recipes
         self.favoriteRecipes = favoriteRecipes ?? recipes
         self.ingredients = ingredients
         self.tags = tags
+        self.memberProfile = memberProfile
     }
 
     func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
-        recipes
+        fetchRecipeSorts.append(query.sort)
+        return query.sort == .recent ? recentRecipes : recipes
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {
@@ -279,7 +582,16 @@ private final class TestAPIClient: APIClientProtocol {
         try await fetchRecipeDetail(id: 1)
     }
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
-        RecipeReviewDTO(id: 1, recipeId: recipeID, rating: request.rating, text: request.text, tasteTags: [], createdAt: "2026-04-25T00:00:00Z")
+        createdReviewRequests.append(request)
+        return RecipeReviewDTO(
+            id: 1,
+            recipeId: recipeID,
+            authorName: "테스터",
+            rating: request.rating,
+            text: request.text,
+            tasteTags: [],
+            createdAt: "2026-04-25T00:00:00Z"
+        )
     }
     func fetchMyRecipes() async throws -> [RecipeSummaryDTO] { recipes }
     func fetchFavoriteRecipes() async throws -> [RecipeSummaryDTO] {
@@ -290,8 +602,20 @@ private final class TestAPIClient: APIClientProtocol {
         FavoriteResponseDTO(recipeId: recipeID, createdAt: "2026-04-25T00:00:00Z")
     }
     func deleteFavorite(recipeID: Int) async throws {}
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> TokenResponseDTO {
-        TokenResponseDTO(accessToken: "real-access-token", refreshToken: "real-refresh-token")
+    func fetchMyMember() async throws -> MemberProfileDTO { memberProfile }
+    func fetchMember(id: Int) async throws -> MemberProfileDTO { memberProfile }
+    func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
+        updatedNicknames.append(nickname)
+        memberProfile = MemberProfileDTO(
+            id: memberProfile.id,
+            nickname: nickname,
+            displayName: nickname,
+            profileSetupRequired: false
+        )
+        return memberProfile
+    }
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
+        KakaoLoginResponseDTO(accessToken: "real-access-token", refreshToken: "real-refresh-token", member: memberProfile)
     }
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         TokenResponseDTO(accessToken: "reissued-access-token", refreshToken: refreshToken)
@@ -317,11 +641,27 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
 
     func restore() {}
 
-    func saveSession(accessToken: String, refreshToken: String?, displayName: String?) {
+    @discardableResult
+    func saveSession(accessToken: String, refreshToken: String?, displayName: String?) -> Bool {
         currentSession = AuthSession(
             displayName: displayName ?? "테스터",
             accessToken: accessToken,
             refreshToken: refreshToken
+        )
+        return true
+    }
+
+    func updateMemberProfile(_ member: MemberProfileDTO) {
+        guard let currentSession else {
+            return
+        }
+        self.currentSession = AuthSession(
+            displayName: member.displayName,
+            accessToken: currentSession.accessToken,
+            refreshToken: currentSession.refreshToken,
+            memberId: member.id,
+            nickname: member.nickname,
+            profileSetupRequired: member.profileSetupRequired ?? false
         )
     }
 
@@ -330,9 +670,39 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
     }
 }
 
-private struct UnavailableAuthTokenStore: AuthTokenStore {
+private final class MemoryAuthTokenStore: AuthTokenStore {
+    private var values: [KeychainAccount: String]
+    private let failingSaveAccounts: Set<KeychainAccount>
+
+    init(values: [KeychainAccount: String] = [:], failingSaveAccounts: Set<KeychainAccount> = []) {
+        self.values = values
+        self.failingSaveAccounts = failingSaveAccounts
+    }
+
     func save(_ value: String, account: KeychainAccount) -> Bool {
-        false
+        guard !failingSaveAccounts.contains(account) else {
+            return false
+        }
+        values[account] = value
+        return true
+    }
+
+    func read(account: KeychainAccount) -> String? {
+        values[account]
+    }
+
+    func delete(account: KeychainAccount) -> Bool {
+        values.removeValue(forKey: account)
+        return true
+    }
+}
+
+private final class ReadUnavailableAuthTokenStore: AuthTokenStore {
+    private var values: [KeychainAccount: String] = [:]
+
+    func save(_ value: String, account: KeychainAccount) -> Bool {
+        values[account] = value
+        return true
     }
 
     func read(account: KeychainAccount) -> String? {

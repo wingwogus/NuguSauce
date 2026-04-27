@@ -106,7 +106,24 @@ final class BackendAPIClient: APIClientProtocol {
         )
     }
 
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> TokenResponseDTO {
+    func fetchMyMember() async throws -> MemberProfileDTO {
+        try await send(path: "/api/v1/members/me", requiresAuthentication: true)
+    }
+
+    func fetchMember(id: Int) async throws -> MemberProfileDTO {
+        try await send(path: "/api/v1/members/\(id)")
+    }
+
+    func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
+        try await send(
+            path: "/api/v1/members/me",
+            method: "PATCH",
+            body: AnyEncodable(UpdateMemberRequest(nickname: nickname)),
+            requiresAuthentication: true
+        )
+    }
+
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         try await send(
             path: "/api/v1/auth/kakao/login",
             method: "POST",
@@ -241,6 +258,10 @@ private struct KakaoLoginRequest: Encodable {
 
 private struct ReissueRequest: Encodable {
     let refreshToken: String
+}
+
+private struct UpdateMemberRequest: Encodable {
+    let nickname: String
 }
 
 private struct AnyEncodable: Encodable {

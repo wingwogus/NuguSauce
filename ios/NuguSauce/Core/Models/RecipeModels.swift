@@ -60,6 +60,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
 struct RecipeReviewDTO: Codable, Identifiable, Equatable {
     let id: Int
     let recipeId: Int
+    let authorName: String
     let rating: Int
     let text: String?
     let tasteTags: [ReviewTagDTO]
@@ -101,4 +102,21 @@ struct CreateReviewRequestDTO: Codable, Equatable {
 struct FavoriteResponseDTO: Codable, Equatable {
     let recipeId: Int
     let createdAt: String
+}
+
+enum RecipeMeasurementFormatter {
+    static func truncatedTenths(_ value: Double) -> Double {
+        guard value.isFinite else {
+            return 0
+        }
+
+        var decimal = Decimal(value)
+        var truncated = Decimal()
+        NSDecimalRound(&truncated, &decimal, 1, .down)
+        return NSDecimalNumber(decimal: truncated).doubleValue
+    }
+
+    static func oneDecimalText(_ value: Double?) -> String {
+        String(format: "%.1f", truncatedTenths(value ?? 0))
+    }
 }
