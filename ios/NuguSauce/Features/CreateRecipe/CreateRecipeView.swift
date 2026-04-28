@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct CreateRecipeView: View {
     let apiClient: APIClientProtocol
@@ -6,6 +8,7 @@ struct CreateRecipeView: View {
     let onCreatedRecipe: (Int) -> Void
     @StateObject private var viewModel: CreateRecipeViewModel
     @State private var expandedQuickAddSectionIDs: Set<String> = []
+    @State private var selectedPhotoItem: PhotosPickerItem?
     private let quickAddDisclosureAnimation = Animation.spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.08)
     private let quickAddColumns = [
         GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
@@ -32,8 +35,13 @@ struct CreateRecipeView: View {
             .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-        .task {
+            .task {
             await viewModel.load()
+        }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                await loadSelectedPhoto(newItem)
+            }
         }
     }
 
@@ -76,28 +84,63 @@ struct CreateRecipeView: View {
     }
 
     private var photoUpload: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SauceColor.photoPlaceholderStart, SauceColor.photoPlaceholderEnd],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [SauceColor.photoPlaceholderStart, SauceColor.photoPlaceholderEnd],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-            VStack(spacing: 10) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 42, weight: .bold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                Text("맛있는 소스 사진을 찍어주세요")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                Text("사진 API 계약이 연결되면 imageUrl로 전송됩니다")
-                    .font(.subheadline)
-                    .foregroundStyle(SauceColor.muted)
+
+                if let data = viewModel.selectedPhotoData,
+                   let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                } else {
+                    VStack(spacing: 10) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 42, weight: .bold))
+                            .foregroundStyle(SauceColor.onSurfaceVariant)
+                        Text("소스 사진 추가")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(SauceColor.onSurfaceVariant)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+                HStack(spacing: 10) {
+                    Image(systemName: viewModel.hasSelectedPhoto ? "photo.fill" : "plus.circle.fill")
+                        .font(.subheadline.weight(.bold))
+                    Text(viewModel.hasSelectedPhoto ? "사진 변경" : "사진 선택")
+                        .font(.subheadline.weight(.bold))
+                }
+                .foregroundStyle(SauceColor.onPrimary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(SauceColor.primary.opacity(0.92))
+                .clipShape(Capsule())
+                .padding(16)
+
+                if viewModel.isUploadingImage {
+                    ProgressView()
+                        .tint(SauceColor.onPrimary)
+                        .padding(12)
+                        .background(SauceColor.primary.opacity(0.88))
+                        .clipShape(Circle())
+                        .padding(16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
             }
+            .frame(height: 260)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .frame(height: 260)
+        .buttonStyle(.plain)
     }
 
     private var titleFields: some View {
@@ -138,11 +181,11 @@ struct CreateRecipeView: View {
     private func ingredientCard(_ ingredient: EditableIngredient) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Image(systemName: "fork.knife")
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                    .frame(width: 42, height: 42)
-                    .background(SauceColor.chip)
-                    .clipShape(Circle())
+                IngredientArtwork(
+                    name: ingredient.ingredient.name,
+                    category: ingredient.ingredient.category,
+                    size: 42
+                )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(ingredient.ingredient.name)
                         .font(.headline.weight(.bold))
@@ -321,9 +364,7 @@ struct CreateRecipeView: View {
             viewModel.addIngredient(ingredient)
         } label: {
             HStack(spacing: 9) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle.fill")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(isSelected ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+                quickAddIngredientArtwork(ingredient, isSelected: isSelected)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ingredient.name)
@@ -349,5 +390,61 @@ struct CreateRecipeView: View {
         .accessibilityIdentifier("quick-add-ingredient-\(ingredient.id)")
         .accessibilityLabel("\(ingredient.name) 재료 추가")
         .accessibilityValue(isSelected ? "선택됨" : viewModel.categoryTitle(for: ingredient))
+    }
+
+    private func quickAddIngredientArtwork(_ ingredient: IngredientDTO, isSelected: Bool) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            IngredientArtwork(name: ingredient.name, category: ingredient.category, size: 42)
+
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle.fill")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(isSelected ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+                .background(SauceColor.surfaceLowest)
+                .clipShape(Circle())
+        }
+        .frame(width: 44, height: 44)
+    }
+
+    @MainActor
+    private func loadSelectedPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else {
+            viewModel.clearSelectedPhoto()
+            return
+        }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self) {
+                viewModel.setSelectedPhoto(
+                    data: Self.normalizedJPEGData(from: data),
+                    contentType: "image/jpeg",
+                    fileExtension: "jpg"
+                )
+            }
+        } catch {
+            viewModel.clearSelectedPhoto()
+        }
+    }
+
+    private static func normalizedJPEGData(from data: Data) -> Data {
+        guard let image = UIImage(data: data) else {
+            return data
+        }
+        let resizedImage = image.resizedForRecipeUpload(maxDimension: 1800)
+        return resizedImage.jpegData(compressionQuality: 0.82) ?? data
+    }
+}
+
+private extension UIImage {
+    func resizedForRecipeUpload(maxDimension: CGFloat) -> UIImage {
+        let largestSide = max(size.width, size.height)
+        guard largestSide > maxDimension else {
+            return self
+        }
+
+        let scale = maxDimension / largestSide
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 }

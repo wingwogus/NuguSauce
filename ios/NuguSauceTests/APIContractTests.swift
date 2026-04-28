@@ -103,8 +103,8 @@ final class APIContractTests: XCTestCase {
         let request = CreateRecipeRequestDTO(
             title: "내 소스",
             description: "고소하고 살짝 매운 조합",
-            imageUrl: nil,
-            tips: "땅콩소스를 먼저 푼다",
+            imageId: nil,
+            tips: nil,
             ingredients: [
                 CreateRecipeIngredientRequestDTO(ingredientId: 1, amount: 1.0, unit: "스푼", ratio: nil)
             ]
@@ -116,6 +116,8 @@ final class APIContractTests: XCTestCase {
         XCTAssertFalse(encoded.contains("spiceLevel"))
         XCTAssertFalse(encoded.contains("richnessLevel"))
         XCTAssertFalse(encoded.contains("tagIds"))
+        XCTAssertFalse(encoded.contains("imageUrl"))
+        XCTAssertFalse(encoded.contains("tips"))
     }
 
     func testIngredientResponseDecodesPhysicalCategory() throws {
@@ -382,6 +384,109 @@ final class APIContractTests: XCTestCase {
         XCTAssertNil(detail.authorId)
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/recipes/10")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
+    func testBackendClientCreatesImageUploadIntent() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "imageId": 50,
+            "upload": {
+              "url": "https://api.cloudinary.com/v1_1/demo/image/upload",
+              "method": "POST",
+              "headers": {},
+              "fields": {
+                "api_key": "api-key",
+                "public_id": "nugusauce/recipes/1/image",
+                "timestamp": "1777399200",
+                "signature": "signature"
+              },
+              "fileField": "file",
+              "expiresAt": "2026-04-28T14:30:00Z"
+            },
+            "constraints": {
+              "maxBytes": 5242880,
+              "allowedContentTypes": ["image/jpeg", "image/png", "image/heic", "image/heif"]
+            }
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+        let intent = try await client.createImageUploadIntent(
+            ImageUploadIntentRequestDTO(contentType: "image/jpeg", byteSize: 2000, fileExtension: "jpg")
+        )
+
+        XCTAssertEqual(intent.imageId, 50)
+        XCTAssertEqual(intent.upload.fileField, "file")
+        XCTAssertEqual(intent.upload.fields["signature"], "signature")
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/media/images/upload-intent")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
+    func testBackendClientUploadsImageToSignedTarget() async throws {
+        URLProtocolTestTransport.responseData = "{}".data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+        let intent = ImageUploadIntentDTO(
+            imageId: 50,
+            upload: ImageUploadTargetDTO(
+                url: "https://upload.example.test/image/upload",
+                method: "POST",
+                headers: [:],
+                fields: ["signature": "signature", "public_id": "nugusauce/recipes/1/image"],
+                fileField: "file",
+                expiresAt: "2026-04-28T14:30:00Z"
+            ),
+            constraints: ImageUploadConstraintsDTO(maxBytes: 5_242_880, allowedContentTypes: ["image/jpeg"])
+        )
+
+        try await client.uploadImage(
+            data: Data([1, 2, 3]),
+            contentType: "image/jpeg",
+            fileExtension: "jpg",
+            using: intent
+        )
+
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.host, "upload.example.test")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertTrue(request.value(forHTTPHeaderField: "Content-Type")?.contains("multipart/form-data") == true)
+    }
+
+    func testBackendClientCompletesImageUpload() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "imageId": 50,
+            "imageUrl": "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/nugusauce/recipes/1/image",
+            "width": 800,
+            "height": 600
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+        let image = try await client.completeImageUpload(imageId: 50)
+
+        XCTAssertEqual(image.imageId, 50)
+        XCTAssertEqual(image.width, 800)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/media/images/50/complete")
+        XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
     }
 

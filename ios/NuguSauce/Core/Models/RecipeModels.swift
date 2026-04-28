@@ -104,9 +104,42 @@ struct CreateRecipeIngredientRequestDTO: Codable, Equatable {
 struct CreateRecipeRequestDTO: Codable, Equatable {
     let title: String
     let description: String
-    let imageUrl: String?
-    let tips: String
+    let imageId: Int?
+    let tips: String?
     let ingredients: [CreateRecipeIngredientRequestDTO]
+}
+
+struct ImageUploadIntentRequestDTO: Codable, Equatable {
+    let contentType: String
+    let byteSize: Int
+    let fileExtension: String?
+}
+
+struct ImageUploadIntentDTO: Codable, Equatable {
+    let imageId: Int
+    let upload: ImageUploadTargetDTO
+    let constraints: ImageUploadConstraintsDTO
+}
+
+struct ImageUploadTargetDTO: Codable, Equatable {
+    let url: String
+    let method: String
+    let headers: [String: String]
+    let fields: [String: String]
+    let fileField: String
+    let expiresAt: String
+}
+
+struct ImageUploadConstraintsDTO: Codable, Equatable {
+    let maxBytes: Int
+    let allowedContentTypes: [String]
+}
+
+struct VerifiedImageDTO: Codable, Equatable {
+    let imageId: Int
+    let imageUrl: String
+    let width: Int?
+    let height: Int?
 }
 
 struct CreateReviewRequestDTO: Codable, Equatable {

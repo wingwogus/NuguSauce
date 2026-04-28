@@ -53,15 +53,8 @@ struct RecipeDetailView: View {
                 if let errorMessage = viewModel.errorMessage {
                     SauceStatusBanner(message: errorMessage)
                 }
-                if let firstTag = detail.reviewTags.first {
-                    SauceChip(title: firstTag.name, isSelected: false, icon: "flame.fill")
-                }
                 titleBlock(detail)
                 ingredients(detail.ingredients)
-                pairings(detail.reviewTags)
-                if let tips = detail.tips, !tips.isEmpty {
-                    chefTip(tips)
-                }
                 reviewSection
             } else if viewModel.isLoading {
                 ProgressView()
@@ -86,6 +79,11 @@ struct RecipeDetailView: View {
                 .font(.largeTitle.weight(.black))
                 .foregroundStyle(SauceColor.onSurface)
                 .lineLimit(3)
+
+            Text(detail.description)
+                .font(.body)
+                .lineSpacing(5)
+                .foregroundStyle(SauceColor.onSurfaceVariant)
 
             HStack(spacing: 10) {
                 if let authorName = detail.displayAuthorName {
@@ -125,11 +123,7 @@ struct RecipeDetailView: View {
             VStack(spacing: 0) {
                 ForEach(ingredients) { ingredient in
                     HStack {
-                        Image(systemName: "drop.fill")
-                            .foregroundStyle(SauceColor.primaryContainer)
-                            .frame(width: 36, height: 36)
-                            .background(SauceColor.redTint)
-                            .clipShape(Circle())
+                        IngredientArtwork(name: ingredient.name, category: nil, size: 36)
                         Text(ingredient.name)
                             .font(.subheadline.weight(.bold))
                         Spacer()
@@ -150,36 +144,6 @@ struct RecipeDetailView: View {
             .padding(.horizontal, 16)
             .sauceCard(cornerRadius: 18)
         }
-    }
-
-    private func pairings(_ tags: [ReviewTagDTO]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("추천 조합 (꿀조합)")
-                .font(.headline.weight(.bold))
-            HStack {
-                if tags.isEmpty {
-                    SauceChip(title: "리뷰 태그 없음")
-                } else {
-                    ForEach(tags.prefix(4)) { tag in
-                        SauceChip(title: tag.name)
-                    }
-                }
-            }
-        }
-    }
-
-    private func chefTip(_ tips: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("셰프의 꿀팁", systemImage: "lightbulb.fill")
-                .font(.headline.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
-            Text(tips)
-                .font(.body)
-                .lineSpacing(5)
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-        }
-        .padding(20)
-        .sauceCard(cornerRadius: 18)
     }
 
     private var reviewSection: some View {

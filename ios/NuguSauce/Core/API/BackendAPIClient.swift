@@ -6,7 +6,7 @@ struct APIConfiguration: Equatable {
     static var current: APIConfiguration {
         let rawValue = ProcessInfo.processInfo.environment["NUGUSAUCE_API_BASE_URL"]
             ?? Bundle.main.object(forInfoDictionaryKey: "NUGUSAUCE_API_BASE_URL") as? String
-            ?? "http://127.0.0.1:8080"
+            ?? "https://nugusauce.jaehyuns.com"
 
         guard let url = URL(string: rawValue), url.scheme != nil, url.host != nil else {
             preconditionFailure("Invalid NUGUSAUCE_API_BASE_URL: \(rawValue)")
@@ -67,6 +67,64 @@ final class BackendAPIClient: APIClientProtocol {
 
     func fetchTags() async throws -> [TagDTO] {
         try await send(path: "/api/v1/tags")
+    }
+
+    func createImageUploadIntent(_ request: ImageUploadIntentRequestDTO) async throws -> ImageUploadIntentDTO {
+        try await send(
+            path: "/api/v1/media/images/upload-intent",
+            method: "POST",
+            body: AnyEncodable(request),
+            requiresAuthentication: true
+        )
+    }
+
+    func uploadImage(
+        data: Data,
+        contentType: String,
+        fileExtension: String,
+        using intent: ImageUploadIntentDTO
+    ) async throws {
+        guard let url = URL(string: intent.upload.url) else {
+            throw APIClientError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = intent.upload.method
+        intent.upload.headers.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+
+        if intent.upload.method.uppercased() == "POST", !intent.upload.fields.isEmpty {
+            let boundary = "NuguSauce-\(UUID().uuidString)"
+            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            request.httpBody = multipartBody(
+                fields: intent.upload.fields,
+                fileField: intent.upload.fileField,
+                fileName: "recipe.\(fileExtension)",
+                contentType: contentType,
+                fileData: data,
+                boundary: boundary
+            )
+        } else {
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+            request.httpBody = data
+        }
+
+        let (_, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIClientError.invalidResponse
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw APIClientError.httpStatus(httpResponse.statusCode)
+        }
+    }
+
+    func completeImageUpload(imageId: Int) async throws -> VerifiedImageDTO {
+        try await send(
+            path: "/api/v1/media/images/\(imageId)/complete",
+            method: "POST",
+            requiresAuthentication: true
+        )
     }
 
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
@@ -255,6 +313,34 @@ final class BackendAPIClient: APIClientProtocol {
         }
 
         throw APIClientError.missingData
+    }
+
+    private func multipartBody(
+        fields: [String: String],
+        fileField: String,
+        fileName: String,
+        contentType: String,
+        fileData: Data,
+        boundary: String
+    ) -> Data {
+        var body = Data()
+        for key in fields.keys.sorted() {
+            body.append("--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+            body.append("\(fields[key] ?? "")\r\n")
+        }
+        body.append("--\(boundary)\r\n")
+        body.append("Content-Disposition: form-data; name=\"\(fileField)\"; filename=\"\(fileName)\"\r\n")
+        body.append("Content-Type: \(contentType)\r\n\r\n")
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n")
+        return body
+    }
+}
+
+private extension Data {
+    mutating func append(_ string: String) {
+        append(Data(string.utf8))
     }
 }
 

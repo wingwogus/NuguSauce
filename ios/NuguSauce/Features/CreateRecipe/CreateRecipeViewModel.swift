@@ -18,15 +18,18 @@ struct IngredientQuickAddSection: Identifiable, Equatable {
 final class CreateRecipeViewModel: ObservableObject {
     @Published var title = ""
     @Published var description = ""
-    @Published var tips = ""
     @Published var ingredientSearchText = ""
     @Published private(set) var ingredients: [EditableIngredient] = []
     @Published private(set) var quickAddIngredients: [IngredientDTO] = []
     @Published private(set) var errorMessage: String?
     @Published private(set) var didSubmit = false
     @Published private(set) var isSubmitting = false
+    @Published private(set) var isUploadingImage = false
     @Published private(set) var submittedRecipeTitle: String?
     @Published private(set) var submittedRecipeID: Int?
+    @Published private(set) var selectedPhotoData: Data?
+    @Published private(set) var selectedPhotoContentType = "image/jpeg"
+    @Published private(set) var selectedPhotoFileExtension = "jpg"
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
@@ -44,6 +47,10 @@ final class CreateRecipeViewModel: ObservableObject {
         isAuthenticated &&
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !ingredients.isEmpty
+    }
+
+    var hasSelectedPhoto: Bool {
+        selectedPhotoData != nil
     }
 
     var quickAddSections: [IngredientQuickAddSection] {
@@ -102,12 +109,29 @@ final class CreateRecipeViewModel: ObservableObject {
         ingredients[index].amount = truncatedRatio
     }
 
-    func makeRequest() -> CreateRecipeRequestDTO {
+    func setSelectedPhoto(
+        data: Data,
+        contentType: String = "image/jpeg",
+        fileExtension: String = "jpg"
+    ) {
+        selectedPhotoData = data
+        selectedPhotoContentType = contentType
+        selectedPhotoFileExtension = fileExtension
+        errorMessage = nil
+    }
+
+    func clearSelectedPhoto() {
+        selectedPhotoData = nil
+        selectedPhotoContentType = "image/jpeg"
+        selectedPhotoFileExtension = "jpg"
+    }
+
+    func makeRequest(imageId: Int? = nil) -> CreateRecipeRequestDTO {
         CreateRecipeRequestDTO(
             title: title,
             description: description.isEmpty ? "맛있는 소스 조합" : description,
-            imageUrl: nil,
-            tips: tips.isEmpty ? "재료를 잘 섞어 농도를 맞춰주세요." : tips,
+            imageId: imageId,
+            tips: nil,
             ingredients: ingredients.map {
                 CreateRecipeIngredientRequestDTO(
                     ingredientId: $0.ingredient.id,
@@ -141,8 +165,12 @@ final class CreateRecipeViewModel: ObservableObject {
 
         do {
             isSubmitting = true
-            defer { isSubmitting = false }
-            let recipe = try await apiClient.createRecipe(makeRequest())
+            defer {
+                isSubmitting = false
+                isUploadingImage = false
+            }
+            let imageId = try await uploadSelectedPhotoIfNeeded()
+            let recipe = try await apiClient.createRecipe(makeRequest(imageId: imageId))
             submittedRecipeTitle = recipe.title
             submittedRecipeID = recipe.id
             didSubmit = true
@@ -156,6 +184,29 @@ final class CreateRecipeViewModel: ObservableObject {
             }
             return nil
         }
+    }
+
+    private func uploadSelectedPhotoIfNeeded() async throws -> Int? {
+        guard let selectedPhotoData else {
+            return nil
+        }
+        isUploadingImage = true
+        let intent = try await apiClient.createImageUploadIntent(
+            ImageUploadIntentRequestDTO(
+                contentType: selectedPhotoContentType,
+                byteSize: selectedPhotoData.count,
+                fileExtension: selectedPhotoFileExtension
+            )
+        )
+        try await apiClient.uploadImage(
+            data: selectedPhotoData,
+            contentType: selectedPhotoContentType,
+            fileExtension: selectedPhotoFileExtension,
+            using: intent
+        )
+        let verifiedImage = try await apiClient.completeImageUpload(imageId: intent.imageId)
+        isUploadingImage = false
+        return verifiedImage.imageId
     }
 
     private static func categoryTitle(for category: String?) -> String {

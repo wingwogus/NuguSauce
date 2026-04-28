@@ -58,6 +58,94 @@ struct SauceIconButton: View {
     }
 }
 
+struct IngredientArtwork: View {
+    let name: String
+    let category: String?
+    var size: CGFloat = 42
+
+    var body: some View {
+        Image(Self.assetName(forName: name, category: category))
+            .renderingMode(.original)
+            .resizable()
+            .interpolation(.medium)
+            .scaledToFit()
+            .padding(size * 0.08)
+            .frame(width: size, height: size)
+            .background(SauceColor.chip)
+            .clipShape(Circle())
+            .accessibilityHidden(true)
+    }
+
+    static func assetName(forName name: String, category: String?) -> String {
+        exactAssetNames[normalizedName(name)] ?? categoryAssetName(for: category)
+    }
+
+    private static func categoryAssetName(for category: String?) -> String {
+        categoryAssetNames[normalizedCategory(category)] ?? "IngredientOther"
+    }
+
+    private static func normalizedName(_ name: String) -> String {
+        name.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private static func normalizedCategory(_ category: String?) -> String {
+        category?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+    }
+
+    private static let exactAssetNames = [
+        "참기름": "IngredientOil",
+        "땅콩소스": "IngredientPeanutSauce",
+        "다진 마늘": "IngredientGarlic",
+        "고수": "IngredientCilantro",
+        "다진 고추": "IngredientChili",
+        "해선장": "IngredientHoisinSauce",
+        "간장": "IngredientSoySauce",
+        "식초": "IngredientVinegar",
+        "설탕": "IngredientSugar",
+        "파": "IngredientScallion",
+        "깨": "IngredientSesameSeeds",
+        "고추기름": "IngredientChiliOil",
+        "스위트 칠리소스": "IngredientSweetChili",
+        "땅콩가루": "IngredientPeanutPowder",
+        "고춧가루": "IngredientChiliPowder",
+        "볶음 소고기장": "IngredientBeefSauce",
+        "마라소스": "IngredientMalaSauce",
+        "참깨소스": "IngredientSesameSauce",
+        "굴소스": "IngredientOysterSauce",
+        "중국식초": "IngredientChineseVinegar",
+        "흑식초": "IngredientBlackVinegar",
+        "와사비": "IngredientWasabi",
+        "레몬즙": "IngredientLemon",
+        "소금": "IngredientSalt",
+        "맛소금": "IngredientSeasonedSalt",
+        "연유": "IngredientCondensedMilk",
+        "들깨가루": "IngredientPerillaPowder",
+        "양파": "IngredientOnion",
+        "태국 고추": "IngredientThaiChili",
+        "다진 고기": "IngredientGroundMeat",
+        "마라시즈닝": "IngredientMalaSeasoning",
+        "청유 훠궈 소스": "IngredientGreenHotpotSauce",
+        "버섯소스": "IngredientMushroom",
+        "오향 우육": "IngredientFiveSpiceBeef",
+        "매운 소고기 소스": "IngredientSpicyBeefSauce",
+        "쪽파": "IngredientChives",
+        "대파": "IngredientGreenOnion",
+        "참깨가루": "IngredientSesamePowder"
+    ]
+
+    private static let categoryAssetNames = [
+        "sauce_paste": "IngredientSaucePaste",
+        "oil": "IngredientOil",
+        "vinegar_citrus": "IngredientVinegar",
+        "fresh_aromatic": "IngredientFreshAromatic",
+        "dry_seasoning": "IngredientDrySeasoning",
+        "sweet_dairy": "IngredientSweetDairy",
+        "topping_seed": "IngredientToppingSeed",
+        "protein": "IngredientProtein",
+        "other": "IngredientOther"
+    ]
+}
+
 struct SauceStatusBanner: View {
     let message: String
     var isError = true
@@ -209,29 +297,35 @@ struct RecipeImage: View {
     var height: CGFloat = 220
 
     var body: some View {
-        if let imageURL, let url = URL(string: imageURL) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    SauceArtwork(recipeID: recipeID, height: height)
-                case .empty:
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: height)
-                        .background(SauceColor.surfaceContainerLow)
-                @unknown default:
+        GeometryReader { proxy in
+            Group {
+                if let imageURL, let url = URL(string: imageURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            SauceArtwork(recipeID: recipeID, height: height)
+                        case .empty:
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(SauceColor.surfaceContainerLow)
+                        @unknown default:
+                            SauceArtwork(recipeID: recipeID, height: height)
+                        }
+                    }
+                } else {
                     SauceArtwork(recipeID: recipeID, height: height)
                 }
             }
-            .frame(height: height)
+            .frame(width: proxy.size.width, height: height)
             .clipped()
-        } else {
-            SauceArtwork(recipeID: recipeID, height: height)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
     }
 }
 

@@ -131,6 +131,14 @@ protocol APIClientProtocol {
     func fetchReviews(recipeID: Int) async throws -> [RecipeReviewDTO]
     func fetchIngredients() async throws -> [IngredientDTO]
     func fetchTags() async throws -> [TagDTO]
+    func createImageUploadIntent(_ request: ImageUploadIntentRequestDTO) async throws -> ImageUploadIntentDTO
+    func uploadImage(
+        data: Data,
+        contentType: String,
+        fileExtension: String,
+        using intent: ImageUploadIntentDTO
+    ) async throws
+    func completeImageUpload(imageId: Int) async throws -> VerifiedImageDTO
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO
     func fetchMyRecipes() async throws -> [RecipeSummaryDTO]

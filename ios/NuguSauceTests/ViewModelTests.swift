@@ -122,7 +122,8 @@ final class ViewModelTests: XCTestCase {
         viewModel.description = "매콤하고 고소한 조합"
 
         XCTAssertTrue(viewModel.canSubmit)
-        XCTAssertNil(viewModel.makeRequest().imageUrl)
+        XCTAssertNil(viewModel.makeRequest().imageId)
+        XCTAssertNil(viewModel.makeRequest().tips)
         XCTAssertFalse(viewModel.makeRequest().ingredients.isEmpty)
     }
 
@@ -140,6 +141,27 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(recipeID, 1)
         XCTAssertEqual(viewModel.submittedRecipeID, 1)
         XCTAssertTrue(viewModel.didSubmit)
+    }
+
+    func testCreateRecipeSubmitUploadsSelectedPhotoBeforeCreate() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let client = TestAPIClient(ingredients: [ingredient])
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "사진 소스"
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+
+        let recipeID = await viewModel.submit()
+
+        XCTAssertEqual(recipeID, 1)
+        XCTAssertEqual(client.uploadEvents, ["intent", "upload", "complete", "create"])
+        XCTAssertEqual(client.imageUploadIntentRequests.first?.byteSize, 3)
+        XCTAssertEqual(client.uploadedImageByteCounts, [3])
+        XCTAssertEqual(client.completedImageIDs, [50])
+        XCTAssertEqual(client.createdRecipeRequests.first?.imageId, 50)
     }
 
     func testCreateRecipeRatioIsTruncatedToTenthsInStateAndRequest() throws {
@@ -255,6 +277,13 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 1, name: "땅콩소스", category: "sauce_paste")), "소스/장류")
         XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 2, name: "고춧가루", category: "dry_seasoning")), "가루/시즈닝")
         XCTAssertEqual(viewModel.categoryTitle(for: IngredientDTO(id: 3, name: "기타 재료", category: nil)), "기타")
+    }
+
+    func testIngredientArtworkUsesBundledAssetsForKnownNamesAndCategoryFallbacks() {
+        XCTAssertEqual(IngredientArtwork.assetName(forName: " 간장 ", category: "sauce_paste"), "IngredientSoySauce")
+        XCTAssertEqual(IngredientArtwork.assetName(forName: "다진   마늘", category: "fresh_aromatic"), "IngredientGarlic")
+        XCTAssertEqual(IngredientArtwork.assetName(forName: "알 수 없는 오일", category: "oil"), "IngredientOil")
+        XCTAssertEqual(IngredientArtwork.assetName(forName: "미분류 재료", category: nil), "IngredientOther")
     }
 
     func testFavoritesLoadUsesFavoriteEndpointWhenAuthenticated() async {
@@ -714,6 +743,11 @@ private final class TestAPIClient: APIClientProtocol {
     private var memberProfile: MemberProfileDTO
     private(set) var fetchFavoriteRecipesCallCount = 0
     private(set) var fetchRecipeSorts: [RecipeSort] = []
+    private(set) var imageUploadIntentRequests: [ImageUploadIntentRequestDTO] = []
+    private(set) var uploadedImageByteCounts: [Int] = []
+    private(set) var completedImageIDs: [Int] = []
+    private(set) var createdRecipeRequests: [CreateRecipeRequestDTO] = []
+    private(set) var uploadEvents: [String] = []
     private(set) var createdReviewRequests: [CreateReviewRequestDTO] = []
     private(set) var updatedNicknames: [String] = []
     private(set) var fetchedMemberIDs: [Int] = []
@@ -775,7 +809,47 @@ private final class TestAPIClient: APIClientProtocol {
     func fetchReviews(recipeID: Int) async throws -> [RecipeReviewDTO] { [] }
     func fetchIngredients() async throws -> [IngredientDTO] { ingredients }
     func fetchTags() async throws -> [TagDTO] { tags }
+    func createImageUploadIntent(_ request: ImageUploadIntentRequestDTO) async throws -> ImageUploadIntentDTO {
+        uploadEvents.append("intent")
+        imageUploadIntentRequests.append(request)
+        return ImageUploadIntentDTO(
+            imageId: 50,
+            upload: ImageUploadTargetDTO(
+                url: "https://upload.example.test",
+                method: "POST",
+                headers: [:],
+                fields: ["signature": "signed"],
+                fileField: "file",
+                expiresAt: "2026-04-28T14:30:00Z"
+            ),
+            constraints: ImageUploadConstraintsDTO(
+                maxBytes: 5_242_880,
+                allowedContentTypes: ["image/jpeg", "image/png", "image/heic", "image/heif"]
+            )
+        )
+    }
+    func uploadImage(
+        data: Data,
+        contentType: String,
+        fileExtension: String,
+        using intent: ImageUploadIntentDTO
+    ) async throws {
+        uploadEvents.append("upload")
+        uploadedImageByteCounts.append(data.count)
+    }
+    func completeImageUpload(imageId: Int) async throws -> VerifiedImageDTO {
+        uploadEvents.append("complete")
+        completedImageIDs.append(imageId)
+        return VerifiedImageDTO(
+            imageId: imageId,
+            imageUrl: "https://cdn.example.test/image",
+            width: 800,
+            height: 600
+        )
+    }
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        uploadEvents.append("create")
+        createdRecipeRequests.append(request)
         try await fetchRecipeDetail(id: 1)
     }
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
