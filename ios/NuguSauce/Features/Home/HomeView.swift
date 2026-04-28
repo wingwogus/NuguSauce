@@ -29,8 +29,8 @@ struct HomeView: View {
             switch route {
             case .recipeDetail(let id):
                 RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile:
-                PublicProfilePlaceholderView()
+            case .publicProfile(let id):
+                PublicProfileView(memberID: id, apiClient: apiClient)
             case .loginRequired:
                 LoginRequiredView(apiClient: apiClient, authStore: authStore)
             }

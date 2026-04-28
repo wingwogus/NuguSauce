@@ -68,6 +68,7 @@ class RecipeReviewServiceTest {
             )
         )
 
+        assertEquals(1L, result.authorId)
         assertEquals("리뷰장인", result.authorName)
         assertEquals(5, result.rating)
         assertEquals(1, recipe.reviewCount)

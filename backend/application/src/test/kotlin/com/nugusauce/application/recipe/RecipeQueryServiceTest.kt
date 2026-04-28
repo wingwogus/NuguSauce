@@ -114,6 +114,7 @@ class RecipeQueryServiceTest {
         val result = service.getDetail(10L)
 
         assertEquals("USER", result.authorType)
+        assertEquals(7L, result.authorId)
         assertEquals("소스장인", result.authorName)
     }
 
@@ -154,6 +155,7 @@ class RecipeQueryServiceTest {
         val results = service.listReviews(10L)
 
         assertEquals("리뷰장인", results.first().authorName)
+        assertEquals(7L, results.first().authorId)
         assertNotEquals("reviewer@example.test", results.first().authorName)
         assertEquals("고소해요", results.first().text)
     }

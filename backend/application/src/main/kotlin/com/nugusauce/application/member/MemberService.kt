@@ -2,8 +2,14 @@ package com.nugusauce.application.member
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.recipe.RecipeResult
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
+import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
+import com.nugusauce.domain.recipe.sauce.RecipeVisibility
+import com.nugusauce.domain.recipe.sauce.SauceRecipe
+import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -12,14 +18,30 @@ import java.util.Locale
 @Service
 @Transactional
 class MemberService(
-    private val memberRepository: MemberRepository
+    private val memberRepository: MemberRepository,
+    private val sauceRecipeRepository: SauceRecipeRepository,
+    private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val recipeReviewRepository: RecipeReviewRepository
 ) {
     fun getMe(memberId: Long): MemberResult.Me {
         return MemberResult.me(findMember(memberId))
     }
 
     fun getPublicProfile(memberId: Long): MemberResult.PublicProfile {
-        return MemberResult.publicProfile(findMember(memberId))
+        val member = findMember(memberId)
+        val recipes = sauceRecipeRepository.findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(
+            memberId,
+            RecipeVisibility.VISIBLE
+        )
+        val favoriteRecipes = recipeFavoriteRepository.findAllByMemberIdOrderByCreatedAtDesc(memberId)
+            .map { it.recipe }
+            .filter { it.visibility == RecipeVisibility.VISIBLE }
+        val reviewTagsByRecipeId = loadReviewTagCounts((recipes + favoriteRecipes).map { it.id })
+        return MemberResult.publicProfile(
+            member = member,
+            recipes = summarizeWithReviewTags(recipes, reviewTagsByRecipeId),
+            favoriteRecipes = summarizeWithReviewTags(favoriteRecipes, reviewTagsByRecipeId)
+        )
     }
 
     fun updateMe(command: MemberCommand.UpdateMe): MemberResult.Me {
@@ -49,6 +71,31 @@ class MemberService(
         return memberRepository.findById(memberId).orElseThrow {
             BusinessException(ErrorCode.USER_NOT_FOUND)
         }
+    }
+
+    private fun summarizeWithReviewTags(
+        recipes: List<SauceRecipe>,
+        reviewTagsByRecipeId: Map<Long, List<RecipeResult.ReviewTagCount>>
+    ): List<RecipeResult.RecipeSummary> {
+        return recipes.map { recipe ->
+            RecipeResult.summary(recipe, reviewTagsByRecipeId[recipe.id].orEmpty())
+        }
+    }
+
+    private fun loadReviewTagCounts(recipeIds: Collection<Long>): Map<Long, List<RecipeResult.ReviewTagCount>> {
+        if (recipeIds.isEmpty()) {
+            return emptyMap()
+        }
+        return recipeReviewRepository.countTasteTagsByRecipeIds(recipeIds.toSet())
+            .groupBy { it.recipeId }
+            .mapValues { (_, counts) ->
+                counts
+                    .map(RecipeResult::reviewTagCount)
+                    .sortedWith(
+                        compareByDescending<RecipeResult.ReviewTagCount> { it.count }
+                            .thenBy { it.name }
+                    )
+            }
     }
 
     private fun normalizeNickname(rawNickname: String): String {

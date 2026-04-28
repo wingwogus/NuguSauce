@@ -120,6 +120,7 @@ object RecipeResponses {
         val imageUrl: String?,
         val tips: String?,
         val authorType: String,
+        val authorId: Long?,
         val authorName: String,
         val visibility: String,
         val ingredients: List<RecipeIngredientResponse>,
@@ -138,6 +139,7 @@ object RecipeResponses {
                     imageUrl = result.imageUrl,
                     tips = result.tips,
                     authorType = result.authorType,
+                    authorId = result.authorId,
                     authorName = result.authorName,
                     visibility = result.visibility,
                     ingredients = result.ingredients.map(RecipeIngredientResponse::from),
@@ -154,6 +156,7 @@ object RecipeResponses {
     data class ReviewResponse(
         val id: Long,
         val recipeId: Long,
+        val authorId: Long,
         val authorName: String,
         val rating: Int,
         val text: String?,
@@ -165,6 +168,7 @@ object RecipeResponses {
                 return ReviewResponse(
                     id = result.id,
                     recipeId = result.recipeId,
+                    authorId = result.authorId,
                     authorName = result.authorName,
                     rating = result.rating,
                     text = result.text,

@@ -140,6 +140,7 @@ class RecipeControllerValidationTest(
             imageUrl = null,
             tips = null,
             authorType = "CURATED",
+            authorId = null,
             authorName = "NuguSauce",
             visibility = "VISIBLE",
             ingredients = emptyList(),

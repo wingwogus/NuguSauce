@@ -18,11 +18,21 @@ struct ProfileView: View {
                 topBar
                 appearanceSettingsCard
                 if authStore.isAuthenticated {
-                    profileHero
+                    ProfileHeroCard(
+                        displayName: viewModel.displayName,
+                        stats: [
+                            ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 레시피"),
+                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
+                        ],
+                        actionTitle: "로그아웃",
+                        action: {
+                            authStore.clear()
+                        }
+                    )
                     if viewModel.profileSetupRequired {
                         nicknameSetupCard
                     }
-                    recipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
+                    ProfileRecipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
                 } else {
                     LoginRequiredView(apiClient: apiClient, authStore: authStore)
                 }
@@ -35,8 +45,8 @@ struct ProfileView: View {
             switch route {
             case .recipeDetail(let id):
                 RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile:
-                PublicProfilePlaceholderView()
+            case .publicProfile(let id):
+                PublicProfileView(memberID: id, apiClient: apiClient)
             case .loginRequired:
                 LoginRequiredView(apiClient: apiClient, authStore: authStore)
             }
@@ -96,34 +106,6 @@ struct ProfileView: View {
         )
     }
 
-    private var profileHero: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 82))
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-            Text(viewModel.displayName)
-                .font(.largeTitle.weight(.black))
-                .foregroundStyle(SauceColor.onSurface)
-            HStack(spacing: 44) {
-                stat("\(viewModel.myRecipes.count)", "내 레시피")
-                stat("\(viewModel.favoriteRecipes.count)", "찜한 레시피")
-            }
-            Button("로그아웃") {
-                authStore.clear()
-            }
-                .font(.headline.weight(.bold))
-                .foregroundStyle(SauceColor.onPrimary)
-                .padding(.horizontal, 48)
-                .padding(.vertical, 13)
-                .background(SauceColor.primaryContainer)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 34)
-        .background(SauceColor.surfaceContainerLow)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
     private var nicknameSetupCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("닉네임 설정")
@@ -154,17 +136,118 @@ struct ProfileView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func stat(_ value: String, _ label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.title3.weight(.black))
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(SauceColor.onSurfaceVariant)
+}
+
+struct PublicProfileView: View {
+    @StateObject private var viewModel: PublicProfileViewModel
+
+    init(memberID: Int, apiClient: APIClientProtocol) {
+        _viewModel = StateObject(wrappedValue: PublicProfileViewModel(memberID: memberID, apiClient: apiClient))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                SauceScreenTitle(title: "프로필")
+
+                if let member = viewModel.member {
+                    ProfileHeroCard(
+                        displayName: member.displayName,
+                        stats: [
+                            ProfileHeroStat(value: "\(viewModel.recipes.count)", label: "내 레시피"),
+                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
+                        ],
+                        actionTitle: nil,
+                        action: nil
+                    )
+                    ProfileRecipeSection(title: viewModel.authoredRecipeSectionTitle, recipes: viewModel.recipes)
+                } else if viewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 80)
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    VStack(alignment: .leading, spacing: 14) {
+                        SauceStatusBanner(message: errorMessage)
+                        Button {
+                            Task {
+                                await viewModel.load()
+                            }
+                        } label: {
+                            Text("다시 불러오기")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .primarySauceButton()
+                    }
+                }
+            }
+            .padding(.horizontal, SauceSpacing.screen)
+            .padding(.bottom, 42)
+        }
+        .background(SauceColor.surface.ignoresSafeArea())
+        .task {
+            await viewModel.load()
         }
     }
 
-    private func recipeSection(title: String, recipes: [RecipeSummaryDTO]) -> some View {
+}
+
+private struct ProfileHeroStat: Identifiable {
+    var id: String { label }
+    let value: String
+    let label: String
+}
+
+private struct ProfileHeroCard: View {
+    let displayName: String
+    let stats: [ProfileHeroStat]
+    let actionTitle: String?
+    let action: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 82))
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+            Text(displayName)
+                .font(.largeTitle.weight(.black))
+                .foregroundStyle(SauceColor.onSurface)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            HStack(spacing: 44) {
+                ForEach(stats) { stat in
+                    VStack(spacing: 2) {
+                        Text(stat.value)
+                            .font(.title3.weight(.black))
+                        Text(stat.label)
+                            .font(.caption2)
+                            .foregroundStyle(SauceColor.onSurfaceVariant)
+                    }
+                }
+            }
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SauceColor.onPrimary)
+                    .padding(.horizontal, 48)
+                    .padding(.vertical, 13)
+                    .background(SauceColor.primaryContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+        .background(SauceColor.surfaceContainerLow)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct ProfileRecipeSection: View {
+    let title: String
+    let recipes: [RecipeSummaryDTO]
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.title2.weight(.black))
@@ -175,23 +258,6 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-}
-
-struct PublicProfilePlaceholderView: View {
-    var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 72))
-                .foregroundStyle(SauceColor.primaryContainer)
-            Text("상대페이지 준비 중")
-                .font(.title.weight(.black))
-            Text("공개 프로필 API 계약이 추가되면 백엔드 데이터로 연결합니다.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-        }
-        .padding(28)
-        .background(SauceColor.surface.ignoresSafeArea())
     }
 }
 

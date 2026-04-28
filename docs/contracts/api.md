@@ -155,7 +155,7 @@ Member APIs use the shared response envelope above.
 - `nickname` is the service-owned public nickname.
 - `displayName` is safe public display text. It is the nickname when set,
   otherwise `"사용자 {id}"`.
-- `profileSetupRequired` is true when the authenticated member has no nickname.
+- `profileSetupRequired` is true when the member has no nickname.
 - Nicknames are trimmed before validation and storage.
 - Nicknames must be 2..20 characters and contain only Korean letters, English
   letters, digits, or `_`.
@@ -192,7 +192,9 @@ Success data matches the `GET /api/v1/members/me` shape.
 
 ### `GET /api/v1/members/{memberId}`
 
-Public endpoint for another member's safe public profile.
+Public endpoint for another member's safe public profile and profile-screen data.
+Only visible authored recipes and visible favorite recipes are returned; hidden
+recipes stay private to the owner.
 
 Success data:
 
@@ -200,7 +202,40 @@ Success data:
 {
   "id": 2,
   "nickname": "마라초보",
-  "displayName": "마라초보"
+  "displayName": "마라초보",
+  "profileSetupRequired": false,
+  "recipes": [
+    {
+      "id": 101,
+      "title": "마늘 듬뿍 고소 소스",
+      "description": "마늘 향이 강한 커스텀 조합",
+      "imageUrl": null,
+      "authorType": "USER",
+      "visibility": "VISIBLE",
+      "ratingSummary": {
+        "averageRating": 0.0,
+        "reviewCount": 0
+      },
+      "reviewTags": [],
+      "createdAt": "2026-04-25T00:00:00Z"
+    }
+  ],
+  "favoriteRecipes": [
+    {
+      "id": 1,
+      "title": "건희 소스",
+      "description": "고소하고 매콤한 인기 조합",
+      "imageUrl": null,
+      "authorType": "CURATED",
+      "visibility": "VISIBLE",
+      "ratingSummary": {
+        "averageRating": 4.7,
+        "reviewCount": 12
+      },
+      "reviewTags": [],
+      "createdAt": "2026-04-25T00:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -273,6 +308,7 @@ Success data:
   "imageUrl": null,
   "tips": "참기름은 마지막에 넣는다",
   "authorType": "CURATED",
+  "authorId": null,
   "authorName": "NuguSauce",
   "visibility": "VISIBLE",
   "ingredients": [
@@ -323,9 +359,10 @@ Request:
 
 Authors can only submit the sauce composition and optional text/media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
 
-Recipe detail responses include `authorName`, safe public display text for the
-recipe author. Curated recipes use `"NuguSauce"`; user recipes use the author's
-public nickname/display name.
+Recipe detail responses include `authorId`, the safe public member id for the
+recipe author, and `authorName`, safe public display text for the recipe author.
+Curated recipes use `"NuguSauce"` and `authorId: null`; user recipes use the
+author's public member id and public nickname/display name.
 
 Success status: `201 Created`
 
@@ -380,6 +417,7 @@ Success data:
 {
   "id": 10,
   "recipeId": 1,
+  "authorId": 7,
   "authorName": "소스장인",
   "rating": 5,
   "text": "고소하고 초보자도 먹기 좋았어요",
@@ -399,6 +437,7 @@ Success data:
   {
     "id": 10,
     "recipeId": 1,
+    "authorId": 7,
     "authorName": "소스장인",
     "rating": 5,
     "text": "고소하고 초보자도 먹기 좋았어요",
@@ -410,7 +449,9 @@ Success data:
 ]
 ```
 
-`authorName` is safe public display text for the review author. It must not expose the author's email address.
+`authorId` is the review author's safe public member id. `authorName` is safe
+public display text for the review author. Public review responses must not
+expose the author's email address or provider identity.
 
 ### `POST /api/v1/recipes/{recipeId}/reports`
 

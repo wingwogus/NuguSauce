@@ -37,6 +37,7 @@ final class APIContractTests: XCTestCase {
           "imageUrl": null,
           "tips": "땅콩소스를 먼저 푼다",
           "authorType": "USER",
+          "authorId": 7,
           "authorName": "소스장인",
           "visibility": "VISIBLE",
           "ingredients": [],
@@ -50,6 +51,7 @@ final class APIContractTests: XCTestCase {
 
         let detail = try JSONDecoder().decode(RecipeDetailDTO.self, from: json)
 
+        XCTAssertEqual(detail.authorId, 7)
         XCTAssertEqual(detail.displayAuthorName, "소스장인")
         XCTAssertTrue(detail.isFavorited)
     }
@@ -136,6 +138,7 @@ final class APIContractTests: XCTestCase {
         {
           "id": 10,
           "recipeId": 1,
+          "authorId": 8,
           "authorName": "리뷰장인",
           "rating": 5,
           "text": "고소하고 초보자도 먹기 좋았어요",
@@ -146,6 +149,7 @@ final class APIContractTests: XCTestCase {
 
         let review = try JSONDecoder().decode(RecipeReviewDTO.self, from: json)
 
+        XCTAssertEqual(review.authorId, 8)
         XCTAssertEqual(review.authorName, "리뷰장인")
     }
 
@@ -282,6 +286,67 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
     }
 
+    func testBackendClientFetchesPublicMemberProfile() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "id": 8,
+            "nickname": "마라초보",
+            "displayName": "마라초보",
+            "profileSetupRequired": false,
+            "recipes": [
+              {
+                "id": 81,
+                "title": "마라초보 소스",
+                "description": "직접 올린 소스",
+                "imageUrl": null,
+                "authorType": "USER",
+                "visibility": "VISIBLE",
+                "ratingSummary": {
+                  "averageRating": 0.0,
+                  "reviewCount": 0
+                },
+                "reviewTags": [],
+                "createdAt": "2026-04-25T00:00:00Z"
+              }
+            ],
+            "favoriteRecipes": [
+              {
+                "id": 82,
+                "title": "찜한 소스",
+                "description": "찜한 공개 소스",
+                "imageUrl": null,
+                "authorType": "CURATED",
+                "visibility": "VISIBLE",
+                "ratingSummary": {
+                  "averageRating": 4.5,
+                  "reviewCount": 4
+                },
+                "reviewTags": [],
+                "createdAt": "2026-04-25T00:00:00Z"
+              }
+            ]
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let member = try await client.fetchMember(id: 8)
+
+        XCTAssertEqual(member.id, 8)
+        XCTAssertEqual(member.displayName, "마라초보")
+        XCTAssertEqual(member.recipes?.map(\.id), [81])
+        XCTAssertEqual(member.favoriteRecipes?.map(\.id), [82])
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/members/8")
+        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+    }
+
     func testBackendClientFetchesRecipeDetailWithOptionalAuthorization() async throws {
         URLProtocolTestTransport.responseData = """
         {
@@ -293,6 +358,7 @@ final class APIContractTests: XCTestCase {
             "imageUrl": null,
             "tips": "참기름은 마지막에 넣는다",
             "authorType": "CURATED",
+            "authorId": null,
             "authorName": "NuguSauce",
             "visibility": "VISIBLE",
             "ingredients": [],
@@ -313,6 +379,7 @@ final class APIContractTests: XCTestCase {
         let detail = try await client.fetchRecipeDetail(id: 10)
 
         XCTAssertTrue(detail.isFavorited)
+        XCTAssertNil(detail.authorId)
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/recipes/10")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")

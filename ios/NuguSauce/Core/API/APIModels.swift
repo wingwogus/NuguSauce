@@ -89,6 +89,24 @@ struct MemberProfileDTO: Codable, Equatable, Identifiable {
     let nickname: String?
     let displayName: String
     let profileSetupRequired: Bool?
+    let recipes: [RecipeSummaryDTO]?
+    let favoriteRecipes: [RecipeSummaryDTO]?
+
+    init(
+        id: Int,
+        nickname: String?,
+        displayName: String,
+        profileSetupRequired: Bool?,
+        recipes: [RecipeSummaryDTO]? = nil,
+        favoriteRecipes: [RecipeSummaryDTO]? = nil
+    ) {
+        self.id = id
+        self.nickname = nickname
+        self.displayName = displayName
+        self.profileSetupRequired = profileSetupRequired
+        self.recipes = recipes
+        self.favoriteRecipes = favoriteRecipes
+    }
 }
 
 struct KakaoLoginResponseDTO: Codable, Equatable {

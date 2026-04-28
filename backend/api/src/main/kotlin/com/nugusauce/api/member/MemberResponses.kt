@@ -1,6 +1,7 @@
 package com.nugusauce.api.member
 
 import com.nugusauce.application.member.MemberResult
+import com.nugusauce.api.recipe.RecipeResponses
 
 object MemberResponses {
     data class MeResponse(
@@ -24,14 +25,20 @@ object MemberResponses {
     data class PublicProfileResponse(
         val id: Long,
         val nickname: String?,
-        val displayName: String
+        val displayName: String,
+        val profileSetupRequired: Boolean,
+        val recipes: List<RecipeResponses.RecipeSummaryResponse>,
+        val favoriteRecipes: List<RecipeResponses.RecipeSummaryResponse>
     ) {
         companion object {
             fun from(result: MemberResult.PublicProfile): PublicProfileResponse {
                 return PublicProfileResponse(
                     id = result.id,
                     nickname = result.nickname,
-                    displayName = result.displayName
+                    displayName = result.displayName,
+                    profileSetupRequired = result.profileSetupRequired,
+                    recipes = result.recipes.map(RecipeResponses.RecipeSummaryResponse::from),
+                    favoriteRecipes = result.favoriteRecipes.map(RecipeResponses.RecipeSummaryResponse::from)
                 )
             }
         }

@@ -67,6 +67,7 @@ object RecipeResult {
         val imageUrl: String?,
         val tips: String?,
         val authorType: String,
+        val authorId: Long?,
         val authorName: String,
         val visibility: String,
         val ingredients: List<RecipeIngredientItem>,
@@ -81,6 +82,7 @@ object RecipeResult {
     data class ReviewItem(
         val id: Long,
         val recipeId: Long,
+        val authorId: Long,
         val authorName: String,
         val rating: Int,
         val text: String?,
@@ -159,6 +161,7 @@ object RecipeResult {
             imageUrl = recipe.imageUrl,
             tips = recipe.tips,
             authorType = recipe.authorType.name,
+            authorId = recipe.author?.id,
             authorName = authorName(recipe),
             visibility = recipe.visibility.name,
             ingredients = recipe.ingredients.map(::fromRecipeIngredient).sortedBy { it.name },
@@ -175,6 +178,7 @@ object RecipeResult {
         return ReviewItem(
             id = review.id,
             recipeId = review.recipe.id,
+            authorId = review.author.id,
             authorName = MemberResult.displayName(review.author),
             rating = review.rating,
             text = review.text,

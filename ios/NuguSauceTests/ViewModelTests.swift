@@ -652,6 +652,30 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(profileViewModel.profileSetupRequired)
     }
 
+    func testPublicProfileLoadFetchesPublicMemberProfile() async {
+        let client = TestAPIClient(
+            memberProfile: MemberProfileDTO(
+                id: 8,
+                nickname: "마라초보",
+                displayName: "마라초보",
+                profileSetupRequired: false,
+                recipes: [Self.recipe(id: 81, title: "마라초보 소스")],
+                favoriteRecipes: [Self.recipe(id: 82, title: "찜한 소스")]
+            )
+        )
+        let viewModel = PublicProfileViewModel(memberID: 8, apiClient: client)
+
+        await viewModel.load()
+
+        XCTAssertEqual(client.fetchedMemberIDs, [8])
+        XCTAssertEqual(viewModel.member?.displayName, "마라초보")
+        XCTAssertEqual(viewModel.nicknameText, "@마라초보")
+        XCTAssertEqual(viewModel.authoredRecipeSectionTitle, "마라초보가 올린 레시피")
+        XCTAssertEqual(viewModel.recipes.map(\.id), [81])
+        XCTAssertEqual(viewModel.favoriteRecipes.map(\.id), [82])
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
     private static func recipe(id: Int, title: String) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
@@ -692,6 +716,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var fetchRecipeSorts: [RecipeSort] = []
     private(set) var createdReviewRequests: [CreateReviewRequestDTO] = []
     private(set) var updatedNicknames: [String] = []
+    private(set) var fetchedMemberIDs: [Int] = []
 
     init(
         recipes: [RecipeSummaryDTO] = [],
@@ -735,6 +760,7 @@ private final class TestAPIClient: APIClientProtocol {
             imageUrl: nil,
             tips: nil,
             authorType: .curated,
+            authorId: nil,
             authorName: "NuguSauce",
             visibility: .visible,
             ingredients: [],
@@ -757,6 +783,7 @@ private final class TestAPIClient: APIClientProtocol {
         return RecipeReviewDTO(
             id: 1,
             recipeId: recipeID,
+            authorId: 1,
             authorName: "테스터",
             rating: request.rating,
             text: request.text,
@@ -804,7 +831,10 @@ private final class TestAPIClient: APIClientProtocol {
         }
     }
     func fetchMyMember() async throws -> MemberProfileDTO { memberProfile }
-    func fetchMember(id: Int) async throws -> MemberProfileDTO { memberProfile }
+    func fetchMember(id: Int) async throws -> MemberProfileDTO {
+        fetchedMemberIDs.append(id)
+        return memberProfile
+    }
     func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
         updatedNicknames.append(nickname)
         memberProfile = MemberProfileDTO(

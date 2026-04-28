@@ -89,9 +89,7 @@ struct RecipeDetailView: View {
 
             HStack(spacing: 10) {
                 if let authorName = detail.displayAuthorName {
-                    Image(systemName: "person.crop.circle.fill")
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
-                    Text(authorName)
+                    recipeAuthorLabel(name: authorName, detail: detail)
                     Text("·")
                         .foregroundStyle(SauceColor.muted)
                 }
@@ -104,6 +102,18 @@ struct RecipeDetailView: View {
             }
             .font(.caption)
             .foregroundStyle(SauceColor.onSurfaceVariant)
+        }
+    }
+
+    @ViewBuilder
+    private func recipeAuthorLabel(name: String, detail: RecipeDetailDTO) -> some View {
+        if detail.authorType == .user, let authorId = detail.authorId {
+            NavigationLink(value: AppRoute.publicProfile(authorId)) {
+                authorIdentityLabel(name: name)
+            }
+            .buttonStyle(.plain)
+        } else {
+            authorIdentityLabel(name: name)
         }
     }
 
@@ -195,11 +205,7 @@ struct RecipeDetailView: View {
             ForEach(viewModel.reviews) { review in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(SauceColor.onSurfaceVariant)
-                        Text(review.authorName)
-                            .font(.subheadline.weight(.bold))
+                        reviewAuthorLabel(review)
                         Spacer()
                         Text("최근")
                             .font(.caption2)
@@ -220,6 +226,37 @@ struct RecipeDetailView: View {
                 .sauceCard(cornerRadius: 18)
             }
         }
+    }
+
+    @ViewBuilder
+    private func reviewAuthorLabel(_ review: RecipeReviewDTO) -> some View {
+        if let authorId = review.authorId {
+            NavigationLink(value: AppRoute.publicProfile(authorId)) {
+                authorIdentityLabel(
+                    name: review.authorName,
+                    iconFont: .title2,
+                    nameFont: .subheadline.weight(.bold)
+                )
+            }
+            .buttonStyle(.plain)
+        } else {
+            authorIdentityLabel(
+                name: review.authorName,
+                iconFont: .title2,
+                nameFont: .subheadline.weight(.bold)
+            )
+        }
+    }
+
+    private func authorIdentityLabel(name: String, iconFont: Font? = nil, nameFont: Font? = nil) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(iconFont)
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+            Text(name)
+                .font(nameFont)
+        }
+        .foregroundStyle(SauceColor.onSurfaceVariant)
     }
 }
 

@@ -113,3 +113,66 @@ final class ProfileViewModel: ObservableObject {
         }
     }
 }
+
+@MainActor
+final class PublicProfileViewModel: ObservableObject {
+    @Published private(set) var member: MemberProfileDTO?
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+
+    private let memberID: Int
+    private let apiClient: APIClientProtocol
+
+    init(memberID: Int, apiClient: APIClientProtocol) {
+        self.memberID = memberID
+        self.apiClient = apiClient
+    }
+
+    var displayName: String {
+        member?.displayName ?? "사용자 정보"
+    }
+
+    var nicknameText: String? {
+        let nickname = member?.nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let nickname, !nickname.isEmpty else {
+            return nil
+        }
+        return "@\(nickname)"
+    }
+
+    var recipes: [RecipeSummaryDTO] {
+        member?.recipes ?? []
+    }
+
+    var favoriteRecipes: [RecipeSummaryDTO] {
+        member?.favoriteRecipes ?? []
+    }
+
+    var authoredRecipeSectionTitle: String {
+        "\(displayName)\(KoreanParticle.subject(for: displayName)) 올린 레시피"
+    }
+
+    func load() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            member = try await apiClient.fetchMember(id: memberID)
+        } catch {
+            errorMessage = "프로필 정보를 불러오지 못했어요."
+        }
+        isLoading = false
+    }
+}
+
+private enum KoreanParticle {
+    static func subject(for text: String) -> String {
+        guard let lastScalar = text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars.last else {
+            return "가"
+        }
+        let value = lastScalar.value
+        guard value >= 0xAC00 && value <= 0xD7A3 else {
+            return "가"
+        }
+        return (value - 0xAC00) % 28 == 0 ? "가" : "이"
+    }
+}
