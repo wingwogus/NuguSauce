@@ -45,7 +45,7 @@ class RecipeWriteServiceTest {
 
     @Test
     fun `create stores user recipe with ingredients`() {
-        val member = Member(1L, "user@example.test", null)
+        val member = Member(1L, "user@example.test", null, nickname = "소스장인")
         val ingredient = Ingredient(1L, "참기름", "oil")
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
         `when`(ingredientRepository.findAllById(setOf(1L))).thenReturn(listOf(ingredient))
@@ -70,6 +70,7 @@ class RecipeWriteServiceTest {
         assertEquals("내 소스", result.title)
         assertEquals(1, result.ingredients.size)
         assertEquals("참기름", result.ingredients.first().name)
+        assertEquals("소스장인", result.authorName)
         assertEquals(0, result.spiceLevel)
         assertEquals(0, result.richnessLevel)
         assertTrue(result.tags.isEmpty())

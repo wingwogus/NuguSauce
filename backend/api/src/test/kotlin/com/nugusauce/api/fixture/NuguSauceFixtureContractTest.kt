@@ -53,6 +53,16 @@ class NuguSauceFixtureContractTest {
     }
 
     @Test
+    fun `fixture users include public nicknames`() {
+        val nicknames = fixture.requiredArray("users").map { user ->
+            user.requiredText("nickname")
+        }
+
+        assertTrue(nicknames.all { it.isNotBlank() }, "Fixture user nickname must not be blank")
+        assertEquals(nicknames.size, nicknames.toSet().size, "Duplicate fixture user nicknames")
+    }
+
+    @Test
     fun `ingredient categories are physical groupings`() {
         fixture.requiredArray("ingredients_master").forEach { ingredient ->
             val category = ingredient.requiredText("category")

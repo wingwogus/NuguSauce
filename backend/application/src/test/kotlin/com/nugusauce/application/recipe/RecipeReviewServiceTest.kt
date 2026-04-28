@@ -50,7 +50,7 @@ class RecipeReviewServiceTest {
 
     @Test
     fun `create stores first review and updates summary`() {
-        val member = Member(1L, "user@example.test", null)
+        val member = Member(1L, "user@example.test", null, nickname = "리뷰장인")
         val recipe = recipe()
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
         `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe))
@@ -68,7 +68,7 @@ class RecipeReviewServiceTest {
             )
         )
 
-        assertEquals("사용자 1", result.authorName)
+        assertEquals("리뷰장인", result.authorName)
         assertEquals(5, result.rating)
         assertEquals(1, recipe.reviewCount)
         assertEquals(5.0, recipe.averageRating)

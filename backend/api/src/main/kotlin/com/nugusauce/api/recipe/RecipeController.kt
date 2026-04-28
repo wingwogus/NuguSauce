@@ -51,9 +51,10 @@ class RecipeController(
 
     @GetMapping("/recipes/{recipeId}")
     fun getRecipe(
+        @AuthenticationPrincipal userId: String?,
         @PathVariable recipeId: Long
     ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
-        val result = recipeQueryService.getDetail(recipeId)
+        val result = recipeQueryService.getDetail(recipeId, userId?.toLongOrNull())
         return ResponseEntity.ok(ApiResponse.ok(RecipeResponses.RecipeDetailResponse.from(result)))
     }
 

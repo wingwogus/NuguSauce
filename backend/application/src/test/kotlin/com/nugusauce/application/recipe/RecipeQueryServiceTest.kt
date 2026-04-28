@@ -3,6 +3,7 @@ package com.nugusauce.application.recipe
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.domain.member.Member
+import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
@@ -37,6 +38,9 @@ class RecipeQueryServiceTest {
     @Mock
     private lateinit var recipeReviewRepository: RecipeReviewRepository
 
+    @Mock
+    private lateinit var recipeFavoriteRepository: RecipeFavoriteRepository
+
     private lateinit var service: RecipeQueryService
 
     @BeforeEach
@@ -45,7 +49,8 @@ class RecipeQueryServiceTest {
             sauceRecipeRepository,
             ingredientRepository,
             recipeTagRepository,
-            recipeReviewRepository
+            recipeReviewRepository,
+            recipeFavoriteRepository
         )
     }
 
@@ -100,12 +105,46 @@ class RecipeQueryServiceTest {
     }
 
     @Test
+    fun `getDetail includes user recipe author nickname`() {
+        val author = Member(7L, "maker@example.test", null, nickname = "소스장인")
+        `when`(sauceRecipeRepository.findById(10L))
+            .thenReturn(Optional.of(recipe(author = author)))
+        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
+
+        val result = service.getDetail(10L)
+
+        assertEquals("USER", result.authorType)
+        assertEquals("소스장인", result.authorName)
+    }
+
+    @Test
+    fun `getDetail includes current member favorite state when member is present`() {
+        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe()))
+        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
+        `when`(recipeFavoriteRepository.existsByRecipeAndMember(10L, 1L)).thenReturn(true)
+
+        val result = service.getDetail(10L, memberId = 1L)
+
+        assertEquals(true, result.isFavorite)
+    }
+
+    @Test
+    fun `getDetail defaults favorite state to false for anonymous users`() {
+        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe()))
+        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
+
+        val result = service.getDetail(10L)
+
+        assertEquals(false, result.isFavorite)
+    }
+
+    @Test
     fun `listReviews includes safe public author name`() {
         val recipe = recipe()
         val review = RecipeReview(
             id = 30L,
             recipe = recipe,
-            author = Member(7L, "reviewer@example.test", null),
+            author = Member(7L, "reviewer@example.test", null, nickname = "리뷰장인"),
             rating = 4,
             text = "고소해요"
         )
@@ -114,7 +153,7 @@ class RecipeQueryServiceTest {
 
         val results = service.listReviews(10L)
 
-        assertEquals("사용자 7", results.first().authorName)
+        assertEquals("리뷰장인", results.first().authorName)
         assertNotEquals("reviewer@example.test", results.first().authorName)
         assertEquals("고소해요", results.first().text)
     }
@@ -122,7 +161,8 @@ class RecipeQueryServiceTest {
     private fun recipe(
         id: Long = 10L,
         title: String = "레시피",
-        visibility: RecipeVisibility = RecipeVisibility.VISIBLE
+        visibility: RecipeVisibility = RecipeVisibility.VISIBLE,
+        author: Member? = null
     ): SauceRecipe {
         return SauceRecipe(
             id = id,
@@ -130,7 +170,8 @@ class RecipeQueryServiceTest {
             description = "설명",
             spiceLevel = 3,
             richnessLevel = 4,
-            authorType = RecipeAuthorType.CURATED,
+            authorType = if (author == null) RecipeAuthorType.CURATED else RecipeAuthorType.USER,
+            author = author,
             visibility = visibility
         )
     }

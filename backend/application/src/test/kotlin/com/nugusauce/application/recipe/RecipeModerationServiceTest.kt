@@ -87,6 +87,7 @@ class RecipeModerationServiceTest {
         )
 
         assertEquals("HIDDEN", result.visibility)
+        assertEquals("NuguSauce", result.authorName)
         assertEquals(RecipeVisibility.HIDDEN, recipe.visibility)
     }
 

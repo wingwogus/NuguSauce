@@ -1,9 +1,9 @@
 {
   "users": [
-    { "id": 1, "email": "normal.user@example.test", "role": "ROLE_USER" },
-    { "id": 2, "email": "reviewer@example.test", "role": "ROLE_USER" },
-    { "id": 3, "email": "reported.user@example.test", "role": "ROLE_USER" },
-    { "id": 99, "email": "admin@example.test", "role": "ROLE_ADMIN" }
+    { "id": 1, "email": "normal.user@example.test", "nickname": "소스장인", "role": "ROLE_USER" },
+    { "id": 2, "email": "reviewer@example.test", "nickname": "마라초보", "role": "ROLE_USER" },
+    { "id": 3, "email": "reported.user@example.test", "nickname": "신고테스터", "role": "ROLE_USER" },
+    { "id": 99, "email": "admin@example.test", "nickname": "운영자", "role": "ROLE_ADMIN" }
   ],
   "ingredients_master": [
     { "id": 1, "name": "참기름", "category": "oil" },
@@ -249,7 +249,7 @@
       "id": 101,
       "authorUserId": 1,
       "title": "마늘 듬뿍 고소 소스",
-      "description": "마늘 향이 강한 사용자 조합",
+      "description": "마늘 향이 강한 커스텀 조합",
       "visibility": "VISIBLE",
       "ingredients": [
         { "ingredientId": 3, "amount": 1.5, "unit": "스푼" },

@@ -117,7 +117,7 @@ class RecipeFavoriteServiceTest {
     }
 
     private fun member(): Member {
-        return Member(1L, "user@example.test", null)
+        return Member(1L, "user@example.test", null, nickname = "소스장인")
     }
 
     private fun recipe(

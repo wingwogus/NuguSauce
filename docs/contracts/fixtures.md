@@ -22,6 +22,8 @@ Fixtures define stable product context for backend tests and optional local back
 
 - IDs must be stable across test runs.
 - Emails must be fake and reserved for test use.
+- User fixtures must include a public `nickname` so authored recipes and
+  reviews render readable names instead of setup fallbacks.
 - Fixture names should be readable enough for failing tests.
 - Do not include real user data.
 

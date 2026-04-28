@@ -44,6 +44,7 @@ class LocalSeedService(
     @Transactional
     override fun run(args: ApplicationArguments) {
         if (memberRepository.findByEmail(SEED_NORMAL_EMAIL) != null) {
+            backfillSeedNicknames()
             logger.info("NuguSauce local seed skipped; seed user already exists")
             return
         }
@@ -64,13 +65,26 @@ class LocalSeedService(
     }
 
     private fun seedMembers(): Map<String, Member> {
-        return listOf(
-            Member(email = SEED_NORMAL_EMAIL, passwordHash = passwordEncoder.encode("password123")),
-            Member(email = "reviewer@example.test", passwordHash = passwordEncoder.encode("password123")),
-            Member(email = "reported.user@example.test", passwordHash = passwordEncoder.encode("password123")),
-            Member(email = "admin@example.test", passwordHash = passwordEncoder.encode("password123"), role = "ROLE_ADMIN")
-        ).let(memberRepository::saveAll)
+        return MEMBER_SEEDS.map { seed ->
+            Member(
+                email = seed.email,
+                passwordHash = passwordEncoder.encode("password123"),
+                role = seed.role,
+                nickname = seed.nickname
+            )
+        }.let(memberRepository::saveAll)
             .associateBy { it.email }
+    }
+
+    private fun backfillSeedNicknames() {
+        val members = MEMBER_SEEDS.mapNotNull { seed ->
+            memberRepository.findByEmail(seed.email)
+                ?.takeIf { it.nickname.isNullOrBlank() }
+                ?.apply { nickname = seed.nickname }
+        }
+        if (members.isNotEmpty()) {
+            memberRepository.saveAll(members)
+        }
     }
 
     private fun seedIngredients(): Map<String, Ingredient> {
@@ -206,8 +220,21 @@ class LocalSeedService(
         val amount: String
     )
 
+    private data class MemberSeed(
+        val email: String,
+        val nickname: String,
+        val role: String = "ROLE_USER"
+    )
+
     companion object {
         private const val SEED_NORMAL_EMAIL = "normal.user@example.test"
+
+        private val MEMBER_SEEDS = listOf(
+            MemberSeed(SEED_NORMAL_EMAIL, "소스장인"),
+            MemberSeed("reviewer@example.test", "마라초보"),
+            MemberSeed("reported.user@example.test", "신고테스터"),
+            MemberSeed("admin@example.test", "운영자", "ROLE_ADMIN")
+        )
 
         private val INGREDIENT_SEEDS = listOf(
             IngredientSeed("참기름", "oil"),
@@ -430,7 +457,7 @@ class LocalSeedService(
             ),
             RecipeSeed(
                 title = "마늘 듬뿍 고소 소스",
-                description = "마늘 향이 강한 사용자 조합",
+                description = "마늘 향이 강한 커스텀 조합",
                 spiceLevel = 0,
                 richnessLevel = 0,
                 tagNames = emptyList(),

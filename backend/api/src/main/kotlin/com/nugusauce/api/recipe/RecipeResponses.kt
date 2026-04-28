@@ -120,10 +120,12 @@ object RecipeResponses {
         val imageUrl: String?,
         val tips: String?,
         val authorType: String,
+        val authorName: String,
         val visibility: String,
         val ingredients: List<RecipeIngredientResponse>,
         val reviewTags: List<ReviewTagCountResponse>,
         val ratingSummary: RatingSummaryResponse,
+        val isFavorite: Boolean,
         val createdAt: Instant,
         val lastReviewedAt: Instant?
     ) {
@@ -136,10 +138,12 @@ object RecipeResponses {
                     imageUrl = result.imageUrl,
                     tips = result.tips,
                     authorType = result.authorType,
+                    authorName = result.authorName,
                     visibility = result.visibility,
                     ingredients = result.ingredients.map(RecipeIngredientResponse::from),
                     reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
+                    isFavorite = result.isFavorite,
                     createdAt = result.createdAt,
                     lastReviewedAt = result.lastReviewedAt
                 )

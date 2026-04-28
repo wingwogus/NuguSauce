@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
@@ -17,7 +18,8 @@ class RecipeQueryService(
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val ingredientRepository: IngredientRepository,
     private val recipeTagRepository: RecipeTagRepository,
-    private val recipeReviewRepository: RecipeReviewRepository
+    private val recipeReviewRepository: RecipeReviewRepository,
+    private val recipeFavoriteRepository: RecipeFavoriteRepository
 ) {
     fun search(command: RecipeCommand.SearchRecipes): List<RecipeResult.RecipeSummary> {
         val keyword = command.q?.trim()?.takeIf { it.isNotBlank() }?.lowercase()
@@ -43,11 +45,14 @@ class RecipeQueryService(
             }
     }
 
-    fun getDetail(recipeId: Long): RecipeResult.RecipeDetail {
+    fun getDetail(recipeId: Long, memberId: Long? = null): RecipeResult.RecipeDetail {
         val recipe = findVisibleRecipe(recipeId)
         return RecipeResult.detail(
             recipe,
-            loadReviewTagCounts(listOf(recipe.id))[recipe.id].orEmpty()
+            loadReviewTagCounts(listOf(recipe.id))[recipe.id].orEmpty(),
+            isFavorite = memberId?.let {
+                recipeFavoriteRepository.existsByRecipeAndMember(recipe.id, it)
+            } ?: false
         )
     }
 

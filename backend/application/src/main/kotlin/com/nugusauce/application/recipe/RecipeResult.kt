@@ -1,5 +1,6 @@
 package com.nugusauce.application.recipe
 
+import com.nugusauce.application.member.MemberResult
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.ingredient.RecipeIngredient
@@ -66,11 +67,13 @@ object RecipeResult {
         val imageUrl: String?,
         val tips: String?,
         val authorType: String,
+        val authorName: String,
         val visibility: String,
         val ingredients: List<RecipeIngredientItem>,
         val tags: List<TagItem>,
         val reviewTags: List<ReviewTagCount>,
         val ratingSummary: RatingSummary,
+        val isFavorite: Boolean,
         val createdAt: Instant,
         val lastReviewedAt: Instant?
     )
@@ -144,7 +147,8 @@ object RecipeResult {
 
     fun detail(
         recipe: SauceRecipe,
-        reviewTags: List<ReviewTagCount> = emptyList()
+        reviewTags: List<ReviewTagCount> = emptyList(),
+        isFavorite: Boolean = false
     ): RecipeDetail {
         return RecipeDetail(
             id = recipe.id,
@@ -155,11 +159,13 @@ object RecipeResult {
             imageUrl = recipe.imageUrl,
             tips = recipe.tips,
             authorType = recipe.authorType.name,
+            authorName = authorName(recipe),
             visibility = recipe.visibility.name,
             ingredients = recipe.ingredients.map(::fromRecipeIngredient).sortedBy { it.name },
             tags = recipe.tags.map(::fromTag).sortedBy { it.name },
             reviewTags = reviewTags,
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
+            isFavorite = isFavorite,
             createdAt = recipe.createdAt,
             lastReviewedAt = recipe.lastReviewedAt
         )
@@ -169,7 +175,7 @@ object RecipeResult {
         return ReviewItem(
             id = review.id,
             recipeId = review.recipe.id,
-            authorName = review.author.nickname ?: "사용자 ${review.author.id}",
+            authorName = MemberResult.displayName(review.author),
             rating = review.rating,
             text = review.text,
             tasteTags = review.tasteTags.map(::fromTag).sortedBy { it.name },
@@ -199,5 +205,9 @@ object RecipeResult {
             name = projection.tagName,
             count = projection.tagCount
         )
+    }
+
+    private fun authorName(recipe: SauceRecipe): String {
+        return recipe.author?.let(MemberResult::displayName) ?: "NuguSauce"
     }
 }

@@ -259,6 +259,10 @@ Success data:
 
 ### `GET /api/v1/recipes/{recipeId}`
 
+Publicly readable. When a valid JWT is supplied, the response is personalized
+with the current member's favorite state; anonymous requests return
+`"isFavorite": false`.
+
 Success data:
 
 ```json
@@ -269,6 +273,7 @@ Success data:
   "imageUrl": null,
   "tips": "참기름은 마지막에 넣는다",
   "authorType": "CURATED",
+  "authorName": "NuguSauce",
   "visibility": "VISIBLE",
   "ingredients": [
     {
@@ -287,6 +292,7 @@ Success data:
     "averageRating": 4.7,
     "reviewCount": 18
   },
+  "isFavorite": true,
   "createdAt": "2026-04-25T00:00:00Z",
   "lastReviewedAt": "2026-04-25T01:00:00Z"
 }
@@ -316,6 +322,10 @@ Request:
 ```
 
 Authors can only submit the sauce composition and optional text/media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
+
+Recipe detail responses include `authorName`, safe public display text for the
+recipe author. Curated recipes use `"NuguSauce"`; user recipes use the author's
+public nickname/display name.
 
 Success status: `201 Created`
 
@@ -370,7 +380,7 @@ Success data:
 {
   "id": 10,
   "recipeId": 1,
-  "authorName": "사용자 1",
+  "authorName": "소스장인",
   "rating": 5,
   "text": "고소하고 초보자도 먹기 좋았어요",
   "tasteTags": [
@@ -389,7 +399,7 @@ Success data:
   {
     "id": 10,
     "recipeId": 1,
-    "authorName": "사용자 1",
+    "authorName": "소스장인",
     "rating": 5,
     "text": "고소하고 초보자도 먹기 좋았어요",
     "tasteTags": [
@@ -456,7 +466,7 @@ Success data:
   {
     "id": 101,
     "title": "마늘 듬뿍 고소 소스",
-    "description": "마늘 향이 강한 사용자 조합",
+    "description": "마늘 향이 강한 커스텀 조합",
     "imageUrl": null,
     "authorType": "USER",
     "visibility": "VISIBLE",
