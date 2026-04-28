@@ -27,11 +27,21 @@ final class ProfileViewModel: ObservableObject {
     }
 
     var displayName: String {
-        member?.displayName ?? session?.displayName ?? "게스트"
+        currentSessionForLoadedMember?.displayName ?? member?.displayName ?? session?.displayName ?? "게스트"
     }
 
     var profileSetupRequired: Bool {
-        member?.profileSetupRequired ?? session?.profileSetupRequired ?? false
+        currentSessionForLoadedMember?.profileSetupRequired ?? member?.profileSetupRequired ?? session?.profileSetupRequired ?? false
+    }
+
+    private var currentSessionForLoadedMember: AuthSession? {
+        guard let session else {
+            return nil
+        }
+        guard let member else {
+            return session
+        }
+        return session.memberId == member.id ? session : nil
     }
 
     func load() async {

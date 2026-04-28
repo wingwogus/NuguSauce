@@ -54,7 +54,7 @@ final class BackendAPIClient: APIClientProtocol {
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {
-        try await send(path: "/api/v1/recipes/\(id)")
+        try await send(path: "/api/v1/recipes/\(id)", includesAuthenticationIfAvailable: true)
     }
 
     func fetchReviews(recipeID: Int) async throws -> [RecipeReviewDTO] {
@@ -144,14 +144,16 @@ final class BackendAPIClient: APIClientProtocol {
         method: String = "GET",
         queryItems: [URLQueryItem] = [],
         body: AnyEncodable? = nil,
-        requiresAuthentication: Bool = false
+        requiresAuthentication: Bool = false,
+        includesAuthenticationIfAvailable: Bool = false
     ) async throws -> Response {
         let request = try makeRequest(
             path: path,
             method: method,
             queryItems: queryItems,
             body: body,
-            requiresAuthentication: requiresAuthentication
+            requiresAuthentication: requiresAuthentication,
+            includesAuthenticationIfAvailable: includesAuthenticationIfAvailable
         )
         let (data, response) = try await session.data(for: request)
         return try decodeEnvelope(Response.self, from: data, response: response)
@@ -167,7 +169,8 @@ final class BackendAPIClient: APIClientProtocol {
             method: method,
             queryItems: [],
             body: nil,
-            requiresAuthentication: requiresAuthentication
+            requiresAuthentication: requiresAuthentication,
+            includesAuthenticationIfAvailable: false
         )
         let (data, response) = try await session.data(for: request)
         _ = try decodeEnvelope(EmptyResponse.self, from: data, response: response)
@@ -178,7 +181,8 @@ final class BackendAPIClient: APIClientProtocol {
         method: String,
         queryItems: [URLQueryItem],
         body: AnyEncodable?,
-        requiresAuthentication: Bool
+        requiresAuthentication: Bool,
+        includesAuthenticationIfAvailable: Bool
     ) throws -> URLRequest {
         guard var components = URLComponents(url: url(for: path), resolvingAgainstBaseURL: false) else {
             throw APIClientError.invalidURL
@@ -202,6 +206,10 @@ final class BackendAPIClient: APIClientProtocol {
             guard let accessToken = authStore.accessToken, !accessToken.isEmpty else {
                 throw APIClientError.missingAuthentication
             }
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        } else if includesAuthenticationIfAvailable,
+                  let accessToken = authStore.accessToken,
+                  !accessToken.isEmpty {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
 

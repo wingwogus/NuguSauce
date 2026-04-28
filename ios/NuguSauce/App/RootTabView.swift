@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum RootTab: Hashable {
+enum RootTab: Hashable {
     case home
     case search
     case favorites
@@ -8,19 +8,45 @@ private enum RootTab: Hashable {
     case profile
 }
 
+@MainActor
+final class RootTabSelection: ObservableObject {
+    @Published var selectedTab: RootTab
+    private var hasPresentedProfileSetup = false
+
+    init(selectedTab: RootTab = .home) {
+        self.selectedTab = selectedTab
+    }
+
+    func select(_ tab: RootTab) {
+        selectedTab = tab
+    }
+
+    func profileSetupRequirementDidChange(isRequired: Bool) {
+        if isRequired {
+            hasPresentedProfileSetup = true
+            return
+        }
+
+        if hasPresentedProfileSetup {
+            selectedTab = .home
+            hasPresentedProfileSetup = false
+        }
+    }
+}
+
 struct RootTabView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
-    @State private var selectedTab: RootTab = .home
+    @StateObject private var tabSelection = RootTabSelection()
     @State private var createNavigationPath: [AppRoute] = []
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $tabSelection.selectedTab) {
             NavigationStack {
                 HomeView(
                     apiClient: apiClient,
                     authStore: authStore,
-                    openSearch: { selectedTab = .search }
+                    openSearch: { tabSelection.select(.search) }
                 )
             }
             .tabItem {
@@ -79,6 +105,12 @@ struct RootTabView: View {
         .fullScreenCover(isPresented: profileSetupGateBinding) {
             ProfileSetupGateView(apiClient: apiClient, authStore: authStore)
                 .interactiveDismissDisabled(true)
+        }
+        .onAppear {
+            tabSelection.profileSetupRequirementDidChange(isRequired: authStore.requiresProfileSetup)
+        }
+        .onChange(of: authStore.requiresProfileSetup) { _, requiresProfileSetup in
+            tabSelection.profileSetupRequirementDidChange(isRequired: requiresProfileSetup)
         }
     }
 

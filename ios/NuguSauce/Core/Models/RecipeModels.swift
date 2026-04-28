@@ -49,12 +49,26 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let imageUrl: String?
     let tips: String?
     let authorType: AuthorType
+    let authorName: String?
     let visibility: RecipeVisibility
     let ingredients: [RecipeIngredientDTO]
     let reviewTags: [ReviewTagDTO]
     let ratingSummary: RatingSummaryDTO
+    let isFavorite: Bool?
     let createdAt: String
     let lastReviewedAt: String?
+
+    var isFavorited: Bool {
+        isFavorite ?? false
+    }
+
+    var displayAuthorName: String? {
+        let trimmedName = authorName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedName, !trimmedName.isEmpty {
+            return trimmedName
+        }
+        return authorType == .curated ? "NuguSauce" : nil
+    }
 }
 
 struct RecipeReviewDTO: Codable, Identifiable, Equatable {

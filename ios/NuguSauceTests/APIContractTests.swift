@@ -28,6 +28,56 @@ final class APIContractTests: XCTestCase {
         XCTAssertNil(envelope.error)
     }
 
+    func testRecipeDetailDecodesAuthorName() throws {
+        let json = """
+        {
+          "id": 101,
+          "title": "마늘 듬뿍 고소 소스",
+          "description": "마늘 향이 강한 커스텀 조합",
+          "imageUrl": null,
+          "tips": "땅콩소스를 먼저 푼다",
+          "authorType": "USER",
+          "authorName": "소스장인",
+          "visibility": "VISIBLE",
+          "ingredients": [],
+          "reviewTags": [],
+          "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
+          "isFavorite": true,
+          "createdAt": "2026-04-25T00:00:00Z",
+          "lastReviewedAt": null
+        }
+        """.data(using: .utf8)!
+
+        let detail = try JSONDecoder().decode(RecipeDetailDTO.self, from: json)
+
+        XCTAssertEqual(detail.displayAuthorName, "소스장인")
+        XCTAssertTrue(detail.isFavorited)
+    }
+
+    func testRecipeDetailDecodesWithoutAuthorNameForCompatibility() throws {
+        let json = """
+        {
+          "id": 101,
+          "title": "마늘 듬뿍 고소 소스",
+          "description": "마늘 향이 강한 커스텀 조합",
+          "imageUrl": null,
+          "tips": "땅콩소스를 먼저 푼다",
+          "authorType": "USER",
+          "visibility": "VISIBLE",
+          "ingredients": [],
+          "reviewTags": [],
+          "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
+          "createdAt": "2026-04-25T00:00:00Z",
+          "lastReviewedAt": null
+        }
+        """.data(using: .utf8)!
+
+        let detail = try JSONDecoder().decode(RecipeDetailDTO.self, from: json)
+
+        XCTAssertNil(detail.displayAuthorName)
+        XCTAssertFalse(detail.isFavorited)
+    }
+
     func testEnvelopeFailureDecodesStableErrorCode() throws {
         let json = """
         {
@@ -86,7 +136,7 @@ final class APIContractTests: XCTestCase {
         {
           "id": 10,
           "recipeId": 1,
-          "authorName": "사용자 1",
+          "authorName": "리뷰장인",
           "rating": 5,
           "text": "고소하고 초보자도 먹기 좋았어요",
           "tasteTags": [{ "id": 1, "name": "고소함" }],
@@ -96,7 +146,7 @@ final class APIContractTests: XCTestCase {
 
         let review = try JSONDecoder().decode(RecipeReviewDTO.self, from: json)
 
-        XCTAssertEqual(review.authorName, "사용자 1")
+        XCTAssertEqual(review.authorName, "리뷰장인")
     }
 
     func testKakaoLoginResponseDecodesMemberProfileSetupState() throws {
@@ -229,6 +279,42 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(member.nickname, "소스장인")
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/members/me")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
+    func testBackendClientFetchesRecipeDetailWithOptionalAuthorization() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "id": 10,
+            "title": "건희 소스",
+            "description": "고소하고 매콤한 인기 조합",
+            "imageUrl": null,
+            "tips": "참기름은 마지막에 넣는다",
+            "authorType": "CURATED",
+            "authorName": "NuguSauce",
+            "visibility": "VISIBLE",
+            "ingredients": [],
+            "reviewTags": [],
+            "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+            "isFavorite": true,
+            "createdAt": "2026-04-25T00:00:00Z",
+            "lastReviewedAt": null
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let detail = try await client.fetchRecipeDetail(id: 10)
+
+        XCTAssertTrue(detail.isFavorited)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/recipes/10")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
     }
 

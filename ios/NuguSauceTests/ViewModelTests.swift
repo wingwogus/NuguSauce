@@ -16,6 +16,23 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(restoredPreference, .system)
     }
 
+    func testRootTabSelectionReturnsHomeAfterProfileSetupCompletes() {
+        let tabSelection = RootTabSelection(selectedTab: .profile)
+
+        tabSelection.profileSetupRequirementDidChange(isRequired: true)
+        tabSelection.profileSetupRequirementDidChange(isRequired: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .home)
+    }
+
+    func testRootTabSelectionDoesNotChangeTabsWithoutProfileSetupGate() {
+        let tabSelection = RootTabSelection(selectedTab: .profile)
+
+        tabSelection.profileSetupRequirementDidChange(isRequired: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .profile)
+    }
+
     func testHomeLoadUsesClientResults() async {
         let viewModel = HomeViewModel(apiClient: TestAPIClient(recipes: [Self.recipe(id: 1, title: "건희 소스")]))
 
@@ -484,6 +501,60 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.availableTasteTags.map(\.name), ["매콤해요", "고소해요"])
     }
 
+    func testRecipeDetailLoadAppliesFavoriteStateFromDetail() async {
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: TestAPIClient(detailIsFavorite: true),
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isFavorite)
+    }
+
+    func testRecipeDetailFavoriteDuplicateErrorKeepsHeartFilled() async {
+        let client = TestAPIClient(
+            favoriteAddError: ApiError(
+                code: ApiErrorCode.duplicateFavorite,
+                message: "duplicate favorite",
+                detail: nil
+            )
+        )
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.toggleFavorite()
+
+        XCTAssertTrue(viewModel.isFavorite)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testRecipeDetailFavoriteHeartFillsWhileAddRequestIsInFlight() async {
+        let client = TestAPIClient(suspendFavoriteAdd: true)
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        let task = Task {
+            await viewModel.toggleFavorite()
+        }
+        await client.waitUntilFavoriteAddStarts()
+
+        XCTAssertTrue(viewModel.isFavorite)
+        XCTAssertTrue(viewModel.isUpdatingFavorite)
+
+        client.completeFavoriteAdd()
+        await task.value
+
+        XCTAssertFalse(viewModel.isUpdatingFavorite)
+    }
+
     func testRecipeDetailSubmitReviewSendsSelectedTasteTagIDs() async {
         let client = TestAPIClient(
             tags: [
@@ -559,6 +630,28 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(authStore.currentSession?.profileSetupRequired, false)
     }
 
+    func testProfileUsesUpdatedSessionAfterProfileSetupGateSavesNickname() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let profileViewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+        await profileViewModel.load()
+
+        let setupViewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+        setupViewModel.nicknameDraft = "소스장인"
+        let didSave = await setupViewModel.saveNickname()
+
+        XCTAssertTrue(didSave)
+        XCTAssertEqual(profileViewModel.displayName, "소스장인")
+        XCTAssertFalse(profileViewModel.profileSetupRequired)
+    }
+
     private static func recipe(id: Int, title: String) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
@@ -587,6 +680,13 @@ private final class TestAPIClient: APIClientProtocol {
     private let favoriteRecipes: [RecipeSummaryDTO]
     private let ingredients: [IngredientDTO]
     private let tags: [TagDTO]
+    private let detailIsFavorite: Bool
+    private let favoriteAddError: Error?
+    private let favoriteDeleteError: Error?
+    private let suspendFavoriteAdd: Bool
+    private var didStartFavoriteAdd = false
+    private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
+    private var favoriteAddCompletion: CheckedContinuation<Void, Error>?
     private var memberProfile: MemberProfileDTO
     private(set) var fetchFavoriteRecipesCallCount = 0
     private(set) var fetchRecipeSorts: [RecipeSort] = []
@@ -599,6 +699,10 @@ private final class TestAPIClient: APIClientProtocol {
         favoriteRecipes: [RecipeSummaryDTO]? = nil,
         ingredients: [IngredientDTO] = [],
         tags: [TagDTO] = [],
+        detailIsFavorite: Bool = false,
+        favoriteAddError: Error? = nil,
+        favoriteDeleteError: Error? = nil,
+        suspendFavoriteAdd: Bool = false,
         memberProfile: MemberProfileDTO = MemberProfileDTO(
             id: 1,
             nickname: "테스터",
@@ -611,6 +715,10 @@ private final class TestAPIClient: APIClientProtocol {
         self.favoriteRecipes = favoriteRecipes ?? recipes
         self.ingredients = ingredients
         self.tags = tags
+        self.detailIsFavorite = detailIsFavorite
+        self.favoriteAddError = favoriteAddError
+        self.favoriteDeleteError = favoriteDeleteError
+        self.suspendFavoriteAdd = suspendFavoriteAdd
         self.memberProfile = memberProfile
     }
 
@@ -627,10 +735,12 @@ private final class TestAPIClient: APIClientProtocol {
             imageUrl: nil,
             tips: nil,
             authorType: .curated,
+            authorName: "NuguSauce",
             visibility: .visible,
             ingredients: [],
             reviewTags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
+            isFavorite: detailIsFavorite,
             createdAt: "2026-04-25T00:00:00Z",
             lastReviewedAt: nil
         )
@@ -659,10 +769,40 @@ private final class TestAPIClient: APIClientProtocol {
         fetchFavoriteRecipesCallCount += 1
         return favoriteRecipes
     }
-    func addFavorite(recipeID: Int) async throws -> FavoriteResponseDTO {
-        FavoriteResponseDTO(recipeId: recipeID, createdAt: "2026-04-25T00:00:00Z")
+    func waitUntilFavoriteAddStarts() async {
+        if didStartFavoriteAdd {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            favoriteAddStartedContinuation = continuation
+        }
     }
-    func deleteFavorite(recipeID: Int) async throws {}
+
+    func completeFavoriteAdd() {
+        favoriteAddCompletion?.resume(returning: ())
+        favoriteAddCompletion = nil
+    }
+
+    func addFavorite(recipeID: Int) async throws -> FavoriteResponseDTO {
+        if suspendFavoriteAdd {
+            try await withCheckedThrowingContinuation { continuation in
+                favoriteAddCompletion = continuation
+                didStartFavoriteAdd = true
+                favoriteAddStartedContinuation?.resume()
+                favoriteAddStartedContinuation = nil
+            }
+        }
+        if let favoriteAddError {
+            throw favoriteAddError
+        }
+        return FavoriteResponseDTO(recipeId: recipeID, createdAt: "2026-04-25T00:00:00Z")
+    }
+    func deleteFavorite(recipeID: Int) async throws {
+        if let favoriteDeleteError {
+            throw favoriteDeleteError
+        }
+    }
     func fetchMyMember() async throws -> MemberProfileDTO { memberProfile }
     func fetchMember(id: Int) async throws -> MemberProfileDTO { memberProfile }
     func updateMyMember(nickname: String) async throws -> MemberProfileDTO {

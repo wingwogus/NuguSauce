@@ -46,8 +46,8 @@ struct ProfileView: View {
                 await viewModel.load()
             }
         }
-        .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in
-            if isAuthenticated {
+        .onChange(of: authStore.currentSession) { _, session in
+            if session != nil {
                 Task {
                     await viewModel.load()
                 }

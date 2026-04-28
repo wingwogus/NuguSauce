@@ -37,9 +37,11 @@ struct FavoritesView: View {
                 LoginRequiredView(apiClient: apiClient, authStore: authStore)
             }
         }
-        .task {
+        .onAppear {
             if authStore.isAuthenticated {
-                await viewModel.load()
+                Task {
+                    await viewModel.load()
+                }
             }
         }
         .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in

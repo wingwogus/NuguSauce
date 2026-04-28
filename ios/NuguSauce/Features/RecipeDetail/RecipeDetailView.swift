@@ -42,6 +42,7 @@ struct RecipeDetailView: View {
                     await viewModel.toggleFavorite()
                 }
             }
+            .disabled(viewModel.isUpdatingFavorite)
             .padding(18)
         }
     }
@@ -87,11 +88,13 @@ struct RecipeDetailView: View {
                 .lineLimit(3)
 
             HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle.fill")
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                Text(detail.authorType == .curated ? "by NuguSauce" : "by 사용자")
-                Text("·")
-                    .foregroundStyle(SauceColor.muted)
+                if let authorName = detail.displayAuthorName {
+                    Image(systemName: "person.crop.circle.fill")
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                    Text(authorName)
+                    Text("·")
+                        .foregroundStyle(SauceColor.muted)
+                }
                 Image(systemName: "star.fill")
                     .foregroundStyle(SauceColor.secondary)
                 Text(String(format: "%.1f", detail.ratingSummary.averageRating))

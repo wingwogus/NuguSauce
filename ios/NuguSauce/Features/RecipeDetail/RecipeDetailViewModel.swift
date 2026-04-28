@@ -50,7 +50,9 @@ final class RecipeDetailViewModel: ObservableObject {
             async let detail = apiClient.fetchRecipeDetail(id: recipeID)
             async let reviews = apiClient.fetchReviews(recipeID: recipeID)
             async let tags = apiClient.fetchTags()
-            self.detail = try await detail
+            let loadedDetail = try await detail
+            self.detail = loadedDetail
+            isFavorite = loadedDetail.isFavorited
             self.reviews = try await reviews
             do {
                 availableTasteTags = try await tags
@@ -133,21 +135,33 @@ final class RecipeDetailViewModel: ObservableObject {
 
         errorMessage = nil
         isUpdatingFavorite = true
+        defer {
+            isUpdatingFavorite = false
+        }
+        let previousFavoriteState = isFavorite
+        let nextFavoriteState = !previousFavoriteState
+        isFavorite = nextFavoriteState
         do {
-            if isFavorite {
-                try await apiClient.deleteFavorite(recipeID: recipeID)
-                isFavorite = false
-            } else {
+            if nextFavoriteState {
                 _ = try await apiClient.addFavorite(recipeID: recipeID)
-                isFavorite = true
+            } else {
+                try await apiClient.deleteFavorite(recipeID: recipeID)
             }
         } catch {
             if let apiError = error as? ApiError {
-                errorMessage = apiError.message
+                switch apiError.code {
+                case ApiErrorCode.duplicateFavorite:
+                    isFavorite = true
+                case ApiErrorCode.favoriteNotFound:
+                    isFavorite = false
+                default:
+                    isFavorite = previousFavoriteState
+                    errorMessage = apiError.message
+                }
             } else {
+                isFavorite = previousFavoriteState
                 errorMessage = "찜 상태를 변경하지 못했어요."
             }
         }
-        isUpdatingFavorite = false
     }
 }
