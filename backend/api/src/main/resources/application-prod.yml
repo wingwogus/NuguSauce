@@ -1,3 +1,6 @@
+server:
+  forward-headers-strategy: framework
+
 spring:
   config:
     activate:
@@ -7,9 +10,10 @@ spring:
     url: ${PROD_DB_URL}
     username: ${PROD_DB_USERNAME}
     password: ${PROD_DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.postgresql.Driver
 
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
     properties:
@@ -40,10 +44,30 @@ jwt:
 redis:
   host: ${REDIS_HOST}
   port: ${REDIS_PORT}
+  database: ${REDIS_DB:0}
+
+management:
+  server:
+    port: 9090
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
 
 app:
   mail:
     from-name: ${PROD_MAIL_FROM_NAME:NuguSauce}
+  url: ${APP_URL:https://nugusauce.jaehyuns.com}
 
 auth:
   kakao:
@@ -54,3 +78,8 @@ auth:
       user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
       allowed-clock-skew-seconds: 60
       nonce-replay-ttl-seconds: 600
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:dyzg8xb4n}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}

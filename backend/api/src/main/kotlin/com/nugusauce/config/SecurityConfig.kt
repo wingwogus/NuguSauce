@@ -3,6 +3,7 @@ package com.nugusauce.config
 import com.nugusauce.api.security.CustomAccessDeniedHandler
 import com.nugusauce.api.security.CustomAuthenticationEntryPoint
 import com.nugusauce.api.security.JwtAuthenticationFilter
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -20,13 +21,17 @@ import org.springframework.web.cors.CorsConfiguration
 class SecurityConfig(
     private val accessDeniedHandler: CustomAccessDeniedHandler,
     private val authenticationEntryPoint: CustomAuthenticationEntryPoint,
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    @Value("\${app.url:http://localhost:8081}") private val appUrl: String,
 ) {
 
     companion object {
         private val PUBLIC_ENDPOINTS = listOf(
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            "/actuator/health",
+            "/actuator/health/**",
+            "/actuator/prometheus",
             "/api/v1/auth/email/send-code",
             "/api/v1/auth/email/verify-code",
             "/api/v1/auth/signup",
@@ -57,7 +62,7 @@ class SecurityConfig(
             .cors {
                 it.configurationSource {
                     CorsConfiguration().apply {
-                        allowedOriginPatterns = listOf("*")
+                        allowedOrigins = listOf(appUrl)
                         allowedMethods = listOf("*")
                         allowedHeaders = listOf("*")
                         allowCredentials = true

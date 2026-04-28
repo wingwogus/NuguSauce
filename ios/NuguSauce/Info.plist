@@ -47,7 +47,7 @@
 		<true/>
 	</dict>
 	<key>NUGUSAUCE_API_BASE_URL</key>
-	<string>http://192.168.0.63:8080</string>
+	<string>https://nugusauce.jaehyuns.com</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

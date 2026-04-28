@@ -1,0 +1,83 @@
+replicaCount: 2
+image:
+  repository: docker.io/vantagac/nugusauce-api
+  pullPolicy: IfNotPresent
+  tag: "latest"
+imagePullSecrets:
+- name: regcred
+nameOverride: ""
+fullnameOverride: ""
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+service:
+  type: ClusterIP
+  port: 80
+  metricsPort: 9090
+containerPort: 8080
+managementPort: 9090
+env:
+  SPRING_PROFILES_ACTIVE: prod
+envFrom:
+- secretRef:
+    name: nugusauce-api-secret
+- configMapRef:
+    name: nugusauce-api-config
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/session-cookie-name: nugusauce-api-route
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+  - host: nugusauce.jaehyuns.com
+    paths:
+    - path: /
+      pathType: Prefix
+  tls: []
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /actuator/prometheus
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: metrics
+  initialDelaySeconds: 90
+  periodSeconds: 10
+  timeoutSeconds: 5
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: metrics
+  initialDelaySeconds: 45
+  periodSeconds: 5
+  timeoutSeconds: 5
+startupProbe:
+  httpGet:
+    path: /actuator/health
+    port: metrics
+  failureThreshold: 60
+  periodSeconds: 5
+  timeoutSeconds: 5
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+volumes: []
+volumeMounts: []
+nodeSelector: {}
+tolerations: []
+affinity: {}

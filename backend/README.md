@@ -57,9 +57,9 @@ The imported OIDC branch expects these auth schema capabilities:
 * `external_identity` stores `member_id`, `provider`, `provider_subject`, and `email_at_link_time`.
 * `(provider, provider_subject)` must be unique.
 
-Flyway is not included yet. NuguSauce should add migrations when the production database choice is finalized.
+Flyway is not included yet. Production deployment now targets PostgreSQL to match the ops stack.
 
-Until a migration tool is added, apply this manual MySQL rollout before deploying member profile endpoints to any `dev` or `prod` database:
+Until a migration tool is added, apply this manual PostgreSQL rollout before deploying member profile endpoints to any `dev` or `prod` database:
 
 ```sql
 ALTER TABLE member
@@ -73,11 +73,23 @@ Rollback:
 
 ```sql
 ALTER TABLE member
-    DROP INDEX uk_member_nickname;
+    DROP CONSTRAINT uk_member_nickname;
 
 ALTER TABLE member
     DROP COLUMN nickname;
 ```
+
+## Deployment
+
+The backend deploys with the same shape as the Tribe API:
+
+* Build jar: `./gradlew --no-daemon clean :api:bootJar`
+* Build image from `backend/Dockerfile`
+* Publish image: `docker.io/vantagac/nugusauce-api:<git-sha>`
+* Deploy chart: `ops/helm/nugusauce-api`
+* Public API origin: `https://nugusauce.jaehyuns.com`
+
+Production exposes app traffic on port `8080` and actuator health/Prometheus on management port `9090`.
 
 ## Run
 

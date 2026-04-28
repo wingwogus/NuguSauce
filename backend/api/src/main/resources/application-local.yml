@@ -42,10 +42,12 @@ jwt:
 redis:
   host: localhost
   port: 6379
+  database: 0
 
 app:
   mail:
     from-name: ${MAIL_FROM_NAME:NuguSauce}
+  url: ${APP_URL:http://localhost:8081}
 
 auth:
   kakao:
@@ -60,3 +62,8 @@ auth:
 nugusauce:
   seed:
     enabled: ${NUGUSAUCE_SEED_ENABLED:true}
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:dyzg8xb4n}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}
