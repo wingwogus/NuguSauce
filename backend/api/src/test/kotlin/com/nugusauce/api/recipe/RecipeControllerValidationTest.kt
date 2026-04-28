@@ -119,6 +119,30 @@ class RecipeControllerValidationTest(
     }
 
     @Test
+    fun `create rejects direct image url`() {
+        mockMvc.perform(
+            post("/api/v1/recipes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "title": "내 소스",
+                      "description": "설명",
+                      "imageUrl": "https://example.test/image.jpg",
+                      "ingredients": [
+                        { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+                      ]
+                    }
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+            .andExpect(jsonPath("$.error.detail.field", equalTo("imageUrl")))
+    }
+
+    @Test
     fun `review rejects rating outside one to five`() {
         mockMvc.perform(
             post("/api/v1/recipes/1/reviews")

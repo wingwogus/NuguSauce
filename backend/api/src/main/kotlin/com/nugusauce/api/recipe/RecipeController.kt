@@ -64,12 +64,13 @@ class RecipeController(
         @Valid @RequestBody request: RecipeRequests.CreateRecipeRequest
     ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
         rejectAuthorTasteClassification(request)
+        rejectDeprecatedImageUrl(request)
         val result = recipeWriteService.create(
             RecipeCommand.CreateRecipe(
                 authorId = requireUserId(userId),
                 title = request.title,
                 description = request.description,
-                imageUrl = request.imageUrl,
+                imageId = request.imageId,
                 tips = request.tips,
                 ingredients = request.ingredients.map {
                     RecipeCommand.IngredientInput(
@@ -207,6 +208,19 @@ class RecipeController(
             detail = mapOf(
                 "fields" to listOf("spiceLevel", "richnessLevel", "tagIds"),
                 "reason" to "authors can only submit sauce composition; taste classification comes from reviews"
+            )
+        )
+    }
+
+    private fun rejectDeprecatedImageUrl(request: RecipeRequests.CreateRecipeRequest) {
+        if (request.imageUrl == null) {
+            return
+        }
+        throw BusinessException(
+            ErrorCode.INVALID_INPUT,
+            detail = mapOf(
+                "field" to "imageUrl",
+                "reason" to "use imageId from media upload completion"
             )
         )
     }

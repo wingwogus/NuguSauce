@@ -2,6 +2,9 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.domain.media.MediaAsset
+import com.nugusauce.domain.media.MediaAssetRepository
+import com.nugusauce.domain.media.MediaAssetStatus
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.ingredient.Ingredient
@@ -18,20 +21,23 @@ import java.math.BigDecimal
 class RecipeWriteService(
     private val memberRepository: MemberRepository,
     private val ingredientRepository: IngredientRepository,
-    private val sauceRecipeRepository: SauceRecipeRepository
+    private val sauceRecipeRepository: SauceRecipeRepository,
+    private val mediaAssetRepository: MediaAssetRepository,
+    private val recipeImageUrlResolver: RecipeImageUrlResolver
 ) {
     fun create(command: RecipeCommand.CreateRecipe): RecipeResult.RecipeDetail {
         val author = findMember(command.authorId)
         validateRecipe(command)
 
         val ingredients = loadIngredients(command.ingredients.map { it.ingredientId }.toSet())
+        val imageAsset = command.imageId?.let { findAttachableImage(it, author) }
 
         val recipe = SauceRecipe(
             title = command.title.trim(),
             description = command.description.trim(),
             spiceLevel = USER_RECIPE_DEFAULT_SPICE_LEVEL,
             richnessLevel = USER_RECIPE_DEFAULT_RICHNESS_LEVEL,
-            imageUrl = command.imageUrl?.trim()?.takeIf { it.isNotBlank() },
+            imageAsset = imageAsset,
             tips = command.tips?.trim()?.takeIf { it.isNotBlank() },
             authorType = RecipeAuthorType.USER,
             author = author
@@ -46,7 +52,9 @@ class RecipeWriteService(
             )
         }
 
-        return RecipeResult.detail(sauceRecipeRepository.save(recipe))
+        val saved = sauceRecipeRepository.save(recipe)
+        imageAsset?.attachToRecipe(saved.id)
+        return RecipeResult.detail(saved, imageUrl = recipeImageUrlResolver.imageUrl(saved))
     }
 
     private fun findMember(memberId: Long): Member {
@@ -66,6 +74,22 @@ class RecipeWriteService(
             )
         }
         command.ingredients.forEach(::validateIngredientInput)
+    }
+
+    private fun findAttachableImage(imageId: Long, author: Member): MediaAsset {
+        val asset = mediaAssetRepository.findById(imageId).orElseThrow {
+            BusinessException(ErrorCode.MEDIA_ASSET_NOT_FOUND)
+        }
+        if (asset.owner.id != author.id) {
+            throw BusinessException(ErrorCode.FORBIDDEN_MEDIA_ASSET)
+        }
+        if (asset.status != MediaAssetStatus.VERIFIED) {
+            throw BusinessException(ErrorCode.MEDIA_NOT_VERIFIED)
+        }
+        if (asset.attachedRecipeId != null) {
+            throw BusinessException(ErrorCode.MEDIA_ALREADY_ATTACHED)
+        }
+        return asset
     }
 
     private fun validateIngredientInput(input: RecipeCommand.IngredientInput) {

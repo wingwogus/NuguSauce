@@ -1,5 +1,8 @@
 package com.nugusauce.application.recipe
 
+import com.nugusauce.application.media.ImageStoragePort
+import com.nugusauce.application.media.MediaResult
+import com.nugusauce.application.media.VerifiedUpload
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.domain.member.Member
@@ -22,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
+import java.time.Instant
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -50,7 +54,8 @@ class RecipeQueryServiceTest {
             ingredientRepository,
             recipeTagRepository,
             recipeReviewRepository,
-            recipeFavoriteRepository
+            recipeFavoriteRepository,
+            RecipeImageUrlResolver(TestImageStoragePort)
         )
     }
 
@@ -189,6 +194,24 @@ class RecipeQueryServiceTest {
             override val tagId: Long = tagId
             override val tagName: String = tagName
             override val tagCount: Long = tagCount
+        }
+    }
+
+    private object TestImageStoragePort : ImageStoragePort {
+        override fun createUploadTarget(
+            providerKey: String,
+            contentType: String,
+            expiresAt: Instant
+        ): MediaResult.UploadTarget {
+            throw UnsupportedOperationException()
+        }
+
+        override fun verifyUpload(providerKey: String): VerifiedUpload {
+            throw UnsupportedOperationException()
+        }
+
+        override fun displayUrl(providerKey: String): String {
+            return "https://cdn.example.test/$providerKey"
         }
     }
 }

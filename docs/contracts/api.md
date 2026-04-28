@@ -239,6 +239,81 @@ Success data:
 }
 ```
 
+## Media API
+
+Media APIs use the shared response envelope above. Recipe images use direct
+client upload with a backend-owned media record:
+
+1. iOS requests an upload intent from the backend.
+2. iOS uploads the file directly to the returned Cloudinary signed target.
+3. iOS calls complete so the backend verifies the provider asset.
+4. iOS creates the recipe with `imageId`.
+
+The client never receives or stores Cloudinary API secrets. Direct client
+submission of arbitrary `imageUrl` values is not accepted for recipe creation.
+Recipe read responses may still expose `imageUrl` as a derived display URL.
+
+### `POST /api/v1/media/images/upload-intent`
+
+Requires JWT.
+
+Request:
+
+```json
+{
+  "contentType": "image/jpeg",
+  "byteSize": 2048000,
+  "fileExtension": "jpg"
+}
+```
+
+Supported content types are `image/jpeg`, `image/png`, `image/heic`, and
+`image/heif`. Current max image size is 5 MiB.
+
+Success status: `201 Created`
+
+Success data:
+
+```json
+{
+  "imageId": 50,
+  "upload": {
+    "url": "https://api.cloudinary.com/v1_1/<cloud-name>/image/upload",
+    "method": "POST",
+    "headers": {},
+    "fields": {
+      "api_key": "<public-api-key>",
+      "public_id": "nugusauce/recipes/1/<uuid>",
+      "timestamp": "1777399200",
+      "overwrite": "false",
+      "signature": "<server-generated-signature>"
+    },
+    "fileField": "file",
+    "expiresAt": "2026-04-28T14:30:00Z"
+  },
+  "constraints": {
+    "maxBytes": 5242880,
+    "allowedContentTypes": ["image/jpeg", "image/png", "image/heic", "image/heif"]
+  }
+}
+```
+
+### `POST /api/v1/media/images/{imageId}/complete`
+
+Requires JWT. The image must belong to the authenticated member. The backend
+checks the provider asset before marking the media record verified.
+
+Success data:
+
+```json
+{
+  "imageId": 50,
+  "imageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/recipes/1/<uuid>",
+  "width": 800,
+  "height": 600
+}
+```
+
 ## Recipe API
 
 Recipe APIs use the shared response envelope above.
@@ -344,8 +419,7 @@ Request:
 {
   "title": "내 소스",
   "description": "고소하고 살짝 매운 조합",
-  "imageUrl": null,
-  "tips": "땅콩소스를 먼저 푼다",
+  "imageId": 50,
   "ingredients": [
     {
       "ingredientId": 1,
@@ -357,7 +431,12 @@ Request:
 }
 ```
 
-Authors can only submit the sauce composition and optional text/media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
+Authors can only submit the sauce composition and optional media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
+
+`imageId` is optional. When present, it must refer to a verified media asset
+owned by the authenticated member and not already attached to another recipe.
+Legacy/direct `imageUrl` input is rejected with `COMMON_001`; recipe response
+`imageUrl` remains a read-only display URL.
 
 Recipe detail responses include `authorId`, the safe public member id for the
 recipe author, and `authorName`, safe public display text for the recipe author.

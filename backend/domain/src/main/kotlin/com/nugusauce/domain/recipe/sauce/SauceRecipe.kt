@@ -1,6 +1,7 @@
 package com.nugusauce.domain.recipe.sauce
 
 import com.nugusauce.domain.member.Member
+import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.ingredient.RecipeIngredient
 import com.nugusauce.domain.recipe.tag.RecipeTag
@@ -42,6 +43,10 @@ class SauceRecipe(
 
     @Column(nullable = true, length = 2048)
     val imageUrl: String? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_asset_id", nullable = true)
+    val imageAsset: MediaAsset? = null,
 
     @Column(nullable = true, length = 1000)
     val tips: String? = null,

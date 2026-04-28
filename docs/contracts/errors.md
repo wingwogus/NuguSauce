@@ -64,6 +64,17 @@ Recipe MVP:
 - `RECIPE_010`: duplicate favorite
 - `RECIPE_011`: favorite not found
 
+Media:
+
+- `MEDIA_001`: media asset not found
+- `MEDIA_002`: unsupported media content type
+- `MEDIA_003`: media file too large
+- `MEDIA_004`: media upload has not been verified
+- `MEDIA_005`: media asset belongs to another member
+- `MEDIA_006`: media asset already attached to a recipe
+- `MEDIA_007`: media provider unavailable or not configured
+- `MEDIA_008`: uploaded provider asset not found
+
 ## Harness Requirement
 
 When an error shape changes:

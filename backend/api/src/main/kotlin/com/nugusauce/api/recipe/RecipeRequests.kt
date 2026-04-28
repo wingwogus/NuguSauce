@@ -36,6 +36,9 @@ object RecipeRequests {
         @field:Size(max = 2048, message = "이미지 URL은 2048자 이하여야 합니다")
         val imageUrl: String? = null,
 
+        @field:Min(value = 1, message = "이미지 ID가 올바르지 않습니다")
+        val imageId: Long? = null,
+
         @field:Size(max = 1000, message = "팁은 1000자 이하여야 합니다")
         val tips: String? = null,
 

@@ -50,7 +50,7 @@ object RecipeCommand {
         val authorId: Long,
         val title: String,
         val description: String,
-        val imageUrl: String? = null,
+        val imageId: Long? = null,
         val tips: String? = null,
         val ingredients: List<IngredientInput>
     )

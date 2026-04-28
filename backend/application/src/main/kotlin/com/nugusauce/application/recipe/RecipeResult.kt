@@ -129,7 +129,8 @@ object RecipeResult {
 
     fun summary(
         recipe: SauceRecipe,
-        reviewTags: List<ReviewTagCount> = emptyList()
+        reviewTags: List<ReviewTagCount> = emptyList(),
+        imageUrl: String? = recipe.imageUrl
     ): RecipeSummary {
         return RecipeSummary(
             id = recipe.id,
@@ -137,7 +138,7 @@ object RecipeResult {
             description = recipe.description,
             spiceLevel = recipe.spiceLevel,
             richnessLevel = recipe.richnessLevel,
-            imageUrl = recipe.imageUrl,
+            imageUrl = imageUrl,
             authorType = recipe.authorType.name,
             visibility = recipe.visibility.name,
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
@@ -150,7 +151,8 @@ object RecipeResult {
     fun detail(
         recipe: SauceRecipe,
         reviewTags: List<ReviewTagCount> = emptyList(),
-        isFavorite: Boolean = false
+        isFavorite: Boolean = false,
+        imageUrl: String? = recipe.imageUrl
     ): RecipeDetail {
         return RecipeDetail(
             id = recipe.id,
@@ -158,7 +160,7 @@ object RecipeResult {
             description = recipe.description,
             spiceLevel = recipe.spiceLevel,
             richnessLevel = recipe.richnessLevel,
-            imageUrl = recipe.imageUrl,
+            imageUrl = imageUrl,
             tips = recipe.tips,
             authorType = recipe.authorType.name,
             authorId = recipe.author?.id,

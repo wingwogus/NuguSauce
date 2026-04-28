@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional
 class RecipeModerationService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
-    private val recipeReportRepository: RecipeReportRepository
+    private val recipeReportRepository: RecipeReportRepository,
+    private val recipeImageUrlResolver: RecipeImageUrlResolver
 ) {
     fun report(command: RecipeCommand.CreateReport): RecipeResult.ReportItem {
         if (command.reason.isBlank()) {
@@ -43,7 +44,8 @@ class RecipeModerationService(
             BusinessException(ErrorCode.RECIPE_NOT_FOUND)
         }
         recipe.changeVisibility(command.visibility.toDomainVisibility())
-        return RecipeResult.detail(sauceRecipeRepository.save(recipe))
+        val saved = sauceRecipeRepository.save(recipe)
+        return RecipeResult.detail(saved, imageUrl = recipeImageUrlResolver.imageUrl(saved))
     }
 
     private fun findMember(memberId: Long): Member {

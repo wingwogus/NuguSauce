@@ -19,7 +19,8 @@ class RecipeQueryService(
     private val ingredientRepository: IngredientRepository,
     private val recipeTagRepository: RecipeTagRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
-    private val recipeFavoriteRepository: RecipeFavoriteRepository
+    private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val recipeImageUrlResolver: RecipeImageUrlResolver
 ) {
     fun search(command: RecipeCommand.SearchRecipes): List<RecipeResult.RecipeSummary> {
         val keyword = command.q?.trim()?.takeIf { it.isNotBlank() }?.lowercase()
@@ -40,7 +41,11 @@ class RecipeQueryService(
                     .toList()
                     .sortedWith(command.sort.comparator())
                     .map { recipe ->
-                        RecipeResult.summary(recipe, reviewTagsByRecipeId[recipe.id].orEmpty())
+                        RecipeResult.summary(
+                            recipe,
+                            reviewTagsByRecipeId[recipe.id].orEmpty(),
+                            imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+                        )
                     }
             }
     }
@@ -52,7 +57,8 @@ class RecipeQueryService(
             loadReviewTagCounts(listOf(recipe.id))[recipe.id].orEmpty(),
             isFavorite = memberId?.let {
                 recipeFavoriteRepository.existsByRecipeAndMember(recipe.id, it)
-            } ?: false
+            } ?: false,
+            imageUrl = recipeImageUrlResolver.imageUrl(recipe)
         )
     }
 

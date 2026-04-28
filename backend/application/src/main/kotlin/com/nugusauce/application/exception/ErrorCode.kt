@@ -9,7 +9,7 @@ enum class ErrorCode(
     INVALID_INPUT("COMMON_001", "error.invalid_input", 400),
     INVALID_JSON("COMMON_002", "error.invalid_json", 400),
     INTERNAL_ERROR("COMMON_999", "error.internal_error", 500),
-    RESOURCE_NOT_FOUND("RESOURCE_001","error.resource_not_found", 404),
+    RESOURCE_NOT_FOUND("RESOURCE_001", "error.resource_not_found", 404),
     USER_NOT_FOUND("USER_001", "error.user_not_found", 404),
     USER_ALREADY_EXISTS("USER_002", "error.user_already_exists", 409),
     INVALID_NICKNAME("USER_003", "error.invalid_nickname", 400),
@@ -38,5 +38,13 @@ enum class ErrorCode(
     FORBIDDEN_ADMIN_ACTION("RECIPE_009", "error.forbidden_admin_action", 403),
     DUPLICATE_FAVORITE("RECIPE_010", "error.duplicate_favorite", 409),
     FAVORITE_NOT_FOUND("RECIPE_011", "error.favorite_not_found", 404),
+    MEDIA_ASSET_NOT_FOUND("MEDIA_001", "error.media_asset_not_found", 404),
+    UNSUPPORTED_MEDIA_TYPE("MEDIA_002", "error.unsupported_media_type", 400),
+    MEDIA_TOO_LARGE("MEDIA_003", "error.media_too_large", 413),
+    MEDIA_NOT_VERIFIED("MEDIA_004", "error.media_not_verified", 400),
+    FORBIDDEN_MEDIA_ASSET("MEDIA_005", "error.forbidden_media_asset", 403),
+    MEDIA_ALREADY_ATTACHED("MEDIA_006", "error.media_already_attached", 409),
+    MEDIA_PROVIDER_UNAVAILABLE("MEDIA_007", "error.media_provider_unavailable", 503),
+    MEDIA_UPLOAD_NOT_FOUND("MEDIA_008", "error.media_upload_not_found", 404),
 
 }

@@ -19,7 +19,8 @@ class RecipeFavoriteService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val recipeReviewRepository: RecipeReviewRepository
+    private val recipeReviewRepository: RecipeReviewRepository,
+    private val recipeImageUrlResolver: RecipeImageUrlResolver
 ) {
     @Transactional(readOnly = true)
     fun listMyRecipes(command: RecipeCommand.MemberRecipes): List<RecipeResult.RecipeSummary> {
@@ -80,7 +81,11 @@ class RecipeFavoriteService(
     private fun summarizeWithReviewTags(recipes: List<SauceRecipe>): List<RecipeResult.RecipeSummary> {
         val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
         return recipes.map { recipe ->
-            RecipeResult.summary(recipe, reviewTagsByRecipeId[recipe.id].orEmpty())
+            RecipeResult.summary(
+                recipe,
+                reviewTagsByRecipeId[recipe.id].orEmpty(),
+                imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+            )
         }
     }
 
