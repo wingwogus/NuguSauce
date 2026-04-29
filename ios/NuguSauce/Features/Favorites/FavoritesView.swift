@@ -19,7 +19,11 @@ struct FavoritesView: View {
                 if authStore.isAuthenticated {
                     favoriteContent
                 } else {
-                    LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                    LoginGatePlaceholder(
+                        title: "찜한 레시피는 로그인 후 볼 수 있어요.",
+                        message: "로그인 화면으로 이동해 저장한 소스 조합을 확인해보세요.",
+                        systemImage: "bookmark.fill"
+                    )
                 }
             }
             .padding(.horizontal, SauceSpacing.screen)
@@ -27,16 +31,6 @@ struct FavoritesView: View {
         }
         .background(SauceColor.surface.ignoresSafeArea())
         .navigationBarHidden(true)
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .recipeDetail(let id):
-                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile(let id):
-                PublicProfileView(memberID: id, apiClient: apiClient)
-            case .loginRequired:
-                LoginRequiredView(apiClient: apiClient, authStore: authStore)
-            }
-        }
         .onAppear {
             if authStore.isAuthenticated {
                 Task {

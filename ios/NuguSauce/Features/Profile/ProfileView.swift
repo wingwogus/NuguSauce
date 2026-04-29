@@ -34,23 +34,17 @@ struct ProfileView: View {
                     }
                     ProfileRecipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
                 } else {
-                    LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                    LoginGatePlaceholder(
+                        title: "내 프로필은 로그인 후 볼 수 있어요.",
+                        message: "로그인 화면으로 이동해 내가 만든 조합과 저장한 레시피를 확인해보세요.",
+                        systemImage: "person.crop.circle.fill"
+                    )
                 }
             }
             .padding(.horizontal, SauceSpacing.screen)
             .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .recipeDetail(let id):
-                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile(let id):
-                PublicProfileView(memberID: id, apiClient: apiClient)
-            case .loginRequired:
-                LoginRequiredView(apiClient: apiClient, authStore: authStore)
-            }
-        }
         .task {
             if authStore.isAuthenticated {
                 await viewModel.load()
@@ -340,86 +334,5 @@ struct ProfileSetupGateView: View {
             return
         }
         _ = await viewModel.saveNickname()
-    }
-}
-
-struct LoginRequiredView: View {
-    private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
-    private static let kakaoLoginButtonMaxWidth: CGFloat = 300
-    private static let kakaoLoginButtonMaxHeight: CGFloat = 45
-
-    let apiClient: APIClientProtocol
-    @ObservedObject var authStore: AuthSessionStore
-    private let kakaoLoginService = KakaoLoginService()
-    @State private var isLoggingIn = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("NuguSauce")
-                .font(.largeTitle.weight(.black).italic())
-                .foregroundStyle(SauceColor.primaryContainer)
-            Text("로그인이 필요한 기능입니다.")
-                .font(.headline)
-
-            Button {
-                Task {
-                    await loginWithKakao()
-                }
-            } label: {
-                GeometryReader { proxy in
-                    let buttonWidth = min(proxy.size.width, Self.kakaoLoginButtonMaxWidth)
-
-                    Image("KakaoLoginLargeWide")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(
-                            width: buttonWidth,
-                            height: buttonWidth / Self.kakaoLoginButtonAspectRatio
-                        )
-                        .opacity(isLoggingIn ? 0.65 : 1)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                }
-                .frame(height: Self.kakaoLoginButtonMaxHeight)
-            }
-            .buttonStyle(.plain)
-            .disabled(isLoggingIn)
-            .accessibilityLabel(isLoggingIn ? "카카오 로그인 중" : "카카오로 시작하기")
-
-            if let errorMessage {
-                SauceStatusBanner(message: errorMessage)
-            }
-        }
-        .padding(28)
-        .sauceCard(cornerRadius: 18)
-    }
-
-    @MainActor
-    private func loginWithKakao() async {
-        guard !isLoggingIn else {
-            return
-        }
-
-        isLoggingIn = true
-        errorMessage = nil
-        defer {
-            isLoggingIn = false
-        }
-
-        do {
-            let credential = try await kakaoLoginService.login()
-            let tokens = try await apiClient.authenticateWithKakao(
-                idToken: credential.idToken,
-                nonce: credential.nonce,
-                kakaoAccessToken: credential.kakaoAccessToken
-            )
-            if authStore.saveSession(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, member: tokens.member) {
-                errorMessage = nil
-            } else {
-                errorMessage = authStore.persistenceFailure?.message ?? "로그인 세션을 안전하게 저장하지 못했어요. 다시 시도해주세요."
-            }
-        } catch {
-            errorMessage = KakaoLoginErrorMessage.message(for: error)
-        }
     }
 }

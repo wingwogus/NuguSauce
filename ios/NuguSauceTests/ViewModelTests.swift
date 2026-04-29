@@ -33,6 +33,33 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(tabSelection.selectedTab, .profile)
     }
 
+    func testRootTabSelectionRequestsLoginForProtectedTabsWhenSignedOut() {
+        let tabSelection = RootTabSelection()
+
+        tabSelection.select(.favorites, isAuthenticated: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .favorites)
+        XCTAssertEqual(tabSelection.loginRequiredTab, .favorites)
+    }
+
+    func testRootTabSelectionDoesNotRequestLoginForPublicTabsWhenSignedOut() {
+        let tabSelection = RootTabSelection()
+
+        tabSelection.select(.search, isAuthenticated: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .search)
+        XCTAssertNil(tabSelection.loginRequiredTab)
+    }
+
+    func testRootTabSelectionClearsLoginRequirementAfterAuthentication() {
+        let tabSelection = RootTabSelection()
+        tabSelection.select(.profile, isAuthenticated: false)
+
+        tabSelection.authenticationDidChange(isAuthenticated: true)
+
+        XCTAssertNil(tabSelection.loginRequiredTab)
+    }
+
     func testHomeLoadUsesClientResults() async {
         let viewModel = HomeViewModel(apiClient: TestAPIClient(recipes: [Self.recipe(id: 1, title: "건희 소스")]))
 
@@ -787,7 +814,7 @@ private final class TestAPIClient: APIClientProtocol {
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {
-        RecipeDetailDTO(
+        return RecipeDetailDTO(
             id: id,
             title: "상세",
             description: "백엔드 상세",
@@ -850,7 +877,7 @@ private final class TestAPIClient: APIClientProtocol {
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
         uploadEvents.append("create")
         createdRecipeRequests.append(request)
-        try await fetchRecipeDetail(id: 1)
+        return try await fetchRecipeDetail(id: 1)
     }
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
         createdReviewRequests.append(request)

@@ -161,6 +161,43 @@ struct SauceStatusBanner: View {
     }
 }
 
+struct LoginGatePlaceholder: View {
+    let title: String
+    let message: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Image(systemName: systemImage)
+                .font(.system(size: 42, weight: .bold))
+                .foregroundStyle(SauceColor.primaryContainer)
+                .frame(width: 64, height: 64)
+                .background(SauceColor.redTint)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.title3.weight(.black))
+                    .foregroundStyle(SauceColor.onSurface)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            NavigationLink(value: AppRoute.login) {
+                Label("로그인 화면으로 이동", systemImage: "arrow.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .primarySauceButton()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 28)
+        .accessibilityIdentifier("login-gate-placeholder")
+    }
+}
+
 struct SauceScreenTitle: View {
     let title: String
 

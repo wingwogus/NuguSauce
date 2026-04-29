@@ -26,16 +26,6 @@ struct SearchView: View {
             .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .recipeDetail(let id):
-                RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
-            case .publicProfile(let id):
-                PublicProfileView(memberID: id, apiClient: apiClient)
-            case .loginRequired:
-                LoginRequiredView(apiClient: apiClient, authStore: authStore)
-            }
-        }
         .task {
             await viewModel.load()
         }

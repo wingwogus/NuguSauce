@@ -38,4 +38,14 @@ final class NuguSauceUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["재료를 골라 검색 결과를 좁혀보세요."].waitForExistence(timeout: 5))
     }
+
+    func testProfileTabRoutesSignedOutUserToLoginScreen() {
+        let app = XCUIApplication()
+        app.launch()
+
+        app.tabBars.buttons["프로필"].tap()
+
+        XCTAssertTrue(app.staticTexts["로그인하고 소스 조합을 저장해보세요"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["로그인이 필요한 기능입니다."].exists)
+    }
 }

@@ -29,6 +29,7 @@
 		F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* Shared/SauceComponents.swift */; };
 		F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */; };
 		F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */; };
+		F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000125 /* Features/Auth/LoginView.swift */; };
 		F00000000000000000000124 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* Assets.xcassets */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
@@ -80,6 +81,7 @@
 		A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesViewModel.swift; sourceTree = "<group>"; };
 		A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesView.swift; sourceTree = "<group>"; };
 		A00000000000000000000124 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000125 /* Features/Auth/LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Auth/LoginView.swift; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000202 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000301 /* NuguSauceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NuguSauceUITests.swift; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 				A00000000000000000000106 /* Core/Auth/AuthSession.swift */,
 				A00000000000000000000107 /* Core/Auth/KakaoLoginService.swift */,
 				A00000000000000000000108 /* Core/Models/RecipeModels.swift */,
+				A00000000000000000000125 /* Features/Auth/LoginView.swift */,
 				A00000000000000000000109 /* Features/Home/HomeViewModel.swift */,
 				A00000000000000000000110 /* Features/Home/HomeView.swift */,
 				A00000000000000000000111 /* Features/RecipeDetail/RecipeDetailViewModel.swift */,
@@ -341,6 +344,7 @@
 				F00000000000000000000118 /* Features/Profile/ProfileView.swift in Sources */,
 				F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */,
 				F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */,
+				F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */,
 				F00000000000000000000119 /* Shared/DesignSystem.swift in Sources */,
 				F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */,
 			);

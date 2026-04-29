@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct RecipeDetailView: View {
+    @ObservedObject private var authStore: AuthSessionStore
     @StateObject private var viewModel: RecipeDetailViewModel
 
-    init(recipeID: Int, apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+    init(recipeID: Int, apiClient: APIClientProtocol, authStore: AuthSessionStore) {
+        _authStore = ObservedObject(wrappedValue: authStore)
         _viewModel = StateObject(
             wrappedValue: RecipeDetailViewModel(recipeID: recipeID, apiClient: apiClient, authStore: authStore)
         )
@@ -33,18 +35,40 @@ struct RecipeDetailView: View {
                         endPoint: .bottom
                     )
                 )
-            SauceIconButton(
-                systemName: viewModel.isFavorite ? "heart.fill" : "heart",
-                foreground: SauceColor.primaryContainer,
-                background: SauceColor.surfaceLowest.opacity(0.9)
-            ) {
+            favoriteButton
+                .padding(18)
+        }
+    }
+
+    @ViewBuilder
+    private var favoriteButton: some View {
+        if authStore.isAuthenticated {
+            Button {
                 Task {
                     await viewModel.toggleFavorite()
                 }
+            } label: {
+                favoriteButtonLabel
             }
+            .buttonStyle(.plain)
             .disabled(viewModel.isUpdatingFavorite)
-            .padding(18)
+            .accessibilityLabel(viewModel.isFavorite ? "찜 해제" : "찜하기")
+        } else {
+            NavigationLink(value: AppRoute.login) {
+                favoriteButtonLabel
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("로그인하고 찜하기")
         }
+    }
+
+    private var favoriteButtonLabel: some View {
+        Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+            .font(.system(size: 16, weight: .bold))
+            .foregroundStyle(SauceColor.primaryContainer)
+            .frame(width: 42, height: 42)
+            .background(SauceColor.surfaceLowest.opacity(0.9))
+            .clipShape(Circle())
     }
 
     private var content: some View {
@@ -152,18 +176,7 @@ struct RecipeDetailView: View {
                 Text("사용자 리뷰")
                     .font(.headline.weight(.bold))
                 Spacer()
-                NavigationLink {
-                    ReviewComposeView(viewModel: viewModel)
-                } label: {
-                    Label("리뷰 쓰기", systemImage: "square.and.pencil")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(SauceColor.redTint)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
+                reviewWriteLink
             }
 
             ForEach(viewModel.reviews) { review in
@@ -190,6 +203,33 @@ struct RecipeDetailView: View {
                 .sauceCard(cornerRadius: 18)
             }
         }
+    }
+
+    @ViewBuilder
+    private var reviewWriteLink: some View {
+        if authStore.isAuthenticated {
+            NavigationLink {
+                ReviewComposeView(viewModel: viewModel)
+            } label: {
+                reviewWriteLabel
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: AppRoute.login) {
+                reviewWriteLabel
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var reviewWriteLabel: some View {
+        Label("리뷰 쓰기", systemImage: "square.and.pencil")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(SauceColor.primaryContainer)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(SauceColor.redTint)
+            .clipShape(Capsule())
     }
 
     @ViewBuilder

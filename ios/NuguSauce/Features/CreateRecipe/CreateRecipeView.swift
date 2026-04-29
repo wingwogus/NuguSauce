@@ -28,7 +28,11 @@ struct CreateRecipeView: View {
                 if authStore.isAuthenticated {
                     formContent
                 } else {
-                    LoginRequiredView(apiClient: apiClient, authStore: authStore)
+                    LoginGatePlaceholder(
+                        title: "레시피 등록은 로그인 후 가능해요.",
+                        message: "로그인 화면으로 이동해 나만의 소스 조합을 기록해보세요.",
+                        systemImage: "plus.circle.fill"
+                    )
                 }
             }
             .padding(.horizontal, SauceSpacing.screen)
