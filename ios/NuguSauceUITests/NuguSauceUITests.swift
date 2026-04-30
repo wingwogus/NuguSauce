@@ -11,6 +11,17 @@ final class NuguSauceUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["프로필"].exists)
     }
 
+    func testHomeShowsReferenceSections() {
+        let app = XCUIApplication()
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["home.profileButton"].exists)
+        XCTAssertTrue(existsAny(app, identifiers: ["home.hero", "home.hero.empty", "home.loading", "home.error"]))
+        XCTAssertTrue(existsAny(app, identifiers: ["home.popularRanking", "home.popularRanking.empty", "home.loading", "home.error"]))
+        XCTAssertTrue(existsAny(app, identifiers: ["home.latest", "home.latest.empty", "home.loading", "home.error"]))
+    }
+
     func testSearchFlavorFilterPresentsSelectionSheet() {
         let app = XCUIApplication()
         app.launch()
@@ -47,5 +58,11 @@ final class NuguSauceUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["로그인하고 소스 조합을 저장해보세요"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["로그인이 필요한 기능입니다."].exists)
+    }
+
+    private func existsAny(_ app: XCUIApplication, identifiers: [String]) -> Bool {
+        identifiers.contains { identifier in
+            app.descendants(matching: .any)[identifier].waitForExistence(timeout: 5)
+        }
     }
 }

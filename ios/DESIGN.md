@@ -107,6 +107,7 @@ The attached visual references define the first-pass mobile UI direction. Treat 
 
 ### Login / Auth Entry
 - Use a mostly white, quiet screen with a centered brand lockup.
+- The brand lockup icon must use the app icon artwork from `AppIconMark.imageset`; do not recreate it with text such as `NS`.
 - The brand title should be red, italic, and high-confidence. The Korean subtitle sits below with heavier black text.
 - Email and password fields should be large, rounded rectangles with soft red/pink outline treatment and muted brown icon/text color.
 - Primary login CTA is a full-width red button with a soft red ambient shadow.

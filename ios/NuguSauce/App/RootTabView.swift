@@ -79,7 +79,7 @@ struct RootTabView: View {
                 HomeView(
                     apiClient: apiClient,
                     authStore: authStore,
-                    openSearch: { tabSelection.select(.search, isAuthenticated: authStore.isAuthenticated) }
+                    openProfile: { tabSelection.select(.profile, isAuthenticated: authStore.isAuthenticated) }
                 )
                 .navigationDestination(for: AppRoute.self) { route in
                     destination(for: route)

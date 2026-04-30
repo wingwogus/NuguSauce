@@ -2,6 +2,7 @@ import Foundation
 
 @MainActor
 final class HomeViewModel: ObservableObject {
+    @Published private(set) var hotRecipes: [RecipeSummaryDTO] = []
     @Published private(set) var recipes: [RecipeSummaryDTO] = []
     @Published private(set) var recentRecipes: [RecipeSummaryDTO] = []
     @Published var sort: RecipeSort = .popular
@@ -14,20 +15,26 @@ final class HomeViewModel: ObservableObject {
         self.apiClient = apiClient
     }
 
-    var weeklyPopularRecipes: [RecipeSummaryDTO] {
+    var hotHeroRecipe: RecipeSummaryDTO? {
+        hotRecipes.first ?? recipes.first
+    }
+
+    var popularRankingRecipes: [RecipeSummaryDTO] {
         Array(recipes.prefix(5))
     }
 
-    var latestRecipeCards: [RecipeSummaryDTO] {
-        Array(recentRecipes.prefix(5))
+    var latestGridRecipes: [RecipeSummaryDTO] {
+        Array(recentRecipes.prefix(4))
     }
 
     func load() async {
         isLoading = true
         errorMessage = nil
         do {
+            let hotRecipes = try await apiClient.fetchRecipes(query: RecipeListQuery(sort: .hot))
             let popularRecipes = try await apiClient.fetchRecipes(query: RecipeListQuery(sort: .popular))
             let latestRecipes = try await apiClient.fetchRecipes(query: RecipeListQuery(sort: .recent))
+            self.hotRecipes = hotRecipes
             recipes = popularRecipes
             recentRecipes = latestRecipes
         } catch {

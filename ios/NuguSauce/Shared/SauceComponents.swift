@@ -22,6 +22,21 @@ struct SauceChip: View {
     }
 }
 
+struct RecipeTasteTag: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(SauceColor.onSurface)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(SauceColor.redTint)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
 struct RatingBadge: View {
     let rating: Double
 
@@ -281,50 +296,14 @@ struct SauceArtwork: View {
     let recipeID: Int
     var height: CGFloat = 220
 
-    private var gradientColors: [Color] {
-        switch recipeID % 4 {
-        case 0:
-            return [Color(red: 0.98, green: 0.82, blue: 0.35), Color(red: 0.74, green: 0.12, blue: 0.05)]
-        case 1:
-            return [Color(red: 0.98, green: 0.62, blue: 0.22), Color(red: 0.34, green: 0.12, blue: 0.06)]
-        case 2:
-            return [Color(red: 0.96, green: 0.83, blue: 0.50), Color(red: 0.76, green: 0.62, blue: 0.35)]
-        default:
-            return [Color(red: 0.28, green: 0.50, blue: 0.32), Color(red: 0.11, green: 0.18, blue: 0.12)]
-        }
-    }
-
     var body: some View {
-        ZStack {
-            LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
-            Circle()
-                .fill(SauceColor.onPrimary.opacity(0.22))
-                .frame(width: height * 0.72)
-                .blur(radius: 8)
-                .offset(y: height * 0.12)
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(SauceColor.onPrimary.opacity(0.26))
-                .frame(width: height * 0.48, height: height * 0.64)
-                .overlay(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(SauceColor.onPrimary.opacity(0.55))
-                        .frame(width: height * 0.40, height: height * 0.08)
-                        .offset(y: -8)
-                }
-                .overlay {
-                    VStack(spacing: 8) {
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(SauceColor.onPrimary.opacity(0.88))
-                        Text("SAUCE")
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
-                    }
-                }
-                .shadow(color: SauceColor.cardShadow.opacity(0.18), radius: 18, x: 0, y: 10)
-        }
-        .frame(height: height)
-        .clipped()
+        Image("SaucePlaceholder")
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(SauceColor.surfaceContainerLow)
+            .clipped()
     }
 }
 
@@ -386,9 +365,9 @@ struct RecipeCard: View {
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .lineLimit(2)
 
-                HStack {
+                HStack(spacing: 6) {
                     ForEach(recipe.reviewTags.prefix(3)) { tag in
-                        SauceChip(title: tag.name)
+                        RecipeTasteTag(title: tag.name)
                     }
                 }
 
@@ -432,13 +411,8 @@ struct CompactRecipeRow: View {
                     .font(.caption)
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .lineLimit(1)
-                HStack {
-                    Circle()
-                        .fill(SauceColor.primary)
-                        .frame(width: 7, height: 7)
-                    Text(recipe.reviewTags.first?.name ?? "태그 없음")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                HStack(spacing: 8) {
+                    RecipeTasteTag(title: recipe.reviewTags.first?.name ?? "태그 없음")
                     Spacer()
                     Label("\(recipe.ratingSummary.reviewCount)", systemImage: "hand.thumbsup.fill")
                         .font(.caption2)

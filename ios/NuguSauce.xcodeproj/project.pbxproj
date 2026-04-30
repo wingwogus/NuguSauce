@@ -29,8 +29,8 @@
 		F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* Shared/SauceComponents.swift */; };
 		F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */; };
 		F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */; };
+		F00000000000000000000124 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* Resources/Assets.xcassets */; };
 		F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000125 /* Features/Auth/LoginView.swift */; };
-		F00000000000000000000124 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* Assets.xcassets */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
 		F00000000000000000000301 /* NuguSauceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000301 /* NuguSauceUITests.swift */; };
@@ -80,7 +80,7 @@
 		A00000000000000000000121 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesViewModel.swift; sourceTree = "<group>"; };
 		A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesView.swift; sourceTree = "<group>"; };
-		A00000000000000000000124 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000124 /* Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000125 /* Features/Auth/LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Auth/LoginView.swift; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000202 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
@@ -154,7 +154,7 @@
 				A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */,
 				A00000000000000000000119 /* Shared/DesignSystem.swift */,
 				A00000000000000000000120 /* Shared/SauceComponents.swift */,
-				A00000000000000000000124 /* Assets.xcassets */,
+				A00000000000000000000124 /* Resources/Assets.xcassets */,
 				A00000000000000000000121 /* Info.plist */,
 			);
 			path = NuguSauce;
@@ -299,7 +299,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F00000000000000000000124 /* Assets.xcassets in Resources */,
+				F00000000000000000000124 /* Resources/Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -433,7 +433,7 @@
 		A00000000000000000002110 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_ENTITLEMENTS = NuguSauce/NuguSauce.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -462,7 +462,7 @@
 		A00000000000000000002111 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_ENTITLEMENTS = NuguSauce/NuguSauce.entitlements;
 				CODE_SIGN_STYLE = Automatic;

@@ -68,19 +68,51 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.recipes.map(\.title), ["건희 소스"])
     }
 
-    func testHomeLoadSeparatesPopularAndRecentRails() async {
+    func testHomeLoadSeparatesHotPopularAndRecentSections() async {
+        let hotRecipes = [Self.recipe(id: 99, title: "핫한 소스")]
         let popularRecipes = (1...6).map { Self.recipe(id: $0, title: "인기 \($0)") }
         let recentRecipes = (10...15).map { Self.recipe(id: $0, title: "최신 \($0)") }
-        let client = TestAPIClient(recipes: popularRecipes, recentRecipes: recentRecipes)
+        let client = TestAPIClient(hotRecipes: hotRecipes, recipes: popularRecipes, recentRecipes: recentRecipes)
         let viewModel = HomeViewModel(apiClient: client)
 
         await viewModel.load()
 
-        XCTAssertEqual(viewModel.weeklyPopularRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
-        XCTAssertEqual(viewModel.latestRecipeCards.map(\.title), ["최신 10", "최신 11", "최신 12", "최신 13", "최신 14"])
-        XCTAssertEqual(client.fetchRecipeSorts.count, 2)
+        XCTAssertEqual(viewModel.hotHeroRecipe?.title, "핫한 소스")
+        XCTAssertEqual(viewModel.popularRankingRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
+        XCTAssertEqual(viewModel.latestGridRecipes.map(\.title), ["최신 10", "최신 11", "최신 12", "최신 13"])
+        XCTAssertEqual(client.fetchRecipeSorts.count, 3)
+        XCTAssertTrue(client.fetchRecipeSorts.contains(.hot))
         XCTAssertTrue(client.fetchRecipeSorts.contains(.popular))
         XCTAssertTrue(client.fetchRecipeSorts.contains(.recent))
+    }
+
+    func testHomeHeroFallsBackToPopularWhenHotIsEmpty() async {
+        let popularRecipes = (1...2).map { Self.recipe(id: $0, title: "인기 \($0)") }
+        let viewModel = HomeViewModel(apiClient: TestAPIClient(hotRecipes: [], recipes: popularRecipes))
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.hotHeroRecipe?.title, "인기 1")
+        XCTAssertEqual(viewModel.popularRankingRecipes.map(\.title), ["인기 1", "인기 2"])
+    }
+
+    func testHomePopularRankingUsesPopularTopFive() async {
+        let hotRecipes = [Self.recipe(id: 1, title: "핫한 인기 1")]
+        let popularRecipes = (1...7).map { Self.recipe(id: $0, title: "인기 \($0)") }
+        let viewModel = HomeViewModel(apiClient: TestAPIClient(hotRecipes: hotRecipes, recipes: popularRecipes))
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.popularRankingRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
+    }
+
+    func testHomeLatestGridUsesAvailableRecentRecipesWhenUnderFour() async {
+        let recentRecipes = (10...11).map { Self.recipe(id: $0, title: "최신 \($0)") }
+        let viewModel = HomeViewModel(apiClient: TestAPIClient(recentRecipes: recentRecipes))
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.latestGridRecipes.map(\.title), ["최신 10", "최신 11"])
     }
 
     func testSearchQueryComposesFilters() {
@@ -756,6 +788,7 @@ final class ViewModelTests: XCTestCase {
 }
 
 private final class TestAPIClient: APIClientProtocol {
+    private let hotRecipes: [RecipeSummaryDTO]
     private let recipes: [RecipeSummaryDTO]
     private let recentRecipes: [RecipeSummaryDTO]
     private let favoriteRecipes: [RecipeSummaryDTO]
@@ -781,6 +814,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var fetchedMemberIDs: [Int] = []
 
     init(
+        hotRecipes: [RecipeSummaryDTO]? = nil,
         recipes: [RecipeSummaryDTO] = [],
         recentRecipes: [RecipeSummaryDTO]? = nil,
         favoriteRecipes: [RecipeSummaryDTO]? = nil,
@@ -797,6 +831,7 @@ private final class TestAPIClient: APIClientProtocol {
             profileSetupRequired: false
         )
     ) {
+        self.hotRecipes = hotRecipes ?? recipes
         self.recipes = recipes
         self.recentRecipes = recentRecipes ?? recipes
         self.favoriteRecipes = favoriteRecipes ?? recipes
@@ -811,7 +846,14 @@ private final class TestAPIClient: APIClientProtocol {
 
     func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
         fetchRecipeSorts.append(query.sort)
-        return query.sort == .recent ? recentRecipes : recipes
+        switch query.sort {
+        case .hot:
+            return hotRecipes
+        case .recent:
+            return recentRecipes
+        case .popular, .rating:
+            return recipes
+        }
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {

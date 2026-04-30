@@ -16,12 +16,11 @@ struct LoginView: View {
         ScrollView {
             VStack(spacing: 30) {
                 VStack(spacing: 14) {
-                    Text("NS")
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundStyle(SauceColor.primaryContainer)
+                    Image("AppIconMark")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
                         .frame(width: 92, height: 92)
-                        .background(SauceColor.redTint)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .accessibilityHidden(true)
                     Text("NuguSauce")
                         .font(.largeTitle.weight(.black).italic())
