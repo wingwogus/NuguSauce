@@ -133,8 +133,7 @@ struct HomeView: View {
                             HomeFavoriteStateBadge(
                                 isFavorite: recipe.isFavorited,
                                 foreground: SauceColor.onPrimary,
-                                inactiveForeground: SauceColor.onPrimary.opacity(0.86),
-                                background: Color.black.opacity(0.32)
+                                inactiveForeground: SauceColor.onPrimary.opacity(0.86)
                             )
                         }
                         .padding(18)
@@ -361,15 +360,12 @@ private struct HomeFavoriteStateBadge: View {
     var size: CGFloat = 30
     var foreground: Color = SauceColor.primaryContainer
     var inactiveForeground: Color = SauceColor.onSurfaceVariant
-    var background: Color = SauceColor.surfaceContainerLow
 
     var body: some View {
         Image(systemName: isFavorite ? "bookmark.fill" : "bookmark")
-            .font(.system(size: size * 0.48, weight: .black))
+            .font(.system(size: size * 0.58, weight: .black))
             .foregroundStyle(isFavorite ? foreground : inactiveForeground)
             .frame(width: size, height: size)
-            .background(background)
-            .clipShape(Circle())
             .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")
     }
 }

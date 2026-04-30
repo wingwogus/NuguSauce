@@ -1,8 +1,10 @@
 package com.nugusauce.domain.recipe.sauce
 
 import com.nugusauce.domain.member.Member
+import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
+import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.tag.RecipeTag
@@ -16,15 +18,27 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ContextConfiguration
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @DataJpaTest
 @ContextConfiguration(classes = [SauceRecipeRepositoryImplTest.JpaTestApplication::class])
 class SauceRecipeRepositoryImplTest @Autowired constructor(
     private val sauceRecipeRepository: SauceRecipeRepository,
+    private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val memberRepository: MemberRepository,
+    private val transactionManager: PlatformTransactionManager,
     private val entityManager: TestEntityManager
 ) {
     @Test
@@ -133,6 +147,63 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         )
 
         assertEquals(listOf("찜이 많은 소스", "리뷰만 많은 소스", "낮은 참여 소스"), results.map { it.title })
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `favorite count stays aligned with rows after parallel favorites`() {
+        val transactionTemplate = TransactionTemplate(transactionManager)
+        val favoriteSize = 8
+        val (recipeId, memberIds) = transactionTemplate.execute {
+            val recipe = recipe(title = "동시 찜 소스")
+            val members = (1..favoriteSize).map { index ->
+                member("parallel-$index@example.test")
+            }
+            recipe.id to members.map { it.id }
+        }!!
+        val executor = Executors.newFixedThreadPool(favoriteSize)
+        val ready = CountDownLatch(favoriteSize)
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(favoriteSize)
+        val errors = Collections.synchronizedList(mutableListOf<Throwable>())
+
+        memberIds.forEach { memberId ->
+            executor.submit {
+                try {
+                    ready.countDown()
+                    start.await()
+                    transactionTemplate.executeWithoutResult {
+                        recipeFavoriteRepository.save(
+                            RecipeFavorite(
+                                recipe = sauceRecipeRepository.getReferenceById(recipeId),
+                                member = memberRepository.getReferenceById(memberId)
+                            )
+                        )
+                        sauceRecipeRepository.incrementFavoriteCount(recipeId, Instant.now())
+                    }
+                } catch (error: Throwable) {
+                    errors.add(error)
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+
+        assertEquals(true, ready.await(5, TimeUnit.SECONDS))
+        start.countDown()
+        assertEquals(true, done.await(10, TimeUnit.SECONDS))
+        executor.shutdown()
+        if (errors.isNotEmpty()) {
+            throw AssertionError("parallel favorite insert failed", errors.first())
+        }
+
+        val persisted = transactionTemplate.execute {
+            val recipe = sauceRecipeRepository.findById(recipeId).orElseThrow()
+            recipe.favoriteCount to recipeFavoriteRepository.countByRecipeId(recipeId)
+        }!!
+        assertEquals(favoriteSize, persisted.first)
+        assertEquals(favoriteSize.toLong(), persisted.second)
     }
 
     @Test
@@ -277,7 +348,13 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             RecipeFavorite::class
         ]
     )
-    @EnableJpaRepositories(basePackageClasses = [SauceRecipeRepository::class])
+    @EnableJpaRepositories(
+        basePackageClasses = [
+            SauceRecipeRepository::class,
+            RecipeFavoriteRepository::class,
+            MemberRepository::class
+        ]
+    )
     @Import(SauceRecipeRepositoryImpl::class)
     class JpaTestApplication
 }

@@ -119,7 +119,7 @@ class RecipeFavoriteServiceTest {
         val result = service.addFavorite(RecipeCommand.FavoriteRecipe(1L, 10L))
 
         assertEquals(10L, result.recipeId)
-        assertEquals(1, recipe.favoriteCount)
+        verify(sauceRecipeRepository).incrementFavoriteCount(10L, result.createdAt)
     }
 
     @Test
@@ -132,7 +132,10 @@ class RecipeFavoriteServiceTest {
         service.removeFavorite(RecipeCommand.FavoriteRecipe(1L, 10L))
 
         verify(recipeFavoriteRepository).delete(favorite)
-        assertEquals(1, recipe.favoriteCount)
+        val decrementInvocation = Mockito.mockingDetails(sauceRecipeRepository).invocations
+            .single { it.method.name == "decrementFavoriteCount" }
+        assertEquals(10L, decrementInvocation.arguments[0])
+        assertEquals(true, decrementInvocation.arguments[1] is Instant)
     }
 
     @Test

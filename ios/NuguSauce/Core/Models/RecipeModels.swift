@@ -39,7 +39,7 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     let visibility: RecipeVisibility
     let ratingSummary: RatingSummaryDTO
     let reviewTags: [ReviewTagDTO]
-    let favoriteCount: Int?
+    let favoriteCount: Int
     let isFavorite: Bool
     let createdAt: String
 
@@ -48,7 +48,7 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     }
 
     var displayFavoriteCount: Int {
-        favoriteCount ?? 0
+        favoriteCount
     }
 
     var ratingReviewText: String {
@@ -69,7 +69,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let ingredients: [RecipeIngredientDTO]
     let reviewTags: [ReviewTagDTO]
     let ratingSummary: RatingSummaryDTO
-    let favoriteCount: Int?
+    let favoriteCount: Int
     let isFavorite: Bool?
     let createdAt: String
     let lastReviewedAt: String?
@@ -79,7 +79,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     }
 
     var displayFavoriteCount: Int {
-        favoriteCount ?? 0
+        favoriteCount
     }
 
     var displayAuthorName: String? {

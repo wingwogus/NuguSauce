@@ -98,6 +98,7 @@ final class APIContractTests: XCTestCase {
           "ingredients": [],
           "reviewTags": [],
           "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
+          "favoriteCount": 0,
           "createdAt": "2026-04-25T00:00:00Z",
           "lastReviewedAt": null
         }
@@ -220,6 +221,7 @@ final class APIContractTests: XCTestCase {
               "visibility": "VISIBLE",
               "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
               "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+              "favoriteCount": 9,
               "isFavorite": true,
               "createdAt": "2026-04-25T00:00:00Z"
             }
@@ -343,6 +345,7 @@ final class APIContractTests: XCTestCase {
                   "reviewCount": 0
                 },
                 "reviewTags": [],
+                "favoriteCount": 0,
                 "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
               }
@@ -360,6 +363,7 @@ final class APIContractTests: XCTestCase {
                   "reviewCount": 4
                 },
                 "reviewTags": [],
+                "favoriteCount": 4,
                 "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
               }
@@ -403,6 +407,7 @@ final class APIContractTests: XCTestCase {
             "ingredients": [],
             "reviewTags": [],
             "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+            "favoriteCount": 9,
             "isFavorite": true,
             "createdAt": "2026-04-25T00:00:00Z",
             "lastReviewedAt": null

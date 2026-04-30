@@ -12,6 +12,7 @@ import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 @Service
 @Transactional
@@ -57,17 +58,21 @@ class RecipeFavoriteService(
                 member = member
             )
         )
-        recipe.recordFavorite(favorite.createdAt)
+        sauceRecipeRepository.incrementFavoriteCount(command.recipeId, favorite.createdAt)
 
-        return RecipeResult.favorite(favorite)
+        return RecipeResult.FavoriteItem(
+            recipeId = command.recipeId,
+            createdAt = favorite.createdAt
+        )
     }
 
     fun removeFavorite(command: RecipeCommand.FavoriteRecipe) {
         ensureMember(command.memberId)
         val favorite = recipeFavoriteRepository.findByRecipeAndMember(command.recipeId, command.memberId)
             ?: throw BusinessException(ErrorCode.FAVORITE_NOT_FOUND)
+        val recipeId = favorite.recipe.id
         recipeFavoriteRepository.delete(favorite)
-        favorite.recipe.removeFavorite()
+        sauceRecipeRepository.decrementFavoriteCount(recipeId, Instant.now())
     }
 
     private fun ensureMember(memberId: Long): Member {
