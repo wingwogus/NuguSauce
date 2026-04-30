@@ -111,7 +111,9 @@ class MemberControllerTest(
             .andExpect(jsonPath("$.data.displayName", equalTo("마라초보")))
             .andExpect(jsonPath("$.data.profileSetupRequired", equalTo(false)))
             .andExpect(jsonPath("$.data.recipes[0].id", equalTo(10)))
+            .andExpect(jsonPath("$.data.recipes[0].isFavorite", equalTo(false)))
             .andExpect(jsonPath("$.data.favoriteRecipes[0].id", equalTo(11)))
+            .andExpect(jsonPath("$.data.favoriteRecipes[0].isFavorite", equalTo(false)))
     }
 
     @Test

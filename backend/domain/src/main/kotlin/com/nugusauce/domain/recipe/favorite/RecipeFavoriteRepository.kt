@@ -31,6 +31,18 @@ interface RecipeFavoriteRepository : JpaRepository<RecipeFavorite, Long> {
 
     @Query(
         """
+        select f.recipe.id
+        from RecipeFavorite f
+        where f.member.id = :memberId and f.recipe.id in :recipeIds
+        """
+    )
+    fun findRecipeIdsByMemberAndRecipeIds(
+        @Param("memberId") memberId: Long,
+        @Param("recipeIds") recipeIds: Collection<Long>
+    ): Set<Long>
+
+    @Query(
+        """
         select f
         from RecipeFavorite f
         where f.recipe.id = :recipeId and f.member.id = :memberId

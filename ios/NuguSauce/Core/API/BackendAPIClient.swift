@@ -50,7 +50,11 @@ final class BackendAPIClient: APIClientProtocol {
         queryItems.append(contentsOf: query.ingredientIDs.sorted().map { URLQueryItem(name: "ingredientIds", value: "\($0)") })
         queryItems.append(URLQueryItem(name: "sort", value: query.sort.rawValue))
 
-        return try await send(path: "/api/v1/recipes", queryItems: queryItems)
+        return try await send(
+            path: "/api/v1/recipes",
+            queryItems: queryItems,
+            includesAuthenticationIfAvailable: true
+        )
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {

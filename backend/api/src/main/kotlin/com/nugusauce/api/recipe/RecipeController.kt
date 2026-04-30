@@ -33,6 +33,7 @@ class RecipeController(
 ) {
     @GetMapping("/recipes")
     fun searchRecipes(
+        @AuthenticationPrincipal userId: String?,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) tagIds: List<String>?,
         @RequestParam(required = false) ingredientIds: List<String>?,
@@ -43,7 +44,8 @@ class RecipeController(
                 q = q,
                 tagIds = parseIds("tagIds", tagIds),
                 ingredientIds = parseIds("ingredientIds", ingredientIds),
-                sort = parseSort(sort)
+                sort = parseSort(sort),
+                viewerMemberId = userId?.toLongOrNull()
             )
         )
         return ResponseEntity.ok(ApiResponse.ok(results.map(RecipeResponses.RecipeSummaryResponse::from)))

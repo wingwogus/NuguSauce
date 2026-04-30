@@ -8,9 +8,13 @@ import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
+import com.nugusauce.domain.recipe.sauce.SauceRecipeSearchCondition
+import com.nugusauce.domain.recipe.sauce.SauceRecipeSort
 import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.temporal.ChronoUnit
 
 @Service
 @Transactional(readOnly = true)
@@ -20,33 +24,21 @@ class RecipeQueryService(
     private val recipeTagRepository: RecipeTagRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val recipeImageUrlResolver: RecipeImageUrlResolver
+    private val recipeImageUrlResolver: RecipeImageUrlResolver,
+    private val clock: Clock = Clock.systemUTC()
 ) {
     fun search(command: RecipeCommand.SearchRecipes): List<RecipeResult.RecipeSummary> {
-        val keyword = command.q?.trim()?.takeIf { it.isNotBlank() }?.lowercase()
-        return sauceRecipeRepository.findAllByVisibility(RecipeVisibility.VISIBLE)
-            .let { recipes ->
-                val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
-                recipes
-                    .asSequence()
-                    .filter { recipe -> keyword == null || recipe.matchesKeyword(keyword) }
-                    .filter { recipe ->
-                        command.tagIds.isEmpty() ||
-                            reviewTagsByRecipeId[recipe.id].orEmpty().any { it.id in command.tagIds }
-                    }
-                    .filter { recipe ->
-                        command.ingredientIds.isEmpty() ||
-                            recipe.ingredients.any { it.ingredient.id in command.ingredientIds }
-                    }
-                    .toList()
-                    .sortedWith(command.sort.comparator())
-                    .map { recipe ->
-                        RecipeResult.summary(
-                            recipe,
-                            reviewTagsByRecipeId[recipe.id].orEmpty(),
-                            imageUrl = recipeImageUrlResolver.imageUrl(recipe)
-                        )
-                    }
+        val recipes = sauceRecipeRepository.searchVisibleRecipes(command.toSearchCondition())
+        val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
+        val favoriteRecipeIds = loadFavoriteRecipeIds(command.viewerMemberId, recipes.map { it.id })
+        return recipes
+            .map { recipe ->
+                RecipeResult.summary(
+                    recipe,
+                    reviewTagsByRecipeId[recipe.id].orEmpty(),
+                    isFavorite = recipe.id in favoriteRecipeIds,
+                    imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+                )
             }
     }
 
@@ -104,24 +96,34 @@ class RecipeQueryService(
             }
     }
 
-    private fun SauceRecipe.matchesKeyword(keyword: String): Boolean {
-        return title.lowercase().contains(keyword) ||
-            description.lowercase().contains(keyword) ||
-            (tips?.lowercase()?.contains(keyword) ?: false)
+    private fun loadFavoriteRecipeIds(memberId: Long?, recipeIds: Collection<Long>): Set<Long> {
+        if (memberId == null || recipeIds.isEmpty()) {
+            return emptySet()
+        }
+        return recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(memberId, recipeIds.toSet())
     }
 
-    private fun RecipeCommand.RecipeSort.comparator(): Comparator<SauceRecipe> {
+    private fun RecipeCommand.SearchRecipes.toSearchCondition(): SauceRecipeSearchCondition {
+        val domainSort = sort.toDomainSort()
+        return SauceRecipeSearchCondition(
+            keyword = q?.trim()?.takeIf { it.isNotBlank() },
+            tagIds = tagIds.toSet(),
+            ingredientIds = ingredientIds.toSet(),
+            sort = domainSort,
+            hotSince = if (domainSort == SauceRecipeSort.HOT) {
+                clock.instant().minus(7, ChronoUnit.DAYS)
+            } else {
+                null
+            }
+        )
+    }
+
+    private fun RecipeCommand.RecipeSort.toDomainSort(): SauceRecipeSort {
         return when (this) {
-            RecipeCommand.RecipeSort.POPULAR ->
-                compareByDescending<SauceRecipe> { it.reviewCount }
-                    .thenByDescending { it.averageRating }
-                    .thenByDescending { it.lastReviewedAt ?: it.createdAt }
-            RecipeCommand.RecipeSort.RECENT ->
-                compareByDescending { it.createdAt }
-            RecipeCommand.RecipeSort.RATING ->
-                compareByDescending<SauceRecipe> { it.averageRating }
-                    .thenByDescending { it.reviewCount }
-                    .thenByDescending { it.lastReviewedAt ?: it.createdAt }
+            RecipeCommand.RecipeSort.HOT -> SauceRecipeSort.HOT
+            RecipeCommand.RecipeSort.POPULAR -> SauceRecipeSort.POPULAR
+            RecipeCommand.RecipeSort.RECENT -> SauceRecipeSort.RECENT
+            RecipeCommand.RecipeSort.RATING -> SauceRecipeSort.RATING
         }
     }
 }

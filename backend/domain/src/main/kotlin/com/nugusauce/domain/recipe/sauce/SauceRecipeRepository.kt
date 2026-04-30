@@ -2,7 +2,7 @@ package com.nugusauce.domain.recipe.sauce
 
 import org.springframework.data.jpa.repository.JpaRepository
 
-interface SauceRecipeRepository : JpaRepository<SauceRecipe, Long> {
+interface SauceRecipeRepository : JpaRepository<SauceRecipe, Long>, SauceRecipeQueryRepository {
     fun findAllByVisibility(visibility: RecipeVisibility): List<SauceRecipe>
     fun findAllByAuthorIdOrderByCreatedAtDesc(authorId: Long): List<SauceRecipe>
     fun findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(

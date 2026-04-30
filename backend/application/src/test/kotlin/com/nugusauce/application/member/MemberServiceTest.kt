@@ -97,6 +97,8 @@ class MemberServiceTest {
         assertFalse(result.profileSetupRequired)
         assertEquals(listOf(10L), result.recipes.map { it.id })
         assertEquals(listOf(11L), result.favoriteRecipes.map { it.id })
+        assertEquals(false, result.recipes.first().isFavorite)
+        assertEquals(false, result.favoriteRecipes.first().isFavorite)
     }
 
     @Test

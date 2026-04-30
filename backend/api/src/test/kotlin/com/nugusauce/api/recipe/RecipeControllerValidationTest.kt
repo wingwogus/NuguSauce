@@ -1,6 +1,7 @@
 package com.nugusauce.api.recipe
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.recipe.RecipeCommand
 import com.nugusauce.application.recipe.RecipeFavoriteService
 import com.nugusauce.application.recipe.RecipeModerationService
 import com.nugusauce.application.recipe.RecipeQueryService
@@ -56,6 +57,31 @@ class RecipeControllerValidationTest(
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `search accepts hot sort`() {
+        `when`(recipeQueryService.search(RecipeCommand.SearchRecipes(sort = RecipeCommand.RecipeSort.HOT)))
+            .thenReturn(emptyList())
+
+        mockMvc.perform(get("/api/v1/recipes?sort=hot"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(true))
+    }
+
+    @Test
+    fun `search includes favorite state for authenticated principal`() {
+        `when`(recipeQueryService.search(RecipeCommand.SearchRecipes(viewerMemberId = 1L)))
+            .thenReturn(listOf(recipeSummary(isFavorite = true)))
+
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(get("/api/v1/recipes"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data[0].isFavorite").value(true))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 
     @Test
@@ -174,6 +200,24 @@ class RecipeControllerValidationTest(
             isFavorite = isFavorite,
             createdAt = Instant.parse("2026-04-25T00:00:00Z"),
             lastReviewedAt = null
+        )
+    }
+
+    private fun recipeSummary(isFavorite: Boolean): RecipeResult.RecipeSummary {
+        return RecipeResult.RecipeSummary(
+            id = 10L,
+            title = "건희 소스",
+            description = "고소하고 매콤한 인기 조합",
+            spiceLevel = 0,
+            richnessLevel = 0,
+            imageUrl = null,
+            authorType = "CURATED",
+            visibility = "VISIBLE",
+            ratingSummary = RecipeResult.RatingSummary(4.7, 18),
+            tags = emptyList(),
+            reviewTags = emptyList(),
+            isFavorite = isFavorite,
+            createdAt = Instant.parse("2026-04-25T00:00:00Z")
         )
     }
 }

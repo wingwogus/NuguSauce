@@ -39,7 +39,12 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     let visibility: RecipeVisibility
     let ratingSummary: RatingSummaryDTO
     let reviewTags: [ReviewTagDTO]
+    let isFavorite: Bool
     let createdAt: String
+
+    var isFavorited: Bool {
+        isFavorite
+    }
 }
 
 struct RecipeDetailDTO: Codable, Identifiable, Equatable {

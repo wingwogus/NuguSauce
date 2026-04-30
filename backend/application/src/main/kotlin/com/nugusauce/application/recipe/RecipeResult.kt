@@ -55,6 +55,7 @@ object RecipeResult {
         val ratingSummary: RatingSummary,
         val tags: List<TagItem>,
         val reviewTags: List<ReviewTagCount>,
+        val isFavorite: Boolean = false,
         val createdAt: Instant
     )
 
@@ -130,6 +131,7 @@ object RecipeResult {
     fun summary(
         recipe: SauceRecipe,
         reviewTags: List<ReviewTagCount> = emptyList(),
+        isFavorite: Boolean = false,
         imageUrl: String? = recipe.imageUrl
     ): RecipeSummary {
         return RecipeSummary(
@@ -144,6 +146,7 @@ object RecipeResult {
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
             tags = recipe.tags.map(::fromTag).sortedBy { it.name },
             reviewTags = reviewTags,
+            isFavorite = isFavorite,
             createdAt = recipe.createdAt
         )
     }

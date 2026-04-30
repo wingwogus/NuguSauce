@@ -54,6 +54,7 @@ enum ApiErrorCode {
 }
 
 enum RecipeSort: String, CaseIterable, Identifiable {
+    case hot
     case popular
     case recent
     case rating
@@ -62,6 +63,8 @@ enum RecipeSort: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
+        case .hot:
+            return "핫한순"
         case .popular:
             return "인기순"
         case .recent:

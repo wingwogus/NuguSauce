@@ -742,6 +742,7 @@ final class ViewModelTests: XCTestCase {
             visibility: .visible,
             ratingSummary: RatingSummaryDTO(averageRating: 4.7, reviewCount: 18),
             reviewTags: [],
+            isFavorite: false,
             createdAt: "2026-04-25T00:00:00Z"
         )
     }

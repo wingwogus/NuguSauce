@@ -26,7 +26,10 @@ class RecipeFavoriteService(
     fun listMyRecipes(command: RecipeCommand.MemberRecipes): List<RecipeResult.RecipeSummary> {
         ensureMember(command.memberId)
         val recipes = sauceRecipeRepository.findAllByAuthorIdOrderByCreatedAtDesc(command.memberId)
-        return summarizeWithReviewTags(recipes)
+        return summarizeWithReviewTags(
+            recipes,
+            favoriteRecipeIds = loadFavoriteRecipeIds(command.memberId, recipes.map { it.id })
+        )
     }
 
     @Transactional(readOnly = true)
@@ -35,7 +38,10 @@ class RecipeFavoriteService(
         val recipes = recipeFavoriteRepository.findAllByMemberIdOrderByCreatedAtDesc(command.memberId)
             .map { it.recipe }
             .filter { it.visibility == RecipeVisibility.VISIBLE }
-        return summarizeWithReviewTags(recipes)
+        return summarizeWithReviewTags(
+            recipes,
+            favoriteRecipeIds = recipes.map { it.id }.toSet()
+        )
     }
 
     fun addFavorite(command: RecipeCommand.FavoriteRecipe): RecipeResult.FavoriteItem {
@@ -78,15 +84,26 @@ class RecipeFavoriteService(
         return recipe
     }
 
-    private fun summarizeWithReviewTags(recipes: List<SauceRecipe>): List<RecipeResult.RecipeSummary> {
+    private fun summarizeWithReviewTags(
+        recipes: List<SauceRecipe>,
+        favoriteRecipeIds: Set<Long> = emptySet()
+    ): List<RecipeResult.RecipeSummary> {
         val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
         return recipes.map { recipe ->
             RecipeResult.summary(
                 recipe,
                 reviewTagsByRecipeId[recipe.id].orEmpty(),
+                isFavorite = recipe.id in favoriteRecipeIds,
                 imageUrl = recipeImageUrlResolver.imageUrl(recipe)
             )
         }
+    }
+
+    private fun loadFavoriteRecipeIds(memberId: Long, recipeIds: Collection<Long>): Set<Long> {
+        if (recipeIds.isEmpty()) {
+            return emptySet()
+        }
+        return recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(memberId, recipeIds.toSet())
     }
 
     private fun loadReviewTagCounts(recipeIds: Collection<Long>): Map<Long, List<RecipeResult.ReviewTagCount>> {

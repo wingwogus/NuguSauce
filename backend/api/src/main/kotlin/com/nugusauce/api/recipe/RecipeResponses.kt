@@ -94,6 +94,7 @@ object RecipeResponses {
         val visibility: String,
         val ratingSummary: RatingSummaryResponse,
         val reviewTags: List<ReviewTagCountResponse>,
+        val isFavorite: Boolean,
         val createdAt: Instant
     ) {
         companion object {
@@ -107,6 +108,7 @@ object RecipeResponses {
                     visibility = result.visibility,
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
                     reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
+                    isFavorite = result.isFavorite,
                     createdAt = result.createdAt
                 )
             }

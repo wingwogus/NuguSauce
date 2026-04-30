@@ -59,11 +59,15 @@ class RecipeFavoriteServiceTest {
         `when`(sauceRecipeRepository.findAllByAuthorIdOrderByCreatedAtDesc(1L))
             .thenReturn(listOf(recipe(author = member(), visibility = RecipeVisibility.HIDDEN)))
         `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
+        `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L)))
+            .thenReturn(setOf(10L))
 
         val results = service.listMyRecipes(RecipeCommand.MemberRecipes(1L))
 
         assertEquals(1, results.size)
         assertEquals("HIDDEN", results.first().visibility)
+        assertEquals(true, results.first().isFavorite)
+        verify(recipeFavoriteRepository).findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L))
     }
 
     @Test
@@ -83,6 +87,7 @@ class RecipeFavoriteServiceTest {
 
         assertEquals(1, results.size)
         assertEquals("VISIBLE", results.first().visibility)
+        assertEquals(true, results.first().isFavorite)
     }
 
     @Test

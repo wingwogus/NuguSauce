@@ -194,7 +194,8 @@ Success data matches the `GET /api/v1/members/me` shape.
 
 Public endpoint for another member's safe public profile and profile-screen data.
 Only visible authored recipes and visible favorite recipes are returned; hidden
-recipes stay private to the owner.
+recipes stay private to the owner. This public profile response is not
+viewer-personalized; recipe summaries return `"isFavorite": false`.
 
 Success data:
 
@@ -217,6 +218,7 @@ Success data:
         "reviewCount": 0
       },
       "reviewTags": [],
+      "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
     }
   ],
@@ -233,6 +235,7 @@ Success data:
         "reviewCount": 12
       },
       "reviewTags": [],
+      "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
     }
   ]
@@ -330,6 +333,7 @@ Recipe APIs use the shared response envelope above.
 
 Recipe list supports `sort` values:
 
+- `hot`: visible recipes ordered by recent review/favorite engagement velocity plus rating quality guard, then popularity and recency fallback.
 - `popular`: visible recipes ordered by `reviewCount` descending, then `averageRating` descending, then newest review/creation.
 - `recent`: visible recipes ordered by `createdAt` descending.
 - `rating`: visible recipes ordered by `averageRating` descending, then `reviewCount` descending.
@@ -341,7 +345,12 @@ Query parameters:
 - `q`: optional keyword matched against title, description, and tips.
 - `tagIds`: optional repeated or comma-compatible review taste tag IDs. Matching is based on tags selected in reviews, not author input.
 - `ingredientIds`: optional repeated or comma-compatible ingredient IDs.
-- `sort`: optional `popular|recent|rating`, default `popular`.
+- `sort`: optional `hot|popular|recent|rating`, default `popular`.
+
+When a valid JWT is supplied, each summary is personalized with the current
+member's favorite state. Anonymous public list requests return
+`"isFavorite": false`. Any HTTP cache for this endpoint must vary by
+authorization when personalized responses are enabled.
 
 Success data:
 
@@ -362,6 +371,7 @@ Success data:
       { "id": 1, "name": "고소함", "count": 12 },
       { "id": 2, "name": "매콤함", "count": 6 }
     ],
+    "isFavorite": true,
     "createdAt": "2026-04-25T00:00:00Z"
   }
 ]
@@ -577,7 +587,9 @@ My recipe APIs require JWT authentication and never expose another user's privat
 
 ### `GET /api/v1/me/recipes`
 
-Returns recipes authored by the authenticated member. Hidden own recipes may be returned so the author can manage them.
+Returns recipes authored by the authenticated member. Hidden own recipes may be
+returned so the author can manage them. `isFavorite` is still viewer-relative,
+so authored recipes may be either `true` or `false`.
 
 Success data:
 
@@ -595,6 +607,7 @@ Success data:
       "reviewCount": 0
     },
     "reviewTags": [],
+    "isFavorite": false,
     "createdAt": "2026-04-25T00:00:00Z"
   }
 ]
@@ -602,7 +615,9 @@ Success data:
 
 ### `GET /api/v1/me/favorite-recipes`
 
-Returns visible recipes saved by the authenticated member. Hidden favorites are excluded from this public-consumption list.
+Returns visible recipes saved by the authenticated member. Hidden favorites are
+excluded from this public-consumption list. Every returned recipe summary has
+`"isFavorite": true`.
 
 Success data matches the recipe summary list shape.
 

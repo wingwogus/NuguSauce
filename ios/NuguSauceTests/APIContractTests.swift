@@ -15,6 +15,7 @@ final class APIContractTests: XCTestCase {
             "visibility": "VISIBLE",
             "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
             "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+            "isFavorite": false,
             "createdAt": "2026-04-25T00:00:00Z"
           },
           "error": null
@@ -25,7 +26,29 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertTrue(envelope.success)
         XCTAssertEqual(envelope.data?.title, "건희 소스")
+        XCTAssertEqual(envelope.data?.isFavorited, false)
         XCTAssertNil(envelope.error)
+    }
+
+    func testRecipeSummaryDecodesFavoriteState() throws {
+        let json = """
+        {
+          "id": 1,
+          "title": "건희 소스",
+          "description": "고소하고 매콤한 인기 조합",
+          "imageUrl": null,
+          "authorType": "CURATED",
+          "visibility": "VISIBLE",
+          "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+          "reviewTags": [],
+          "isFavorite": true,
+          "createdAt": "2026-04-25T00:00:00Z"
+        }
+        """.data(using: .utf8)!
+
+        let recipe = try JSONDecoder().decode(RecipeSummaryDTO.self, from: json)
+
+        XCTAssertTrue(recipe.isFavorited)
     }
 
     func testRecipeDetailDecodesAuthorName() throws {
@@ -191,6 +214,7 @@ final class APIContractTests: XCTestCase {
               "visibility": "VISIBLE",
               "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
               "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+              "isFavorite": true,
               "createdAt": "2026-04-25T00:00:00Z"
             }
           ],
@@ -215,8 +239,11 @@ final class APIContractTests: XCTestCase {
         )
 
         XCTAssertEqual(recipes.first?.title, "건희 소스")
+        XCTAssertEqual(recipes.first?.isFavorited, true)
         let requestURL = try XCTUnwrap(URLProtocolTestTransport.lastRequest?.url)
         XCTAssertEqual(requestURL.path, "/api/v1/recipes")
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
         let components = try XCTUnwrap(URLComponents(url: requestURL, resolvingAgainstBaseURL: false))
         XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "q", value: "건희")) == true)
         XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "tagIds", value: "1")) == true)
@@ -310,6 +337,7 @@ final class APIContractTests: XCTestCase {
                   "reviewCount": 0
                 },
                 "reviewTags": [],
+                "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
               }
             ],
@@ -326,6 +354,7 @@ final class APIContractTests: XCTestCase {
                   "reviewCount": 4
                 },
                 "reviewTags": [],
+                "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
               }
             ]
@@ -344,6 +373,8 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(member.displayName, "마라초보")
         XCTAssertEqual(member.recipes?.map(\.id), [81])
         XCTAssertEqual(member.favoriteRecipes?.map(\.id), [82])
+        XCTAssertEqual(member.recipes?.first?.isFavorited, false)
+        XCTAssertEqual(member.favoriteRecipes?.first?.isFavorited, false)
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/members/8")
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
