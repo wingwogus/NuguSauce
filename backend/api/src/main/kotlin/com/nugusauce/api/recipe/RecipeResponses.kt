@@ -94,6 +94,7 @@ object RecipeResponses {
         val visibility: String,
         val ratingSummary: RatingSummaryResponse,
         val reviewTags: List<ReviewTagCountResponse>,
+        val favoriteCount: Int,
         val isFavorite: Boolean,
         val createdAt: Instant
     ) {
@@ -108,6 +109,7 @@ object RecipeResponses {
                     visibility = result.visibility,
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
                     reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
+                    favoriteCount = result.favoriteCount,
                     isFavorite = result.isFavorite,
                     createdAt = result.createdAt
                 )
@@ -128,6 +130,7 @@ object RecipeResponses {
         val ingredients: List<RecipeIngredientResponse>,
         val reviewTags: List<ReviewTagCountResponse>,
         val ratingSummary: RatingSummaryResponse,
+        val favoriteCount: Int,
         val isFavorite: Boolean,
         val createdAt: Instant,
         val lastReviewedAt: Instant?
@@ -147,6 +150,7 @@ object RecipeResponses {
                     ingredients = result.ingredients.map(RecipeIngredientResponse::from),
                     reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
+                    favoriteCount = result.favoriteCount,
                     isFavorite = result.isFavorite,
                     createdAt = result.createdAt,
                     lastReviewedAt = result.lastReviewedAt

@@ -176,17 +176,19 @@ class LocalSeedService(
         users: Map<String, Member>,
         recipes: Map<String, SauceRecipe>
     ) {
-        recipeFavoriteRepository.saveAll(
-            listOf(
-                RecipeFavorite(
-                    recipe = recipes.getValue("건희 소스 오리지널"),
-                    member = users.getValue(SEED_NORMAL_EMAIL)
-                ),
-                RecipeFavorite(
-                    recipe = recipes.getValue("건희 소스 2025 버전"),
-                    member = users.getValue("reviewer@example.test")
-                )
+        val favoriteSeeds = listOf(
+            "건희 소스 오리지널" to SEED_NORMAL_EMAIL,
+            "건희 소스 2025 버전" to "reviewer@example.test"
+        )
+        val favorites = favoriteSeeds.map { (recipeTitle, memberEmail) ->
+            RecipeFavorite(
+                recipe = recipes.getValue(recipeTitle).apply { recordFavorite() },
+                member = users.getValue(memberEmail)
             )
+        }
+        recipeFavoriteRepository.saveAll(favorites)
+        sauceRecipeRepository.saveAll(
+            favorites.map { it.recipe }
         )
     }
 

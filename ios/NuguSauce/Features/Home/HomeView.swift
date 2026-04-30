@@ -117,7 +117,7 @@ struct HomeView: View {
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
                             .lineLimit(2)
 
-                        Label(recipe.homeRatingText, systemImage: "star.fill")
+                        Label(recipe.ratingReviewText, systemImage: "star.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.92))
 
@@ -296,7 +296,7 @@ private struct HomePopularRankRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "star.fill")
                         .foregroundStyle(SauceColor.secondary)
-                    Text(recipe.homeRatingText)
+                    Text(recipe.ratingReviewText)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(SauceColor.onSurface)
                         .lineLimit(1)
@@ -340,7 +340,7 @@ private struct HomeLatestGridCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "star.fill")
                     .foregroundStyle(SauceColor.secondary)
-                Text(recipe.homeRatingText)
+                Text(recipe.ratingReviewText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 4)
@@ -364,18 +364,12 @@ private struct HomeFavoriteStateBadge: View {
     var background: Color = SauceColor.surfaceContainerLow
 
     var body: some View {
-        Image(systemName: isFavorite ? "heart.fill" : "heart")
+        Image(systemName: isFavorite ? "bookmark.fill" : "bookmark")
             .font(.system(size: size * 0.48, weight: .black))
             .foregroundStyle(isFavorite ? foreground : inactiveForeground)
             .frame(width: size, height: size)
             .background(background)
             .clipShape(Circle())
             .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")
-    }
-}
-
-private extension RecipeSummaryDTO {
-    var homeRatingText: String {
-        "\(RecipeMeasurementFormatter.oneDecimalText(ratingSummary.averageRating)) (\(ratingSummary.reviewCount))"
     }
 }

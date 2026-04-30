@@ -14,6 +14,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToMany
@@ -24,7 +25,15 @@ import java.math.BigDecimal
 import java.time.Instant
 
 @Entity
-@Table(name = "sauce_recipe")
+@Table(
+    name = "sauce_recipe",
+    indexes = [
+        Index(
+            name = "idx_sauce_recipe_visibility_popularity",
+            columnList = "visibility, review_count, favorite_count"
+        )
+    ]
+)
 class SauceRecipe(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,
@@ -68,6 +77,9 @@ class SauceRecipe(
 
     @Column(nullable = false)
     var reviewCount: Int = 0,
+
+    @Column(nullable = false)
+    var favoriteCount: Int = 0,
 
     @Column(nullable = true)
     var lastReviewedAt: Instant? = null,
@@ -143,6 +155,16 @@ class SauceRecipe(
         averageRating = total / reviewCount
         lastReviewedAt = reviewedAt
         touch(reviewedAt)
+    }
+
+    fun recordFavorite(favoritedAt: Instant = Instant.now()) {
+        favoriteCount += 1
+        touch(favoritedAt)
+    }
+
+    fun removeFavorite(removedAt: Instant = Instant.now()) {
+        favoriteCount = (favoriteCount - 1).coerceAtLeast(0)
+        touch(removedAt)
     }
 
     fun changeVisibility(nextVisibility: RecipeVisibility) {

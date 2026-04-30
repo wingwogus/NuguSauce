@@ -372,7 +372,7 @@ struct RecipeCard: View {
                 }
 
                 HStack {
-                    Label("\(recipe.ratingSummary.reviewCount.formatted())", systemImage: "heart.fill")
+                    Label("\(recipe.displayFavoriteCount.formatted())", systemImage: "bookmark.fill")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                     Spacer()
@@ -405,7 +405,11 @@ struct CompactRecipeRow: View {
                         .font(.headline.weight(.bold))
                         .lineLimit(1)
                     Spacer()
-                    RatingBadge(rating: recipe.ratingSummary.averageRating)
+                    Label(recipe.ratingReviewText, systemImage: "star.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.onSurface)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
                 Text(recipe.description)
                     .font(.caption)
@@ -414,7 +418,7 @@ struct CompactRecipeRow: View {
                 HStack(spacing: 8) {
                     RecipeTasteTag(title: recipe.reviewTags.first?.name ?? "태그 없음")
                     Spacer()
-                    Label("\(recipe.ratingSummary.reviewCount)", systemImage: "hand.thumbsup.fill")
+                    Label("\(recipe.displayFavoriteCount.formatted())", systemImage: "bookmark.fill")
                         .font(.caption2)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }

@@ -63,7 +63,7 @@ struct RecipeDetailView: View {
     }
 
     private var favoriteButtonLabel: some View {
-        Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+        Image(systemName: viewModel.isFavorite ? "bookmark.fill" : "bookmark")
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(SauceColor.primaryContainer)
             .frame(width: 42, height: 42)
@@ -121,6 +121,12 @@ struct RecipeDetailView: View {
                     .fontWeight(.bold)
                 Text("(리뷰 \(detail.ratingSummary.reviewCount)개)")
                     .foregroundStyle(SauceColor.muted)
+                Text("·")
+                    .foregroundStyle(SauceColor.muted)
+                Image(systemName: "bookmark.fill")
+                    .foregroundStyle(SauceColor.primaryContainer)
+                Text("\(detail.displayFavoriteCount.formatted())")
+                    .fontWeight(.bold)
             }
             .font(.caption)
             .foregroundStyle(SauceColor.onSurfaceVariant)

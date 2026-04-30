@@ -39,11 +39,20 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     let visibility: RecipeVisibility
     let ratingSummary: RatingSummaryDTO
     let reviewTags: [ReviewTagDTO]
+    let favoriteCount: Int?
     let isFavorite: Bool
     let createdAt: String
 
     var isFavorited: Bool {
         isFavorite
+    }
+
+    var displayFavoriteCount: Int {
+        favoriteCount ?? 0
+    }
+
+    var ratingReviewText: String {
+        "\(RecipeMeasurementFormatter.oneDecimalText(ratingSummary.averageRating)) (\(ratingSummary.reviewCount))"
     }
 }
 
@@ -60,12 +69,17 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let ingredients: [RecipeIngredientDTO]
     let reviewTags: [ReviewTagDTO]
     let ratingSummary: RatingSummaryDTO
+    let favoriteCount: Int?
     let isFavorite: Bool?
     let createdAt: String
     let lastReviewedAt: String?
 
     var isFavorited: Bool {
         isFavorite ?? false
+    }
+
+    var displayFavoriteCount: Int {
+        favoriteCount ?? 0
     }
 
     var displayAuthorName: String? {

@@ -218,6 +218,7 @@ Success data:
         "reviewCount": 0
       },
       "reviewTags": [],
+      "favoriteCount": 2,
       "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
     }
@@ -235,6 +236,7 @@ Success data:
         "reviewCount": 12
       },
       "reviewTags": [],
+      "favoriteCount": 42,
       "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
     }
@@ -333,8 +335,8 @@ Recipe APIs use the shared response envelope above.
 
 Recipe list supports `sort` values:
 
-- `hot`: visible recipes ordered by recent review/favorite engagement velocity plus rating quality guard, then popularity and recency fallback.
-- `popular`: visible recipes ordered by `reviewCount` descending, then `averageRating` descending, then newest review/creation.
+- `hot`: visible recipes ordered by recent review/favorite engagement velocity plus rating quality guard, then engagement score and recency fallback.
+- `popular`: visible recipes ordered by engagement score (`reviewCount * 2 + favoriteCount`) descending, then `averageRating` descending, then newest review/creation.
 - `recent`: visible recipes ordered by `createdAt` descending.
 - `rating`: visible recipes ordered by `averageRating` descending, then `reviewCount` descending.
 
@@ -351,6 +353,8 @@ When a valid JWT is supplied, each summary is personalized with the current
 member's favorite state. Anonymous public list requests return
 `"isFavorite": false`. Any HTTP cache for this endpoint must vary by
 authorization when personalized responses are enabled.
+`favoriteCount` is the public aggregate number of members who saved the recipe
+and is separate from viewer-relative `isFavorite`.
 
 Success data:
 
@@ -371,6 +375,7 @@ Success data:
       { "id": 1, "name": "고소함", "count": 12 },
       { "id": 2, "name": "매콤함", "count": 6 }
     ],
+    "favoriteCount": 42,
     "isFavorite": true,
     "createdAt": "2026-04-25T00:00:00Z"
   }
@@ -382,6 +387,8 @@ Success data:
 Publicly readable. When a valid JWT is supplied, the response is personalized
 with the current member's favorite state; anonymous requests return
 `"isFavorite": false`.
+`favoriteCount` is public aggregate save count and does not depend on viewer
+authentication.
 
 Success data:
 
@@ -413,6 +420,7 @@ Success data:
     "averageRating": 4.7,
     "reviewCount": 18
   },
+  "favoriteCount": 42,
   "isFavorite": true,
   "createdAt": "2026-04-25T00:00:00Z",
   "lastReviewedAt": "2026-04-25T01:00:00Z"
@@ -607,6 +615,7 @@ Success data:
       "reviewCount": 0
     },
     "reviewTags": [],
+    "favoriteCount": 0,
     "isFavorite": false,
     "createdAt": "2026-04-25T00:00:00Z"
   }

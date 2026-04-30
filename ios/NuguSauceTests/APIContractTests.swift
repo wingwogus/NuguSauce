@@ -15,6 +15,7 @@ final class APIContractTests: XCTestCase {
             "visibility": "VISIBLE",
             "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
             "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+            "favoriteCount": 9,
             "isFavorite": false,
             "createdAt": "2026-04-25T00:00:00Z"
           },
@@ -26,6 +27,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertTrue(envelope.success)
         XCTAssertEqual(envelope.data?.title, "건희 소스")
+        XCTAssertEqual(envelope.data?.displayFavoriteCount, 9)
         XCTAssertEqual(envelope.data?.isFavorited, false)
         XCTAssertNil(envelope.error)
     }
@@ -41,6 +43,7 @@ final class APIContractTests: XCTestCase {
           "visibility": "VISIBLE",
           "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
           "reviewTags": [],
+          "favoriteCount": 11,
           "isFavorite": true,
           "createdAt": "2026-04-25T00:00:00Z"
         }
@@ -49,6 +52,7 @@ final class APIContractTests: XCTestCase {
         let recipe = try JSONDecoder().decode(RecipeSummaryDTO.self, from: json)
 
         XCTAssertTrue(recipe.isFavorited)
+        XCTAssertEqual(recipe.displayFavoriteCount, 11)
     }
 
     func testRecipeDetailDecodesAuthorName() throws {
@@ -66,6 +70,7 @@ final class APIContractTests: XCTestCase {
           "ingredients": [],
           "reviewTags": [],
           "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
+          "favoriteCount": 5,
           "isFavorite": true,
           "createdAt": "2026-04-25T00:00:00Z",
           "lastReviewedAt": null
@@ -76,6 +81,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(detail.authorId, 7)
         XCTAssertEqual(detail.displayAuthorName, "소스장인")
+        XCTAssertEqual(detail.displayFavoriteCount, 5)
         XCTAssertTrue(detail.isFavorited)
     }
 

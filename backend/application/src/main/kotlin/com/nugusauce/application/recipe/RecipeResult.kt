@@ -55,6 +55,7 @@ object RecipeResult {
         val ratingSummary: RatingSummary,
         val tags: List<TagItem>,
         val reviewTags: List<ReviewTagCount>,
+        val favoriteCount: Int = 0,
         val isFavorite: Boolean = false,
         val createdAt: Instant
     )
@@ -75,6 +76,7 @@ object RecipeResult {
         val tags: List<TagItem>,
         val reviewTags: List<ReviewTagCount>,
         val ratingSummary: RatingSummary,
+        val favoriteCount: Int = 0,
         val isFavorite: Boolean,
         val createdAt: Instant,
         val lastReviewedAt: Instant?
@@ -146,6 +148,7 @@ object RecipeResult {
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
             tags = recipe.tags.map(::fromTag).sortedBy { it.name },
             reviewTags = reviewTags,
+            favoriteCount = recipe.favoriteCount,
             isFavorite = isFavorite,
             createdAt = recipe.createdAt
         )
@@ -173,6 +176,7 @@ object RecipeResult {
             tags = recipe.tags.map(::fromTag).sortedBy { it.name },
             reviewTags = reviewTags,
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
+            favoriteCount = recipe.favoriteCount,
             isFavorite = isFavorite,
             createdAt = recipe.createdAt,
             lastReviewedAt = recipe.lastReviewedAt

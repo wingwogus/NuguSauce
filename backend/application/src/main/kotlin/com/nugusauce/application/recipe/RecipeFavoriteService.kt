@@ -51,14 +51,15 @@ class RecipeFavoriteService(
             throw BusinessException(ErrorCode.DUPLICATE_FAVORITE)
         }
 
-        return RecipeResult.favorite(
-            recipeFavoriteRepository.save(
-                RecipeFavorite(
-                    recipe = recipe,
-                    member = member
-                )
+        val favorite = recipeFavoriteRepository.save(
+            RecipeFavorite(
+                recipe = recipe,
+                member = member
             )
         )
+        recipe.recordFavorite(favorite.createdAt)
+
+        return RecipeResult.favorite(favorite)
     }
 
     fun removeFavorite(command: RecipeCommand.FavoriteRecipe) {
@@ -66,6 +67,7 @@ class RecipeFavoriteService(
         val favorite = recipeFavoriteRepository.findByRecipeAndMember(command.recipeId, command.memberId)
             ?: throw BusinessException(ErrorCode.FAVORITE_NOT_FOUND)
         recipeFavoriteRepository.delete(favorite)
+        favorite.recipe.removeFavorite()
     }
 
     private fun ensureMember(memberId: Long): Member {

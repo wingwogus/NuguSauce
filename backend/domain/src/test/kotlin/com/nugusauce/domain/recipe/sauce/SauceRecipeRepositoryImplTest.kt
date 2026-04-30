@@ -105,10 +105,41 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     }
 
     @Test
+    fun `searchVisibleRecipes hot sort uses favorite count as fallback tie breaker`() {
+        val since = Instant.parse("2026-04-22T00:00:00Z")
+        recipe(title = "덜 찜한 소스", reviewCount = 5, favoriteCount = 1, averageRating = 4.5)
+        recipe(title = "많이 찜한 소스", reviewCount = 5, favoriteCount = 7, averageRating = 4.5)
+        flushAndClear()
+
+        val results = sauceRecipeRepository.searchVisibleRecipes(
+            SauceRecipeSearchCondition(
+                sort = SauceRecipeSort.HOT,
+                hotSince = since
+            )
+        )
+
+        assertEquals(listOf("많이 찜한 소스", "덜 찜한 소스"), results.map { it.title })
+    }
+
+    @Test
+    fun `searchVisibleRecipes popular sort uses review and favorite engagement score`() {
+        recipe(title = "리뷰만 많은 소스", reviewCount = 5, favoriteCount = 0, averageRating = 4.9)
+        recipe(title = "찜이 많은 소스", reviewCount = 2, favoriteCount = 8, averageRating = 4.0)
+        recipe(title = "낮은 참여 소스", reviewCount = 3, favoriteCount = 1, averageRating = 5.0)
+        flushAndClear()
+
+        val results = sauceRecipeRepository.searchVisibleRecipes(
+            SauceRecipeSearchCondition(sort = SauceRecipeSort.POPULAR)
+        )
+
+        assertEquals(listOf("찜이 많은 소스", "리뷰만 많은 소스", "낮은 참여 소스"), results.map { it.title })
+    }
+
+    @Test
     fun `searchVisibleRecipes hot sort uses recent favorites as engagement`() {
         val since = Instant.parse("2026-04-22T00:00:00Z")
         val noRecentActivity = recipe(title = "오래된 고평점 소스", reviewCount = 30, averageRating = 5.0)
-        val recentlyFavorited = recipe(title = "찜이 붙는 소스", reviewCount = 1, averageRating = 3.5)
+        val recentlyFavorited = recipe(title = "찜이 붙는 소스", reviewCount = 1, averageRating = 3.5, favoriteCount = 1)
         favorite(recentlyFavorited, createdAt = since.plus(2, ChronoUnit.DAYS))
         flushAndClear()
 
@@ -164,6 +195,7 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         ingredients: List<Ingredient> = emptyList(),
         visibility: RecipeVisibility = RecipeVisibility.VISIBLE,
         reviewCount: Int = 0,
+        favoriteCount: Int = 0,
         averageRating: Double = 0.0,
         lastReviewedAt: Instant? = null,
         createdAt: Instant = Instant.parse("2026-04-01T00:00:00Z")
@@ -176,7 +208,8 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             authorType = RecipeAuthorType.CURATED,
             visibility = visibility,
             createdAt = createdAt,
-            lastReviewedAt = lastReviewedAt
+            lastReviewedAt = lastReviewedAt,
+            favoriteCount = favoriteCount
         ).apply {
             this.reviewCount = reviewCount
             this.averageRating = averageRating

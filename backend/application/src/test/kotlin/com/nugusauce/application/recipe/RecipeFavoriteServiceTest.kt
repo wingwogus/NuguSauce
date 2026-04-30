@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mockito
 import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
@@ -92,8 +93,9 @@ class RecipeFavoriteServiceTest {
 
     @Test
     fun `addFavorite rejects duplicate favorite`() {
+        val recipe = recipe()
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member()))
-        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe()))
+        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe))
         `when`(recipeFavoriteRepository.existsByRecipeAndMember(10L, 1L)).thenReturn(true)
 
         val exception = assertThrows(BusinessException::class.java) {
@@ -101,17 +103,36 @@ class RecipeFavoriteServiceTest {
         }
 
         assertEquals(ErrorCode.DUPLICATE_FAVORITE, exception.errorCode)
+        assertEquals(0, recipe.favoriteCount)
+    }
+
+    @Test
+    fun `addFavorite increments recipe favorite count after saving favorite`() {
+        val member = member()
+        val recipe = recipe()
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe))
+        `when`(recipeFavoriteRepository.existsByRecipeAndMember(10L, 1L)).thenReturn(false)
+        `when`(recipeFavoriteRepository.save(Mockito.any(RecipeFavorite::class.java)))
+            .thenAnswer { it.getArgument(0) }
+
+        val result = service.addFavorite(RecipeCommand.FavoriteRecipe(1L, 10L))
+
+        assertEquals(10L, result.recipeId)
+        assertEquals(1, recipe.favoriteCount)
     }
 
     @Test
     fun `removeFavorite deletes existing favorite`() {
-        val favorite = RecipeFavorite(recipe = recipe(), member = member())
+        val recipe = recipe(favoriteCount = 2)
+        val favorite = RecipeFavorite(recipe = recipe, member = member())
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member()))
         `when`(recipeFavoriteRepository.findByRecipeAndMember(10L, 1L)).thenReturn(favorite)
 
         service.removeFavorite(RecipeCommand.FavoriteRecipe(1L, 10L))
 
         verify(recipeFavoriteRepository).delete(favorite)
+        assertEquals(1, recipe.favoriteCount)
     }
 
     @Test
@@ -132,7 +153,8 @@ class RecipeFavoriteServiceTest {
 
     private fun recipe(
         author: Member? = null,
-        visibility: RecipeVisibility = RecipeVisibility.VISIBLE
+        visibility: RecipeVisibility = RecipeVisibility.VISIBLE,
+        favoriteCount: Int = 0
     ): SauceRecipe {
         return SauceRecipe(
             id = 10L,
@@ -142,7 +164,8 @@ class RecipeFavoriteServiceTest {
             richnessLevel = 4,
             authorType = if (author == null) RecipeAuthorType.CURATED else RecipeAuthorType.USER,
             author = author,
-            visibility = visibility
+            visibility = visibility,
+            favoriteCount = favoriteCount
         )
     }
 

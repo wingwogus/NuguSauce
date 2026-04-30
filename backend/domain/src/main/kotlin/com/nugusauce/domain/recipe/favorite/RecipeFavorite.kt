@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
@@ -21,6 +22,16 @@ import java.time.Instant
         UniqueConstraint(
             name = "uk_recipe_favorite_recipe_member",
             columnNames = ["recipe_id", "member_id"]
+        )
+    ],
+    indexes = [
+        Index(
+            name = "idx_recipe_favorite_recipe_created_at",
+            columnList = "recipe_id, created_at"
+        ),
+        Index(
+            name = "idx_recipe_favorite_member_created_at",
+            columnList = "member_id, created_at"
         )
     ]
 )

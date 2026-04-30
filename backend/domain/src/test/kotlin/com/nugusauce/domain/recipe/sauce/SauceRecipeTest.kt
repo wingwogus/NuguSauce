@@ -36,6 +36,19 @@ class SauceRecipeTest {
     }
 
     @Test
+    fun `favorite counter increments and decrements without underflow`() {
+        val recipe = userRecipe()
+
+        recipe.recordFavorite()
+        recipe.recordFavorite()
+        recipe.removeFavorite()
+        recipe.removeFavorite()
+        recipe.removeFavorite()
+
+        assertEquals(0, recipe.favoriteCount)
+    }
+
+    @Test
     fun `addIngredient rejects missing amount and ratio`() {
         val recipe = userRecipe()
         val ingredient = Ingredient(id = 1L, name = "참기름")

@@ -873,6 +873,7 @@ final class ViewModelTests: XCTestCase {
             visibility: .visible,
             ratingSummary: RatingSummaryDTO(averageRating: 4.7, reviewCount: 18),
             reviewTags: [],
+            favoriteCount: 6,
             isFavorite: false,
             createdAt: "2026-04-25T00:00:00Z"
         )
@@ -975,6 +976,7 @@ private final class TestAPIClient: APIClientProtocol {
             ingredients: [],
             reviewTags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
+            favoriteCount: 0,
             isFavorite: detailIsFavorite,
             createdAt: "2026-04-25T00:00:00Z",
             lastReviewedAt: nil

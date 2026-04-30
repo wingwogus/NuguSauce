@@ -60,6 +60,10 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
 - `reviews` contains mixed ratings and `tasteTagIds`; user-generated recipe taste classification comes from review tags, not author input.
 - `reports` contains at least one report and must not expose reporter identity in public responses.
 - `favorites` contains at least one saved recipe for a normal user.
+- Persisted recipe seed data must keep denormalized `favoriteCount` aligned
+  with the number of visible or hidden `favorites` records referencing that
+  recipe. The `recipe_favorite` relation remains the identity source of truth;
+  `favoriteCount` is the read/ranking optimization.
 
 ## Sauce Seed Notes
 

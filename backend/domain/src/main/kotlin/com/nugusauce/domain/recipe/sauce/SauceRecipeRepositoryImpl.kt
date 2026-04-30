@@ -11,6 +11,7 @@ import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.core.types.dsl.CaseBuilder
 import com.querydsl.core.types.dsl.DateTimeTemplate
 import com.querydsl.core.types.dsl.Expressions
+import com.querydsl.core.types.dsl.NumberExpression
 import com.querydsl.jpa.JPAExpressions
 import com.querydsl.jpa.impl.JPAQueryFactory
 import jakarta.persistence.EntityManager
@@ -85,6 +86,7 @@ class SauceRecipeRepositoryImpl(
             .groupBy(
                 sauceRecipe.id,
                 sauceRecipe.reviewCount,
+                sauceRecipe.favoriteCount,
                 sauceRecipe.averageRating,
                 sauceRecipe.lastReviewedAt,
                 sauceRecipe.createdAt
@@ -92,7 +94,7 @@ class SauceRecipeRepositoryImpl(
             .orderBy(
                 hasRecentActivity.desc(),
                 hotScore.desc(),
-                sauceRecipe.reviewCount.desc(),
+                popularityScore().desc(),
                 sauceRecipe.averageRating.desc(),
                 reviewedOrCreatedAt().desc(),
                 sauceRecipe.id.asc()
@@ -151,9 +153,14 @@ class SauceRecipeRepositoryImpl(
 
     private fun orderSpecifiers(sort: SauceRecipeSort): Array<OrderSpecifier<*>> {
         return when (sort) {
-            SauceRecipeSort.HOT,
             SauceRecipeSort.POPULAR -> arrayOf(
-                sauceRecipe.reviewCount.desc(),
+                popularityScore().desc(),
+                sauceRecipe.averageRating.desc(),
+                reviewedOrCreatedAt().desc(),
+                sauceRecipe.id.asc()
+            )
+            SauceRecipeSort.HOT -> arrayOf(
+                popularityScore().desc(),
                 sauceRecipe.averageRating.desc(),
                 reviewedOrCreatedAt().desc(),
                 sauceRecipe.id.asc()
@@ -169,6 +176,15 @@ class SauceRecipeRepositoryImpl(
                 sauceRecipe.id.asc()
             )
         }
+    }
+
+    private fun popularityScore(): NumberExpression<Double> {
+        return Expressions.numberTemplate(
+            Double::class.javaObjectType,
+            "({0} * 2 + {1})",
+            sauceRecipe.reviewCount,
+            sauceRecipe.favoriteCount
+        )
     }
 
     private fun reviewedOrCreatedAt(): DateTimeTemplate<Instant> {

@@ -21,12 +21,14 @@ class RecipeResponsesTest {
                 ratingSummary = RecipeResult.RatingSummary(4.7, 18),
                 tags = emptyList(),
                 reviewTags = emptyList(),
+                favoriteCount = 12,
                 isFavorite = true,
                 createdAt = Instant.parse("2026-04-25T00:00:00Z")
             )
         )
 
         assertEquals(true, response.isFavorite)
+        assertEquals(12, response.favoriteCount)
     }
 
     @Test
@@ -48,6 +50,7 @@ class RecipeResponsesTest {
                 tags = emptyList(),
                 reviewTags = emptyList(),
                 ratingSummary = RecipeResult.RatingSummary(0.0, 0),
+                favoriteCount = 3,
                 isFavorite = true,
                 createdAt = Instant.parse("2026-04-25T00:00:00Z"),
                 lastReviewedAt = null
@@ -57,6 +60,7 @@ class RecipeResponsesTest {
         assertEquals(7L, response.authorId)
         assertEquals("소스장인", response.authorName)
         assertEquals(true, response.isFavorite)
+        assertEquals(3, response.favoriteCount)
     }
 
     @Test
