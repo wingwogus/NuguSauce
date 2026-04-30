@@ -7,6 +7,8 @@ import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import org.springframework.http.MediaType
+import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientResponseException
 import org.springframework.web.util.UriUtils
@@ -77,6 +79,30 @@ class CloudinaryImageStorageAdapter(
     override fun displayUrl(providerKey: String): String {
         requireConfigured()
         return "https://res.cloudinary.com/$cloudName/image/upload/f_auto,q_auto/${encodePublicId(providerKey)}"
+    }
+
+    override fun delete(providerKey: String) {
+        requireConfigured()
+        val paramsToSign = sortedMapOf(
+            "invalidate" to "true",
+            "public_id" to providerKey,
+            "timestamp" to Instant.now().epochSecond.toString()
+        )
+        val form = LinkedMultiValueMap<String, String>().apply {
+            paramsToSign.forEach { (key, value) -> add(key, value) }
+            add("api_key", apiKey)
+            add("signature", sign(paramsToSign))
+        }
+        try {
+            restClient.post()
+                .uri("https://api.cloudinary.com/v1_1/$cloudName/image/destroy")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .toBodilessEntity()
+        } catch (e: RestClientResponseException) {
+            throw providerUnavailable()
+        }
     }
 
     private fun requireConfigured() {

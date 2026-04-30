@@ -192,6 +192,7 @@ class RecipeControllerValidationTest(
             authorType = "CURATED",
             authorId = null,
             authorName = "NuguSauce",
+            authorProfileImageUrl = null,
             visibility = "VISIBLE",
             ingredients = emptyList(),
             tags = emptyList(),

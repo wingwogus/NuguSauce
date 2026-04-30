@@ -196,6 +196,8 @@ struct RootTabView: View {
             RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
         case .publicProfile(let id):
             PublicProfileView(memberID: id, apiClient: apiClient)
+        case .profileEdit:
+            ProfileEditView(apiClient: apiClient, authStore: authStore)
         case .login:
             LoginView(apiClient: apiClient, authStore: authStore)
         }

@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
@@ -52,7 +53,7 @@ class RecipeWriteServiceTest {
             ingredientRepository,
             sauceRecipeRepository,
             mediaAssetRepository,
-            RecipeImageUrlResolver(TestImageStoragePort)
+            ImageUrlResolver(TestImageStoragePort)
         )
     }
 
@@ -204,6 +205,10 @@ class RecipeWriteServiceTest {
 
         override fun displayUrl(providerKey: String): String {
             return "https://cdn.example.test/$providerKey"
+        }
+
+        override fun delete(providerKey: String) {
+            throw UnsupportedOperationException()
         }
     }
 }

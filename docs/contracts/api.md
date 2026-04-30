@@ -124,6 +124,7 @@ Success data:
     "id": 1,
     "nickname": null,
     "displayName": "사용자 1",
+    "profileImageUrl": null,
     "profileSetupRequired": true
   }
 }
@@ -155,11 +156,16 @@ Member APIs use the shared response envelope above.
 - `nickname` is the service-owned public nickname.
 - `displayName` is safe public display text. It is the nickname when set,
   otherwise `"사용자 {id}"`.
+- `profileImageUrl` is a read-only display URL for the member's current profile
+  image. It is null when the member has not set a profile image.
 - `profileSetupRequired` is true when the member has no nickname.
 - Nicknames are trimmed before validation and storage.
 - Nicknames must be 2..20 characters and contain only Korean letters, English
   letters, digits, or `_`.
 - Nicknames are globally unique.
+- `profileImageId`, when supplied to the update endpoint, must be a verified
+  media image owned by the authenticated member and not attached to another
+  recipe or another member profile.
 
 ### `GET /api/v1/members/me`
 
@@ -172,6 +178,7 @@ Success data:
   "id": 1,
   "nickname": "소스장인",
   "displayName": "소스장인",
+  "profileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/1/<uuid>",
   "profileSetupRequired": false
 }
 ```
@@ -184,7 +191,8 @@ Request:
 
 ```json
 {
-  "nickname": "소스장인"
+  "nickname": "소스장인",
+  "profileImageId": 50
 }
 ```
 
@@ -204,6 +212,7 @@ Success data:
   "id": 2,
   "nickname": "마라초보",
   "displayName": "마라초보",
+  "profileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/2/<uuid>",
   "profileSetupRequired": false,
   "recipes": [
     {
@@ -246,17 +255,26 @@ Success data:
 
 ## Media API
 
-Media APIs use the shared response envelope above. Recipe images use direct
-client upload with a backend-owned media record:
+Media APIs use the shared response envelope above. Recipe and profile images
+use direct client upload with a backend-owned media record:
 
 1. iOS requests an upload intent from the backend.
 2. iOS uploads the file directly to the returned Cloudinary signed target.
 3. iOS calls complete so the backend verifies the provider asset.
-4. iOS creates the recipe with `imageId`.
+4. iOS attaches the verified image through the recipe create request or member
+   profile update request.
 
 The client never receives or stores Cloudinary API secrets. Direct client
-submission of arbitrary `imageUrl` values is not accepted for recipe creation.
-Recipe read responses may still expose `imageUrl` as a derived display URL.
+submission of arbitrary `imageUrl` values is not accepted for recipe creation
+or profile updates. Read responses may expose `imageUrl` or `profileImageUrl`
+as derived display URLs.
+
+When a profile image is replaced, the backend keeps the new profile attachment
+and detaches the previous profile image media during the member update. After
+the update commits, it schedules provider deletion plus local media-record
+cleanup for the old image. Recipe image creation has no replacement endpoint in
+the current contract, so recipe image cleanup is not triggered by profile
+changes.
 
 ### `POST /api/v1/media/images/upload-intent`
 
@@ -288,7 +306,7 @@ Success data:
     "headers": {},
     "fields": {
       "api_key": "<public-api-key>",
-      "public_id": "nugusauce/recipes/1/<uuid>",
+      "public_id": "nugusauce/images/1/<uuid>",
       "timestamp": "1777399200",
       "overwrite": "false",
       "signature": "<server-generated-signature>"
@@ -313,7 +331,7 @@ Success data:
 ```json
 {
   "imageId": 50,
-  "imageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/recipes/1/<uuid>",
+  "imageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/1/<uuid>",
   "width": 800,
   "height": 600
 }
@@ -402,6 +420,7 @@ Success data:
   "authorType": "CURATED",
   "authorId": null,
   "authorName": "NuguSauce",
+  "authorProfileImageUrl": null,
   "visibility": "VISIBLE",
   "ingredients": [
     {
@@ -452,14 +471,17 @@ Request:
 Authors can only submit the sauce composition and optional media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
 
 `imageId` is optional. When present, it must refer to a verified media asset
-owned by the authenticated member and not already attached to another recipe.
+owned by the authenticated member and not already attached to a recipe or
+profile.
 Legacy/direct `imageUrl` input is rejected with `COMMON_001`; recipe response
 `imageUrl` remains a read-only display URL.
 
 Recipe detail responses include `authorId`, the safe public member id for the
 recipe author, and `authorName`, safe public display text for the recipe author.
-Curated recipes use `"NuguSauce"` and `authorId: null`; user recipes use the
-author's public member id and public nickname/display name.
+They also include `authorProfileImageUrl`, the author's current profile image
+display URL or null. Curated recipes use `"NuguSauce"` and `authorId: null`;
+user recipes use the author's public member id, public nickname/display name,
+and profile image URL when set.
 
 Success status: `201 Created`
 
@@ -516,6 +538,7 @@ Success data:
   "recipeId": 1,
   "authorId": 7,
   "authorName": "소스장인",
+  "authorProfileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/7/<uuid>",
   "rating": 5,
   "text": "고소하고 초보자도 먹기 좋았어요",
   "tasteTags": [
@@ -536,6 +559,7 @@ Success data:
     "recipeId": 1,
     "authorId": 7,
     "authorName": "소스장인",
+    "authorProfileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/7/<uuid>",
     "rating": 5,
     "text": "고소하고 초보자도 먹기 좋았어요",
     "tasteTags": [
@@ -547,8 +571,9 @@ Success data:
 ```
 
 `authorId` is the review author's safe public member id. `authorName` is safe
-public display text for the review author. Public review responses must not
-expose the author's email address or provider identity.
+public display text for the review author. `authorProfileImageUrl` is the
+author's current profile image display URL or null. Public review responses
+must not expose the author's email address or provider identity.
 
 ### `POST /api/v1/recipes/{recipeId}/reports`
 

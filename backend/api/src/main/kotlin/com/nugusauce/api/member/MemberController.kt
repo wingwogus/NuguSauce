@@ -35,7 +35,8 @@ class MemberController(
         val result = memberService.updateMe(
             MemberCommand.UpdateMe(
                 memberId = requireUserId(userId),
-                nickname = request.nickname
+                nickname = request.nickname,
+                profileImageId = request.profileImageId
             )
         )
         return ResponseEntity.ok(ApiResponse.ok(MemberResponses.MeResponse.from(result)))

@@ -54,8 +54,15 @@ The imported OIDC branch expects these auth schema capabilities:
 * `member.password_hash` must be nullable.
 * `member.nickname` must be nullable and limited to 20 characters.
 * `member.nickname` must have a unique constraint named `uk_member_nickname`.
+* `member.profile_image_asset_id` optionally references the current profile image media asset.
+* `media_asset.attached_profile_member_id` optionally records profile-image attachment ownership.
 * `external_identity` stores `member_id`, `provider`, `provider_subject`, and `email_at_link_time`.
 * `(provider, provider_subject)` must be unique.
+
+Profile image replacement detaches the previously referenced profile media row
+during the member update, deletes its provider asset after the update commits,
+then removes the old local `media_asset` row. If provider deletion fails, the
+member update still succeeds and the old row remains detached for later cleanup.
 
 Flyway is not included yet. Production deployment now targets PostgreSQL to match the ops stack.
 
@@ -67,11 +74,37 @@ ALTER TABLE member
 
 ALTER TABLE member
     ADD CONSTRAINT uk_member_nickname UNIQUE (nickname);
+
+ALTER TABLE member
+    ADD COLUMN profile_image_asset_id BIGINT NULL;
+
+ALTER TABLE media_asset
+    ADD COLUMN attached_profile_member_id BIGINT NULL;
+
+ALTER TABLE member
+    ADD CONSTRAINT fk_member_profile_image_asset
+    FOREIGN KEY (profile_image_asset_id) REFERENCES media_asset(id);
+
+ALTER TABLE media_asset
+    ADD CONSTRAINT fk_media_asset_attached_profile_member
+    FOREIGN KEY (attached_profile_member_id) REFERENCES member(id);
 ```
 
 Rollback:
 
 ```sql
+ALTER TABLE member
+    DROP CONSTRAINT fk_member_profile_image_asset;
+
+ALTER TABLE media_asset
+    DROP CONSTRAINT fk_media_asset_attached_profile_member;
+
+ALTER TABLE media_asset
+    DROP COLUMN attached_profile_member_id;
+
+ALTER TABLE member
+    DROP COLUMN profile_image_asset_id;
+
 ALTER TABLE member
     DROP CONSTRAINT uk_member_nickname;
 

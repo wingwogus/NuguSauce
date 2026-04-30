@@ -53,6 +53,7 @@ class MemberControllerTest(
                 id = 1L,
                 nickname = null,
                 displayName = "사용자 1",
+                profileImageUrl = null,
                 profileSetupRequired = true
             )
         )
@@ -69,12 +70,13 @@ class MemberControllerTest(
 
     @Test
     fun `updateMe returns updated profile`() {
-        `when`(memberService.updateMe(MemberCommand.UpdateMe(1L, "소스장인")))
+        `when`(memberService.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L)))
             .thenReturn(
                 MemberResult.Me(
                     id = 1L,
                     nickname = "소스장인",
                     displayName = "소스장인",
+                    profileImageUrl = "https://cdn.example.test/profile.jpg",
                     profileSetupRequired = false
                 )
             )
@@ -83,10 +85,11 @@ class MemberControllerTest(
             patch("/api/v1/members/me")
                 .with(authenticatedUser())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"nickname":"소스장인"}""")
+                .content("""{"nickname":"소스장인","profileImageId":20}""")
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.data.nickname", equalTo("소스장인")))
+            .andExpect(jsonPath("$.data.profileImageUrl", equalTo("https://cdn.example.test/profile.jpg")))
             .andExpect(jsonPath("$.data.profileSetupRequired", equalTo(false)))
     }
 
@@ -98,6 +101,7 @@ class MemberControllerTest(
                     id = 2L,
                     nickname = "마라초보",
                     displayName = "마라초보",
+                    profileImageUrl = "https://cdn.example.test/profile.jpg",
                     profileSetupRequired = false,
                     recipes = listOf(recipeSummary(10L, "공개 소스")),
                     favoriteRecipes = listOf(recipeSummary(11L, "찜 소스"))
@@ -109,6 +113,7 @@ class MemberControllerTest(
             .andExpect(jsonPath("$.data.id", equalTo(2)))
             .andExpect(jsonPath("$.data.nickname", equalTo("마라초보")))
             .andExpect(jsonPath("$.data.displayName", equalTo("마라초보")))
+            .andExpect(jsonPath("$.data.profileImageUrl", equalTo("https://cdn.example.test/profile.jpg")))
             .andExpect(jsonPath("$.data.profileSetupRequired", equalTo(false)))
             .andExpect(jsonPath("$.data.recipes[0].id", equalTo(10)))
             .andExpect(jsonPath("$.data.recipes[0].isFavorite", equalTo(false)))

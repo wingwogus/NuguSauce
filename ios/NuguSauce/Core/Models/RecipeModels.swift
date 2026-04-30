@@ -65,6 +65,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let authorType: AuthorType
     let authorId: Int?
     let authorName: String?
+    let authorProfileImageUrl: String?
     let visibility: RecipeVisibility
     let ingredients: [RecipeIngredientDTO]
     let reviewTags: [ReviewTagDTO]
@@ -96,6 +97,7 @@ struct RecipeReviewDTO: Codable, Identifiable, Equatable {
     let recipeId: Int
     let authorId: Int?
     let authorName: String
+    let authorProfileImageUrl: String?
     let rating: Int
     let text: String?
     let tasteTags: [ReviewTagDTO]

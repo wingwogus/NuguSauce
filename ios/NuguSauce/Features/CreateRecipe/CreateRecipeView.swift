@@ -418,7 +418,11 @@ struct CreateRecipeView: View {
         do {
             if let data = try await item.loadTransferable(type: Data.self) {
                 viewModel.setSelectedPhoto(
-                    data: Self.normalizedJPEGData(from: data),
+                    data: ImageUploadPreprocessor.normalizedJPEGData(
+                        from: data,
+                        maxDimension: 1800,
+                        compressionQuality: 0.82
+                    ),
                     contentType: "image/jpeg",
                     fileExtension: "jpg"
                 )
@@ -428,27 +432,4 @@ struct CreateRecipeView: View {
         }
     }
 
-    private static func normalizedJPEGData(from data: Data) -> Data {
-        guard let image = UIImage(data: data) else {
-            return data
-        }
-        let resizedImage = image.resizedForRecipeUpload(maxDimension: 1800)
-        return resizedImage.jpegData(compressionQuality: 0.82) ?? data
-    }
-}
-
-private extension UIImage {
-    func resizedForRecipeUpload(maxDimension: CGFloat) -> UIImage {
-        let largestSide = max(size.width, size.height)
-        guard largestSide > maxDimension else {
-            return self
-        }
-
-        let scale = maxDimension / largestSide
-        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-    }
 }

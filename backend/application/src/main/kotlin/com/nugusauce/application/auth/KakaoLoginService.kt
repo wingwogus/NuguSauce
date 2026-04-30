@@ -2,6 +2,7 @@ package com.nugusauce.application.auth
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.application.member.MemberResult
 import com.nugusauce.application.redis.KakaoNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
@@ -30,6 +31,7 @@ class KakaoLoginService(
     private val memberRepository: MemberRepository,
     private val tokenProvider: TokenProvider,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val imageUrlResolver: ImageUrlResolver,
     @Value("\${auth.kakao.oidc.nonce-replay-ttl-seconds:600}")
     nonceReplayTtlSeconds: Long,
     @Value("\${auth.kakao.oidc.allowed-clock-skew-seconds:60}")
@@ -115,7 +117,7 @@ class KakaoLoginService(
         return AuthResult.KakaoLogin(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
-            member = MemberResult.me(member)
+            member = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
         )
     }
 }

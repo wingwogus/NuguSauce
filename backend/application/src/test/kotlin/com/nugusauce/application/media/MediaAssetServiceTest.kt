@@ -141,5 +141,9 @@ class MediaAssetServiceTest {
         override fun displayUrl(providerKey: String): String {
             return "https://cdn.example.test/$providerKey"
         }
+
+        override fun delete(providerKey: String) {
+            throw UnsupportedOperationException()
+        }
     }
 }

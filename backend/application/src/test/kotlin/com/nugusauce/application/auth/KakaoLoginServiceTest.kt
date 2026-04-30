@@ -2,6 +2,10 @@ package com.nugusauce.application.auth
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageStoragePort
+import com.nugusauce.application.media.MediaResult
+import com.nugusauce.application.media.VerifiedUpload
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.application.redis.KakaoNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
 import com.nugusauce.application.security.KakaoOidcClaims
@@ -9,6 +13,8 @@ import com.nugusauce.application.security.KakaoOidcTokenVerifier
 import com.nugusauce.application.security.KakaoUserInfo
 import com.nugusauce.application.security.KakaoUserInfoClient
 import com.nugusauce.application.security.TokenProvider
+import com.nugusauce.domain.media.MediaAsset
+import com.nugusauce.domain.media.MediaProvider
 import com.nugusauce.domain.member.AuthProvider
 import com.nugusauce.domain.member.ExternalIdentity
 import com.nugusauce.domain.member.ExternalIdentityRepository
@@ -65,6 +71,7 @@ class KakaoLoginServiceTest {
             memberRepository,
             tokenProvider,
             refreshTokenRepository,
+            ImageUrlResolver(TestImageStoragePort),
             600L,
             60L
         )
@@ -72,7 +79,16 @@ class KakaoLoginServiceTest {
 
     @Test
     fun `login reuses existing external identity`() {
-        val member = Member(1L, "user@example.com", null, "ROLE_USER")
+        val member = Member(1L, "user@example.com", null, "ROLE_USER").apply {
+            profileImageAsset = MediaAsset(
+                id = 50L,
+                owner = this,
+                provider = MediaProvider.CLOUDINARY,
+                providerKey = "nugusauce/images/1/profile",
+                contentType = "image/jpeg",
+                byteSize = 2000L
+            )
+        }
         val claims = claims()
 
         `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims)
@@ -88,6 +104,7 @@ class KakaoLoginServiceTest {
         assertEquals("refresh-token", result.refreshToken)
         assertEquals(1L, result.member.id)
         assertEquals("사용자 1", result.member.displayName)
+        assertEquals("https://cdn.example.test/nugusauce/images/1/profile", result.member.profileImageUrl)
         assertTrue(result.member.profileSetupRequired)
         assertEquals("nonce", nonceRepository.lastNonce)
         verify(refreshTokenRepository).save(1L, "refresh-token", 120L)
@@ -250,6 +267,28 @@ class KakaoLoginServiceTest {
             lastNonce = nonce
             lastTtl = ttl
             return reserveResult
+        }
+    }
+
+    private object TestImageStoragePort : ImageStoragePort {
+        override fun createUploadTarget(
+            providerKey: String,
+            contentType: String,
+            expiresAt: Instant
+        ): MediaResult.UploadTarget {
+            throw UnsupportedOperationException()
+        }
+
+        override fun verifyUpload(providerKey: String): VerifiedUpload {
+            throw UnsupportedOperationException()
+        }
+
+        override fun displayUrl(providerKey: String): String {
+            return "https://cdn.example.test/$providerKey"
+        }
+
+        override fun delete(providerKey: String) {
+            throw UnsupportedOperationException()
         }
     }
 }

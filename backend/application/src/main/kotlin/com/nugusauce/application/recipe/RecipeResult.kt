@@ -71,6 +71,7 @@ object RecipeResult {
         val authorType: String,
         val authorId: Long?,
         val authorName: String,
+        val authorProfileImageUrl: String?,
         val visibility: String,
         val ingredients: List<RecipeIngredientItem>,
         val tags: List<TagItem>,
@@ -87,6 +88,7 @@ object RecipeResult {
         val recipeId: Long,
         val authorId: Long,
         val authorName: String,
+        val authorProfileImageUrl: String?,
         val rating: Int,
         val text: String?,
         val tasteTags: List<TagItem>,
@@ -158,7 +160,8 @@ object RecipeResult {
         recipe: SauceRecipe,
         reviewTags: List<ReviewTagCount> = emptyList(),
         isFavorite: Boolean = false,
-        imageUrl: String? = recipe.imageUrl
+        imageUrl: String? = recipe.imageUrl,
+        authorProfileImageUrl: String? = null
     ): RecipeDetail {
         return RecipeDetail(
             id = recipe.id,
@@ -171,6 +174,7 @@ object RecipeResult {
             authorType = recipe.authorType.name,
             authorId = recipe.author?.id,
             authorName = authorName(recipe),
+            authorProfileImageUrl = authorProfileImageUrl,
             visibility = recipe.visibility.name,
             ingredients = recipe.ingredients.map(::fromRecipeIngredient).sortedBy { it.name },
             tags = recipe.tags.map(::fromTag).sortedBy { it.name },
@@ -183,12 +187,13 @@ object RecipeResult {
         )
     }
 
-    fun review(review: RecipeReview): ReviewItem {
+    fun review(review: RecipeReview, authorProfileImageUrl: String? = null): ReviewItem {
         return ReviewItem(
             id = review.id,
             recipeId = review.recipe.id,
             authorId = review.author.id,
             authorName = MemberResult.displayName(review.author),
+            authorProfileImageUrl = authorProfileImageUrl,
             rating = review.rating,
             text = review.text,
             tasteTags = review.tasteTags.map(::fromTag).sortedBy { it.name },

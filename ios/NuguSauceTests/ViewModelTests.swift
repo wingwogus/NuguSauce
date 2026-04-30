@@ -419,6 +419,7 @@ final class ViewModelTests: XCTestCase {
                 id: 1,
                 nickname: "소스장인",
                 displayName: "소스장인",
+                profileImageUrl: "https://cdn.example.test/profile/1.jpg",
                 profileSetupRequired: false
             )
         )
@@ -426,6 +427,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(store.currentSession?.memberId, 1)
         XCTAssertEqual(store.currentSession?.nickname, "소스장인")
         XCTAssertEqual(store.currentSession?.displayName, "소스장인")
+        XCTAssertEqual(store.currentSession?.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(store.currentSession?.profileSetupRequired, false)
     }
 
@@ -769,6 +771,7 @@ final class ViewModelTests: XCTestCase {
                 id: 7,
                 nickname: nil,
                 displayName: "사용자 7",
+                profileImageUrl: "https://cdn.example.test/profile/7.jpg",
                 profileSetupRequired: true
             )
         )
@@ -778,8 +781,10 @@ final class ViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.member?.id, 7)
         XCTAssertTrue(viewModel.profileSetupRequired)
+        XCTAssertEqual(viewModel.profileImageUrl, "https://cdn.example.test/profile/7.jpg")
         XCTAssertEqual(authStore.currentSession?.memberId, 7)
         XCTAssertEqual(authStore.currentSession?.displayName, "사용자 7")
+        XCTAssertEqual(authStore.currentSession?.profileImageUrl, "https://cdn.example.test/profile/7.jpg")
     }
 
     func testProfileNicknameSaveUpdatesMemberProfile() async {
@@ -792,6 +797,7 @@ final class ViewModelTests: XCTestCase {
 
         XCTAssertTrue(didSave)
         XCTAssertEqual(client.updatedNicknames, ["소스장인"])
+        XCTAssertEqual(client.updatedProfileImageIDs, [nil])
         XCTAssertEqual(viewModel.member?.nickname, "소스장인")
         XCTAssertEqual(authStore.currentSession?.displayName, "소스장인")
         XCTAssertEqual(authStore.currentSession?.profileSetupRequired, false)
@@ -815,6 +821,35 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.nicknameErrorMessage, "닉네임을 저장하지 못했어요.")
         XCTAssertFalse(viewModel.nicknameErrorMessage?.contains(ApiErrorCode.internalError) == true)
         XCTAssertFalse(viewModel.nicknameErrorMessage?.contains("SQLIntegrity") == true)
+    }
+
+    func testProfileEditSaveUploadsSelectedPhotoAndUpdatesProfile() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileImageUrl: nil,
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = ProfileEditViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.nicknameDraft = "새닉네임"
+        let didSave = await viewModel.save()
+
+        XCTAssertTrue(didSave)
+        XCTAssertEqual(client.uploadEvents, ["intent", "upload", "complete"])
+        XCTAssertEqual(client.uploadedImageByteCounts, [3])
+        XCTAssertEqual(client.completedImageIDs, [50])
+        XCTAssertEqual(client.updatedNicknames, ["새닉네임"])
+        XCTAssertEqual(client.updatedProfileImageIDs, [50])
+        XCTAssertEqual(viewModel.member?.profileImageUrl, "https://cdn.example.test/profile/50.jpg")
+        XCTAssertEqual(authStore.currentSession?.displayName, "새닉네임")
+        XCTAssertEqual(authStore.currentSession?.profileImageUrl, "https://cdn.example.test/profile/50.jpg")
     }
 
     func testProfileUsesUpdatedSessionAfterProfileSetupGateSavesNickname() async {
@@ -913,6 +948,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var uploadEvents: [String] = []
     private(set) var createdReviewRequests: [CreateReviewRequestDTO] = []
     private(set) var updatedNicknames: [String] = []
+    private(set) var updatedProfileImageIDs: [Int?] = []
     private(set) var fetchedMemberIDs: [Int] = []
 
     init(
@@ -972,6 +1008,7 @@ private final class TestAPIClient: APIClientProtocol {
             authorType: .curated,
             authorId: nil,
             authorName: "NuguSauce",
+            authorProfileImageUrl: nil,
             visibility: .visible,
             ingredients: [],
             reviewTags: [],
@@ -1039,6 +1076,7 @@ private final class TestAPIClient: APIClientProtocol {
             recipeId: recipeID,
             authorId: 1,
             authorName: "테스터",
+            authorProfileImageUrl: memberProfile.profileImageUrl,
             rating: request.rating,
             text: request.text,
             tasteTags: [],
@@ -1089,15 +1127,18 @@ private final class TestAPIClient: APIClientProtocol {
         fetchedMemberIDs.append(id)
         return memberProfile
     }
-    func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
+    func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO {
         if let updateMemberError {
             throw updateMemberError
         }
         updatedNicknames.append(nickname)
+        updatedProfileImageIDs.append(profileImageId)
+        let profileImageUrl = profileImageId.map { "https://cdn.example.test/profile/\($0).jpg" } ?? memberProfile.profileImageUrl
         memberProfile = MemberProfileDTO(
             id: memberProfile.id,
             nickname: nickname,
             displayName: nickname,
+            profileImageUrl: profileImageUrl,
             profileSetupRequired: false
         )
         return memberProfile
@@ -1149,6 +1190,7 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
             refreshToken: currentSession.refreshToken,
             memberId: member.id,
             nickname: member.nickname,
+            profileImageUrl: member.profileImageUrl,
             profileSetupRequired: member.profileSetupRequired ?? false
         )
     }

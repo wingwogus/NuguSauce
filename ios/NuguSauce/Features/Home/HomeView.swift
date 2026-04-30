@@ -63,13 +63,7 @@ struct HomeView: View {
             Spacer()
 
             Button(action: openProfile) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(SauceColor.primaryContainer, SauceColor.redTint)
-                    .frame(width: 44, height: 44)
-                    .background(SauceColor.surfaceLowest)
-                    .clipShape(Circle())
+                ProfileAvatar(imageURL: authStore.currentSession?.profileImageUrl, size: 44)
                     .shadow(color: SauceColor.cardShadow.opacity(0.08), radius: 12, x: 0, y: 6)
             }
             .buttonStyle(.plain)

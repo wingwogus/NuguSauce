@@ -71,7 +71,7 @@ Media:
 - `MEDIA_003`: media file too large
 - `MEDIA_004`: media upload has not been verified
 - `MEDIA_005`: media asset belongs to another member
-- `MEDIA_006`: media asset already attached to a recipe
+- `MEDIA_006`: media asset already attached to a recipe or profile
 - `MEDIA_007`: media provider unavailable or not configured
 - `MEDIA_008`: uploaded provider asset not found
 

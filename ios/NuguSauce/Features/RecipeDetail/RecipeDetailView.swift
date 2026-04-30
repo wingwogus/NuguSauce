@@ -137,11 +137,11 @@ struct RecipeDetailView: View {
     private func recipeAuthorLabel(name: String, detail: RecipeDetailDTO) -> some View {
         if detail.authorType == .user, let authorId = detail.authorId {
             NavigationLink(value: AppRoute.publicProfile(authorId)) {
-                authorIdentityLabel(name: name)
+                authorIdentityLabel(name: name, imageURL: detail.authorProfileImageUrl)
             }
             .buttonStyle(.plain)
         } else {
-            authorIdentityLabel(name: name)
+            authorIdentityLabel(name: name, imageURL: detail.authorProfileImageUrl)
         }
     }
 
@@ -244,6 +244,7 @@ struct RecipeDetailView: View {
             NavigationLink(value: AppRoute.publicProfile(authorId)) {
                 authorIdentityLabel(
                     name: review.authorName,
+                    imageURL: review.authorProfileImageUrl,
                     iconFont: .title2,
                     nameFont: .subheadline.weight(.bold)
                 )
@@ -252,17 +253,21 @@ struct RecipeDetailView: View {
         } else {
             authorIdentityLabel(
                 name: review.authorName,
+                imageURL: review.authorProfileImageUrl,
                 iconFont: .title2,
                 nameFont: .subheadline.weight(.bold)
             )
         }
     }
 
-    private func authorIdentityLabel(name: String, iconFont: Font? = nil, nameFont: Font? = nil) -> some View {
+    private func authorIdentityLabel(
+        name: String,
+        imageURL: String?,
+        iconFont: Font? = nil,
+        nameFont: Font? = nil
+    ) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(iconFont)
-                .foregroundStyle(SauceColor.onSurfaceVariant)
+            ProfileAvatar(imageURL: imageURL, size: iconFont == nil ? 22 : 26)
             Text(name)
                 .font(nameFont)
         }

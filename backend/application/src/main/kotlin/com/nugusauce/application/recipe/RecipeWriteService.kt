@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.media.MediaAssetRepository
 import com.nugusauce.domain.media.MediaAssetStatus
@@ -23,7 +24,7 @@ class RecipeWriteService(
     private val ingredientRepository: IngredientRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val mediaAssetRepository: MediaAssetRepository,
-    private val recipeImageUrlResolver: RecipeImageUrlResolver
+    private val imageUrlResolver: ImageUrlResolver
 ) {
     fun create(command: RecipeCommand.CreateRecipe): RecipeResult.RecipeDetail {
         val author = findMember(command.authorId)
@@ -54,7 +55,11 @@ class RecipeWriteService(
 
         val saved = sauceRecipeRepository.save(recipe)
         imageAsset?.attachToRecipe(saved.id)
-        return RecipeResult.detail(saved, imageUrl = recipeImageUrlResolver.imageUrl(saved))
+        return RecipeResult.detail(
+            saved,
+            imageUrl = imageUrlResolver.recipeImageUrl(saved),
+            authorProfileImageUrl = imageUrlResolver.memberProfileImageUrl(author)
+        )
     }
 
     private fun findMember(memberId: Long): Member {
@@ -83,11 +88,11 @@ class RecipeWriteService(
         if (asset.owner.id != author.id) {
             throw BusinessException(ErrorCode.FORBIDDEN_MEDIA_ASSET)
         }
+        if (asset.isAttached) {
+            throw BusinessException(ErrorCode.MEDIA_ALREADY_ATTACHED)
+        }
         if (asset.status != MediaAssetStatus.VERIFIED) {
             throw BusinessException(ErrorCode.MEDIA_NOT_VERIFIED)
-        }
-        if (asset.attachedRecipeId != null) {
-            throw BusinessException(ErrorCode.MEDIA_ALREADY_ATTACHED)
         }
         return asset
     }

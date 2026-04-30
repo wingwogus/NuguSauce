@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
@@ -24,7 +25,7 @@ class RecipeQueryService(
     private val recipeTagRepository: RecipeTagRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val recipeImageUrlResolver: RecipeImageUrlResolver,
+    private val imageUrlResolver: ImageUrlResolver,
     private val clock: Clock = Clock.systemUTC()
 ) {
     fun search(command: RecipeCommand.SearchRecipes): List<RecipeResult.RecipeSummary> {
@@ -37,7 +38,7 @@ class RecipeQueryService(
                     recipe,
                     reviewTagsByRecipeId[recipe.id].orEmpty(),
                     isFavorite = recipe.id in favoriteRecipeIds,
-                    imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+                    imageUrl = imageUrlResolver.recipeImageUrl(recipe)
                 )
             }
     }
@@ -50,7 +51,8 @@ class RecipeQueryService(
             isFavorite = memberId?.let {
                 recipeFavoriteRepository.existsByRecipeAndMember(recipe.id, it)
             } ?: false,
-            imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+            imageUrl = imageUrlResolver.recipeImageUrl(recipe),
+            authorProfileImageUrl = recipe.author?.let(imageUrlResolver::memberProfileImageUrl)
         )
     }
 
@@ -67,7 +69,12 @@ class RecipeQueryService(
     fun listReviews(recipeId: Long): List<RecipeResult.ReviewItem> {
         findVisibleRecipe(recipeId)
         return recipeReviewRepository.findAllByRecipeIdOrderByCreatedAtDesc(recipeId)
-            .map(RecipeResult::review)
+            .map { review ->
+                RecipeResult.review(
+                    review,
+                    authorProfileImageUrl = imageUrlResolver.memberProfileImageUrl(review.author)
+                )
+            }
     }
 
     private fun findVisibleRecipe(recipeId: Long): SauceRecipe {

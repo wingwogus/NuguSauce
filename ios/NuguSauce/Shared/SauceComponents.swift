@@ -213,6 +213,97 @@ struct LoginGatePlaceholder: View {
     }
 }
 
+struct ProfileAvatar: View {
+    let imageURL: String?
+    var size: CGFloat = 56
+    @State private var retryAttempt = 0
+    @State private var retryScheduledForURL: String?
+
+    var body: some View {
+        Group {
+            if let imageURL, let url = remoteURL(for: imageURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .failure:
+                        fallback
+                            .onAppear {
+                                scheduleRetry(for: imageURL)
+                            }
+                    case .empty:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(SauceColor.surfaceContainerLow)
+                    @unknown default:
+                        fallback
+                    }
+                }
+            } else {
+                fallback
+            }
+        }
+        .id("\(imageURL ?? "fallback")-\(retryAttempt)")
+        .frame(width: size, height: size)
+        .background(SauceColor.surfaceLowest)
+        .clipShape(Circle())
+        .overlay {
+            Circle()
+                .stroke(SauceColor.surface, lineWidth: max(1, size * 0.035))
+        }
+        .clipped()
+        .onChange(of: imageURL) { _, _ in
+            retryAttempt = 0
+            retryScheduledForURL = nil
+        }
+    }
+
+    private var fallback: some View {
+        Image(systemName: "person.crop.circle.fill")
+            .font(.system(size: size * 0.82, weight: .semibold))
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(SauceColor.primaryContainer, SauceColor.redTint)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(SauceColor.surfaceLowest)
+    }
+
+    private func remoteURL(for imageURL: String) -> URL? {
+        guard var components = URLComponents(string: imageURL) else {
+            return nil
+        }
+        if retryAttempt > 0 {
+            var queryItems = components.queryItems ?? []
+            queryItems.append(URLQueryItem(name: "nugusauceAvatarRetry", value: "\(retryAttempt)"))
+            components.queryItems = queryItems
+        }
+        return components.url
+    }
+
+    private func scheduleRetry(for imageURL: String) {
+        guard retryAttempt < Self.maxRetryAttempts,
+              retryScheduledForURL != imageURL else {
+            return
+        }
+        retryScheduledForURL = imageURL
+        let nextAttempt = retryAttempt + 1
+        Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            await MainActor.run {
+                guard self.imageURL == imageURL,
+                      retryAttempt < nextAttempt else {
+                    return
+                }
+                retryAttempt = nextAttempt
+                retryScheduledForURL = nil
+            }
+        }
+    }
+
+    private static let maxRetryAttempts = 3
+}
+
 struct SauceScreenTitle: View {
     let title: String
 

@@ -27,6 +27,7 @@
 		F00000000000000000000118 /* Features/Profile/ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000118 /* Features/Profile/ProfileView.swift */; };
 		F00000000000000000000119 /* Shared/DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000119 /* Shared/DesignSystem.swift */; };
 		F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* Shared/SauceComponents.swift */; };
+		F00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */; };
 		F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */; };
 		F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */; };
 		F00000000000000000000124 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* Resources/Assets.xcassets */; };
@@ -77,6 +78,7 @@
 		A00000000000000000000118 /* Features/Profile/ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Profile/ProfileView.swift; sourceTree = "<group>"; };
 		A00000000000000000000119 /* Shared/DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DesignSystem.swift; sourceTree = "<group>"; };
 		A00000000000000000000120 /* Shared/SauceComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/SauceComponents.swift; sourceTree = "<group>"; };
+		A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ImageUploadPreprocessor.swift; sourceTree = "<group>"; };
 		A00000000000000000000121 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesViewModel.swift; sourceTree = "<group>"; };
 		A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesView.swift; sourceTree = "<group>"; };
@@ -154,6 +156,7 @@
 				A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */,
 				A00000000000000000000119 /* Shared/DesignSystem.swift */,
 				A00000000000000000000120 /* Shared/SauceComponents.swift */,
+				A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */,
 				A00000000000000000000124 /* Resources/Assets.xcassets */,
 				A00000000000000000000121 /* Info.plist */,
 			);
@@ -347,6 +350,7 @@
 				F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */,
 				F00000000000000000000119 /* Shared/DesignSystem.swift in Sources */,
 				F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */,
+				F00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

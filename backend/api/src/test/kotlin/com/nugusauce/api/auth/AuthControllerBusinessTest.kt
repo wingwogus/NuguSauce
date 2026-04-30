@@ -102,6 +102,7 @@ class AuthControllerBusinessTest(
                         id = 1L,
                         nickname = null,
                         displayName = "사용자 1",
+                        profileImageUrl = null,
                         profileSetupRequired = true
                     )
                 )

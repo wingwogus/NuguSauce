@@ -2,6 +2,10 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
+import com.nugusauce.application.media.ImageStoragePort
+import com.nugusauce.application.media.MediaResult
+import com.nugusauce.application.media.VerifiedUpload
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
@@ -44,7 +48,8 @@ class RecipeReviewServiceTest {
             memberRepository,
             sauceRecipeRepository,
             recipeReviewRepository,
-            recipeTagRepository
+            recipeTagRepository,
+            ImageUrlResolver(TestImageStoragePort)
         )
     }
 
@@ -116,5 +121,27 @@ class RecipeReviewServiceTest {
             authorType = RecipeAuthorType.CURATED,
             visibility = visibility
         )
+    }
+
+    private object TestImageStoragePort : ImageStoragePort {
+        override fun createUploadTarget(
+            providerKey: String,
+            contentType: String,
+            expiresAt: java.time.Instant
+        ): MediaResult.UploadTarget {
+            throw UnsupportedOperationException()
+        }
+
+        override fun verifyUpload(providerKey: String): VerifiedUpload {
+            throw UnsupportedOperationException()
+        }
+
+        override fun displayUrl(providerKey: String): String {
+            return "https://cdn.example.test/$providerKey"
+        }
+
+        override fun delete(providerKey: String) {
+            throw UnsupportedOperationException()
+        }
     }
 }

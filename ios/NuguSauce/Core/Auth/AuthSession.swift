@@ -5,6 +5,7 @@ struct AuthSession: Equatable {
     let memberId: Int?
     let nickname: String?
     let displayName: String
+    let profileImageUrl: String?
     let accessToken: String
     let refreshToken: String?
     let profileSetupRequired: Bool
@@ -15,11 +16,13 @@ struct AuthSession: Equatable {
         refreshToken: String?,
         memberId: Int? = nil,
         nickname: String? = nil,
+        profileImageUrl: String? = nil,
         profileSetupRequired: Bool = false
     ) {
         self.memberId = memberId
         self.nickname = nickname
         self.displayName = displayName
+        self.profileImageUrl = profileImageUrl
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.profileSetupRequired = profileSetupRequired
@@ -62,6 +65,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
     private let displayNameKey = "auth.displayName"
     private let memberIdKey = "auth.memberId"
     private let nicknameKey = "auth.nickname"
+    private let profileImageUrlKey = "auth.profileImageUrl"
     private let profileSetupRequiredKey = "auth.profileSetupRequired"
     private let tokenStore: AuthTokenStore
     private let userDefaults: UserDefaults
@@ -92,6 +96,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
         let displayName = userDefaults.string(forKey: displayNameKey) ?? "로그인 사용자"
         let memberId = userDefaults.object(forKey: memberIdKey) as? Int
         let nickname = userDefaults.string(forKey: nicknameKey)
+        let profileImageUrl = userDefaults.string(forKey: profileImageUrlKey)
         let profileSetupRequired = (userDefaults.object(forKey: profileSetupRequiredKey) as? Bool) ?? false
         currentSession = AuthSession(
             displayName: displayName,
@@ -99,6 +104,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
             refreshToken: refreshToken,
             memberId: memberId,
             nickname: nickname,
+            profileImageUrl: profileImageUrl,
             profileSetupRequired: profileSetupRequired
         )
     }
@@ -154,6 +160,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
             refreshToken: session.refreshToken,
             memberId: member.id,
             nickname: member.nickname,
+            profileImageUrl: member.profileImageUrl,
             profileSetupRequired: profileSetupRequired
         )
     }
@@ -189,12 +196,18 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
         } else {
             userDefaults.removeObject(forKey: nicknameKey)
         }
+        if let profileImageUrl = member.profileImageUrl, !profileImageUrl.isEmpty {
+            userDefaults.set(profileImageUrl, forKey: profileImageUrlKey)
+        } else {
+            userDefaults.removeObject(forKey: profileImageUrlKey)
+        }
         userDefaults.set(profileSetupRequired, forKey: profileSetupRequiredKey)
     }
 
     private func clearPersistedMemberProfile() {
         userDefaults.removeObject(forKey: memberIdKey)
         userDefaults.removeObject(forKey: nicknameKey)
+        userDefaults.removeObject(forKey: profileImageUrlKey)
         userDefaults.removeObject(forKey: profileSetupRequiredKey)
     }
 }

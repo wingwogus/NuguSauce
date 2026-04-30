@@ -5,7 +5,11 @@ import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
-import com.nugusauce.application.recipe.RecipeImageUrlResolver
+import com.nugusauce.application.media.ImageUrlResolver
+import com.nugusauce.domain.media.MediaAsset
+import com.nugusauce.domain.media.MediaAssetRepository
+import com.nugusauce.domain.media.MediaAssetStatus
+import com.nugusauce.domain.media.MediaProvider
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
@@ -24,8 +28,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.Mockito.`when`
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.TransactionStatus
+import org.springframework.transaction.support.SimpleTransactionStatus
 import java.time.Instant
 import java.util.Optional
 
@@ -43,16 +53,24 @@ class MemberServiceTest {
     @Mock
     private lateinit var recipeReviewRepository: RecipeReviewRepository
 
+    @Mock
+    private lateinit var mediaAssetRepository: MediaAssetRepository
+
+    private lateinit var imageStoragePort: RecordingImageStoragePort
     private lateinit var service: MemberService
 
     @BeforeEach
     fun setUp() {
+        imageStoragePort = RecordingImageStoragePort()
         service = MemberService(
             memberRepository,
             sauceRecipeRepository,
             recipeFavoriteRepository,
             recipeReviewRepository,
-            RecipeImageUrlResolver(TestImageStoragePort)
+            ImageUrlResolver(imageStoragePort),
+            mediaAssetRepository,
+            imageStoragePort,
+            TestTransactionManager
         )
     }
 
@@ -115,6 +133,126 @@ class MemberServiceTest {
     }
 
     @Test
+    fun `updateMe attaches verified profile image`() {
+        val member = Member(1L, "user@example.test", null)
+        val imageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+        }
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(imageAsset))
+        `when`(memberRepository.existsByNicknameAndIdNot("소스장인", 1L)).thenReturn(false)
+
+        val result = service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+
+        assertEquals(imageAsset, member.profileImageAsset)
+        assertEquals(1L, imageAsset.attachedProfileMemberId)
+        assertEquals("https://cdn.example.test/nugusauce/images/1/profile-20", result.profileImageUrl)
+    }
+
+    @Test
+    fun `updateMe deletes previous profile image after replacement`() {
+        val member = Member(1L, "user@example.test", null)
+        val previousImageAsset = profileImageAsset(id = 10L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToProfile(member.id)
+        }
+        val newImageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+        }
+        member.profileImageAsset = previousImageAsset
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(newImageAsset))
+        `when`(memberRepository.existsByNicknameAndIdNot("소스장인", 1L)).thenReturn(false)
+
+        service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+
+        assertEquals(newImageAsset, member.profileImageAsset)
+        assertEquals(null, previousImageAsset.attachedProfileMemberId)
+        assertEquals(MediaAssetStatus.VERIFIED, previousImageAsset.status)
+        assertEquals(listOf(previousImageAsset.providerKey), imageStoragePort.deletedProviderKeys)
+        verify(mediaAssetRepository).deleteById(previousImageAsset.id)
+    }
+
+    @Test
+    fun `updateMe keeps current profile image when the same image is supplied`() {
+        val member = Member(1L, "user@example.test", null)
+        val imageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToProfile(member.id)
+        }
+        member.profileImageAsset = imageAsset
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(imageAsset))
+        `when`(memberRepository.existsByNicknameAndIdNot("소스장인", 1L)).thenReturn(false)
+
+        service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+
+        assertEquals(imageAsset, member.profileImageAsset)
+        assertTrue(imageStoragePort.deletedProviderKeys.isEmpty())
+        verify(mediaAssetRepository, never()).deleteById(imageAsset.id)
+    }
+
+    @Test
+    fun `updateMe keeps detached previous image row when provider cleanup fails`() {
+        val member = Member(1L, "user@example.test", null)
+        val previousImageAsset = profileImageAsset(id = 10L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToProfile(member.id)
+        }
+        val newImageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+        }
+        member.profileImageAsset = previousImageAsset
+        imageStoragePort.failDeletes = true
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(newImageAsset))
+        `when`(memberRepository.existsByNicknameAndIdNot("소스장인", 1L)).thenReturn(false)
+
+        service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+
+        assertEquals(newImageAsset, member.profileImageAsset)
+        assertEquals(null, previousImageAsset.attachedProfileMemberId)
+        assertEquals(MediaAssetStatus.VERIFIED, previousImageAsset.status)
+        assertEquals(listOf(previousImageAsset.providerKey), imageStoragePort.deleteAttempts)
+        assertTrue(imageStoragePort.deletedProviderKeys.isEmpty())
+        verify(mediaAssetRepository, never()).deleteById(previousImageAsset.id)
+    }
+
+    @Test
+    fun `updateMe rejects recipe attached profile image`() {
+        val member = Member(1L, "user@example.test", null)
+        val imageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToRecipe(99L)
+        }
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(imageAsset))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+        }
+
+        assertEquals(ErrorCode.MEDIA_ALREADY_ATTACHED, exception.errorCode)
+    }
+
+    @Test
+    fun `updateMe rejects another profile attached image`() {
+        val member = Member(1L, "user@example.test", null)
+        val imageAsset = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToProfile(2L)
+        }
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(imageAsset))
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.updateMe(MemberCommand.UpdateMe(1L, "소스장인", profileImageId = 20L))
+        }
+
+        assertEquals(ErrorCode.MEDIA_ALREADY_ATTACHED, exception.errorCode)
+    }
+
+    @Test
     fun `updateMe rejects duplicate nickname`() {
         val member = Member(1L, "user@example.test", null)
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
@@ -171,7 +309,22 @@ class MemberServiceTest {
         )
     }
 
-    private object TestImageStoragePort : ImageStoragePort {
+    private fun profileImageAsset(id: Long, owner: Member): MediaAsset {
+        return MediaAsset(
+            id = id,
+            owner = owner,
+            provider = MediaProvider.CLOUDINARY,
+            providerKey = "nugusauce/images/${owner.id}/profile-$id",
+            contentType = "image/jpeg",
+            byteSize = 2000L
+        )
+    }
+
+    private class RecordingImageStoragePort : ImageStoragePort {
+        val deletedProviderKeys = mutableListOf<String>()
+        val deleteAttempts = mutableListOf<String>()
+        var failDeletes = false
+
         override fun createUploadTarget(
             providerKey: String,
             contentType: String,
@@ -187,5 +340,23 @@ class MemberServiceTest {
         override fun displayUrl(providerKey: String): String {
             return "https://cdn.example.test/$providerKey"
         }
+
+        override fun delete(providerKey: String) {
+            deleteAttempts.add(providerKey)
+            if (failDeletes) {
+                throw IllegalStateException("delete failed")
+            }
+            deletedProviderKeys.add(providerKey)
+        }
+    }
+
+    private object TestTransactionManager : PlatformTransactionManager {
+        override fun getTransaction(definition: TransactionDefinition?): TransactionStatus {
+            return SimpleTransactionStatus()
+        }
+
+        override fun commit(status: TransactionStatus) = Unit
+
+        override fun rollback(status: TransactionStatus) = Unit
     }
 }

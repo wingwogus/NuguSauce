@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
@@ -21,7 +22,7 @@ class RecipeFavoriteService(
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
-    private val recipeImageUrlResolver: RecipeImageUrlResolver
+    private val imageUrlResolver: ImageUrlResolver
 ) {
     @Transactional(readOnly = true)
     fun listMyRecipes(command: RecipeCommand.MemberRecipes): List<RecipeResult.RecipeSummary> {
@@ -101,7 +102,7 @@ class RecipeFavoriteService(
                 recipe,
                 reviewTagsByRecipeId[recipe.id].orEmpty(),
                 isFavorite = recipe.id in favoriteRecipeIds,
-                imageUrl = recipeImageUrlResolver.imageUrl(recipe)
+                imageUrl = imageUrlResolver.recipeImageUrl(recipe)
             )
         }
     }

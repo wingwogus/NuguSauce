@@ -66,6 +66,7 @@ final class APIContractTests: XCTestCase {
           "authorType": "USER",
           "authorId": 7,
           "authorName": "소스장인",
+          "authorProfileImageUrl": "https://cdn.example.test/profile/7.jpg",
           "visibility": "VISIBLE",
           "ingredients": [],
           "reviewTags": [],
@@ -81,6 +82,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(detail.authorId, 7)
         XCTAssertEqual(detail.displayAuthorName, "소스장인")
+        XCTAssertEqual(detail.authorProfileImageUrl, "https://cdn.example.test/profile/7.jpg")
         XCTAssertEqual(detail.displayFavoriteCount, 5)
         XCTAssertTrue(detail.isFavorited)
     }
@@ -172,6 +174,7 @@ final class APIContractTests: XCTestCase {
           "recipeId": 1,
           "authorId": 8,
           "authorName": "리뷰장인",
+          "authorProfileImageUrl": "https://cdn.example.test/profile/8.jpg",
           "rating": 5,
           "text": "고소하고 초보자도 먹기 좋았어요",
           "tasteTags": [{ "id": 1, "name": "고소함" }],
@@ -183,6 +186,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(review.authorId, 8)
         XCTAssertEqual(review.authorName, "리뷰장인")
+        XCTAssertEqual(review.authorProfileImageUrl, "https://cdn.example.test/profile/8.jpg")
     }
 
     func testKakaoLoginResponseDecodesMemberProfileSetupState() throws {
@@ -194,6 +198,7 @@ final class APIContractTests: XCTestCase {
             "id": 1,
             "nickname": null,
             "displayName": "사용자 1",
+            "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
             "profileSetupRequired": true
           }
         }
@@ -204,6 +209,7 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(response.accessToken, "access-token")
         XCTAssertEqual(response.member.id, 1)
         XCTAssertEqual(response.member.displayName, "사용자 1")
+        XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
     }
 
@@ -271,6 +277,7 @@ final class APIContractTests: XCTestCase {
               "id": 1,
               "nickname": null,
               "displayName": "사용자 1",
+              "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
               "profileSetupRequired": true
             }
           },
@@ -279,6 +286,7 @@ final class APIContractTests: XCTestCase {
         """.data(using: .utf8)!
         URLProtocolTestTransport.statusCode = 200
         URLProtocolTestTransport.lastRequest = nil
+        URLProtocolTestTransport.lastRequestBody = nil
 
         let client = makeBackendClient()
 
@@ -290,6 +298,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(response.accessToken, "access-token")
         XCTAssertEqual(response.member.displayName, "사용자 1")
+        XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/auth/kakao/login")
@@ -304,6 +313,7 @@ final class APIContractTests: XCTestCase {
             "id": 7,
             "nickname": "소스장인",
             "displayName": "소스장인",
+            "profileImageUrl": "https://cdn.example.test/profile/7.jpg",
             "profileSetupRequired": false
           },
           "error": null
@@ -311,6 +321,7 @@ final class APIContractTests: XCTestCase {
         """.data(using: .utf8)!
         URLProtocolTestTransport.statusCode = 200
         URLProtocolTestTransport.lastRequest = nil
+        URLProtocolTestTransport.lastRequestBody = nil
 
         let client = makeBackendClient()
 
@@ -318,6 +329,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(member.id, 7)
         XCTAssertEqual(member.nickname, "소스장인")
+        XCTAssertEqual(member.profileImageUrl, "https://cdn.example.test/profile/7.jpg")
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/members/me")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
@@ -331,6 +343,7 @@ final class APIContractTests: XCTestCase {
             "id": 8,
             "nickname": "마라초보",
             "displayName": "마라초보",
+            "profileImageUrl": "https://cdn.example.test/profile/8.jpg",
             "profileSetupRequired": false,
             "recipes": [
               {
@@ -381,6 +394,7 @@ final class APIContractTests: XCTestCase {
 
         XCTAssertEqual(member.id, 8)
         XCTAssertEqual(member.displayName, "마라초보")
+        XCTAssertEqual(member.profileImageUrl, "https://cdn.example.test/profile/8.jpg")
         XCTAssertEqual(member.recipes?.map(\.id), [81])
         XCTAssertEqual(member.favoriteRecipes?.map(\.id), [82])
         XCTAssertEqual(member.recipes?.first?.isFavorited, false)
@@ -403,6 +417,7 @@ final class APIContractTests: XCTestCase {
             "authorType": "CURATED",
             "authorId": null,
             "authorName": "NuguSauce",
+            "authorProfileImageUrl": null,
             "visibility": "VISIBLE",
             "ingredients": [],
             "reviewTags": [],
@@ -540,6 +555,7 @@ final class APIContractTests: XCTestCase {
             "id": 7,
             "nickname": "소스장인",
             "displayName": "소스장인",
+            "profileImageUrl": "https://cdn.example.test/profile/50.jpg",
             "profileSetupRequired": false
           },
           "error": null
@@ -547,16 +563,22 @@ final class APIContractTests: XCTestCase {
         """.data(using: .utf8)!
         URLProtocolTestTransport.statusCode = 200
         URLProtocolTestTransport.lastRequest = nil
+        URLProtocolTestTransport.lastRequestBody = nil
 
         let client = makeBackendClient()
 
-        let member = try await client.updateMyMember(nickname: "소스장인")
+        let member = try await client.updateMyMember(nickname: "소스장인", profileImageId: 50)
 
         XCTAssertEqual(member.displayName, "소스장인")
+        XCTAssertEqual(member.profileImageUrl, "https://cdn.example.test/profile/50.jpg")
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/members/me")
         XCTAssertEqual(request.httpMethod, "PATCH")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+        let body = try XCTUnwrap(URLProtocolTestTransport.lastRequestBody)
+        let bodyJSON = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        XCTAssertEqual(bodyJSON?["nickname"] as? String, "소스장인")
+        XCTAssertEqual(bodyJSON?["profileImageId"] as? Int, 50)
     }
 
     private func makeBackendClient() -> BackendAPIClient {
@@ -599,6 +621,7 @@ private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
             refreshToken: currentSession.refreshToken,
             memberId: member.id,
             nickname: member.nickname,
+            profileImageUrl: member.profileImageUrl,
             profileSetupRequired: member.profileSetupRequired ?? false
         )
     }
@@ -612,6 +635,7 @@ private final class URLProtocolTestTransport: URLProtocol {
     static var responseData = Data()
     static var statusCode = 200
     static var lastRequest: URLRequest?
+    static var lastRequestBody: Data?
 
     override class func canInit(with request: URLRequest) -> Bool {
         true
@@ -623,6 +647,7 @@ private final class URLProtocolTestTransport: URLProtocol {
 
     override func startLoading() {
         Self.lastRequest = request
+        Self.lastRequestBody = request.httpBody ?? request.httpBodyStream?.readAllData()
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: Self.statusCode,
@@ -635,4 +660,31 @@ private final class URLProtocolTestTransport: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+private extension InputStream {
+    func readAllData() -> Data {
+        open()
+        defer {
+            close()
+        }
+
+        var data = Data()
+        let bufferSize = 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer {
+            buffer.deallocate()
+        }
+
+        while hasBytesAvailable {
+            let bytesRead = read(buffer, maxLength: bufferSize)
+            if bytesRead > 0 {
+                data.append(buffer, count: bytesRead)
+            } else {
+                break
+            }
+        }
+
+        return data
+    }
 }

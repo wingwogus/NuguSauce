@@ -60,6 +60,7 @@ enum ApiErrorCode {
     static let unsupportedMediaContentType = "MEDIA_002"
     static let mediaFileTooLarge = "MEDIA_003"
     static let mediaUploadNotVerified = "MEDIA_004"
+    static let mediaAlreadyAttached = "MEDIA_006"
     static let mediaProviderUnavailable = "MEDIA_007"
 }
 
@@ -90,6 +91,8 @@ extension ApiError {
             return "이미지 파일 크기가 너무 큽니다."
         case ApiErrorCode.mediaUploadNotVerified, ApiErrorCode.mediaProviderUnavailable:
             return "이미지 업로드를 잠시 사용할 수 없어요."
+        case ApiErrorCode.mediaAlreadyAttached:
+            return "이미 사용 중인 이미지입니다."
         case ApiErrorCode.internalError:
             return fallback
         default:
@@ -136,6 +139,7 @@ struct MemberProfileDTO: Codable, Equatable, Identifiable {
     let id: Int
     let nickname: String?
     let displayName: String
+    let profileImageUrl: String?
     let profileSetupRequired: Bool?
     let recipes: [RecipeSummaryDTO]?
     let favoriteRecipes: [RecipeSummaryDTO]?
@@ -144,6 +148,7 @@ struct MemberProfileDTO: Codable, Equatable, Identifiable {
         id: Int,
         nickname: String?,
         displayName: String,
+        profileImageUrl: String? = nil,
         profileSetupRequired: Bool?,
         recipes: [RecipeSummaryDTO]? = nil,
         favoriteRecipes: [RecipeSummaryDTO]? = nil
@@ -151,6 +156,7 @@ struct MemberProfileDTO: Codable, Equatable, Identifiable {
         self.id = id
         self.nickname = nickname
         self.displayName = displayName
+        self.profileImageUrl = profileImageUrl
         self.profileSetupRequired = profileSetupRequired
         self.recipes = recipes
         self.favoriteRecipes = favoriteRecipes
@@ -195,7 +201,7 @@ protocol APIClientProtocol {
     func deleteFavorite(recipeID: Int) async throws
     func fetchMyMember() async throws -> MemberProfileDTO
     func fetchMember(id: Int) async throws -> MemberProfileDTO
-    func updateMyMember(nickname: String) async throws -> MemberProfileDTO
+    func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO
     func reissue(refreshToken: String) async throws -> TokenResponseDTO
 }

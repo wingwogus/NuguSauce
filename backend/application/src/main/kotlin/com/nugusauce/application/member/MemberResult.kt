@@ -8,6 +8,7 @@ object MemberResult {
         val id: Long,
         val nickname: String?,
         val displayName: String,
+        val profileImageUrl: String?,
         val profileSetupRequired: Boolean
     )
 
@@ -15,16 +16,18 @@ object MemberResult {
         val id: Long,
         val nickname: String?,
         val displayName: String,
+        val profileImageUrl: String?,
         val profileSetupRequired: Boolean,
         val recipes: List<RecipeResult.RecipeSummary>,
         val favoriteRecipes: List<RecipeResult.RecipeSummary>
     )
 
-    fun me(member: Member): Me {
+    fun me(member: Member, profileImageUrl: String? = null): Me {
         return Me(
             id = member.id,
             nickname = member.nickname,
             displayName = displayName(member),
+            profileImageUrl = profileImageUrl,
             profileSetupRequired = member.nickname.isNullOrBlank()
         )
     }
@@ -32,12 +35,14 @@ object MemberResult {
     fun publicProfile(
         member: Member,
         recipes: List<RecipeResult.RecipeSummary>,
-        favoriteRecipes: List<RecipeResult.RecipeSummary>
+        favoriteRecipes: List<RecipeResult.RecipeSummary>,
+        profileImageUrl: String? = null
     ): PublicProfile {
         return PublicProfile(
             id = member.id,
             nickname = member.nickname,
             displayName = displayName(member),
+            profileImageUrl = profileImageUrl,
             profileSetupRequired = member.nickname.isNullOrBlank(),
             recipes = recipes,
             favoriteRecipes = favoriteRecipes

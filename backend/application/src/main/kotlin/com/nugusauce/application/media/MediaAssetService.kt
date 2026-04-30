@@ -115,7 +115,7 @@ class MediaAssetService(
         val suffix = normalizeExtension(fileExtension)
             ?.let { "-$it" }
             ?: ""
-        return "nugusauce/recipes/${owner.id}/${UUID.randomUUID()}$suffix"
+        return "nugusauce/images/${owner.id}/${UUID.randomUUID()}$suffix"
     }
 
     private fun normalizeExtension(fileExtension: String?): String? {

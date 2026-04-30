@@ -30,6 +30,10 @@ final class ProfileViewModel: ObservableObject {
         currentSessionForLoadedMember?.displayName ?? member?.displayName ?? session?.displayName ?? "게스트"
     }
 
+    var profileImageUrl: String? {
+        currentSessionForLoadedMember?.profileImageUrl ?? member?.profileImageUrl ?? session?.profileImageUrl
+    }
+
     var profileSetupRequired: Bool {
         currentSessionForLoadedMember?.profileSetupRequired ?? member?.profileSetupRequired ?? session?.profileSetupRequired ?? false
     }
@@ -78,7 +82,7 @@ final class ProfileViewModel: ObservableObject {
         }
 
         do {
-            let updatedMember = try await apiClient.updateMyMember(nickname: nickname)
+            let updatedMember = try await apiClient.updateMyMember(nickname: nickname, profileImageId: nil)
             member = updatedMember
             nicknameDraft = updatedMember.nickname ?? ""
             authStore.updateMemberProfile(updatedMember)
@@ -110,6 +114,139 @@ final class ProfileViewModel: ObservableObject {
             return "이미 사용 중인 닉네임입니다."
         default:
             return error.userVisibleMessage(default: "닉네임을 저장하지 못했어요.")
+        }
+    }
+}
+
+@MainActor
+final class ProfileEditViewModel: ObservableObject {
+    @Published private(set) var member: MemberProfileDTO?
+    @Published var nicknameDraft: String = ""
+    @Published private(set) var selectedPhotoData: Data?
+    @Published private(set) var selectedPhotoContentType = "image/jpeg"
+    @Published private(set) var selectedPhotoFileExtension = "jpg"
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var isLoading = false
+    @Published private(set) var isSaving = false
+    @Published private(set) var isUploadingImage = false
+
+    private let apiClient: APIClientProtocol
+    private let authStore: AuthSessionStoreProtocol
+
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+        self.apiClient = apiClient
+        self.authStore = authStore
+    }
+
+    var profileImageUrl: String? {
+        member?.profileImageUrl ?? authStore.currentSession?.profileImageUrl
+    }
+
+    var hasSelectedPhoto: Bool {
+        selectedPhotoData != nil
+    }
+
+    var canSave: Bool {
+        !isSaving && !nicknameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func load() async {
+        guard authStore.isAuthenticated else {
+            errorMessage = "로그인이 필요합니다."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+        }
+        do {
+            let loadedMember = try await apiClient.fetchMyMember()
+            member = loadedMember
+            nicknameDraft = loadedMember.nickname ?? ""
+            authStore.updateMemberProfile(loadedMember)
+        } catch {
+            errorMessage = "프로필 정보를 불러오지 못했어요."
+        }
+    }
+
+    func setSelectedPhoto(data: Data, contentType: String = "image/jpeg", fileExtension: String = "jpg") {
+        selectedPhotoData = data
+        selectedPhotoContentType = contentType
+        selectedPhotoFileExtension = fileExtension
+        errorMessage = nil
+    }
+
+    func clearSelectedPhoto() {
+        selectedPhotoData = nil
+        selectedPhotoContentType = "image/jpeg"
+        selectedPhotoFileExtension = "jpg"
+    }
+
+    func save() async -> Bool {
+        guard canSave else {
+            errorMessage = "닉네임을 입력해주세요."
+            return false
+        }
+
+        isSaving = true
+        errorMessage = nil
+        defer {
+            isSaving = false
+            isUploadingImage = false
+        }
+
+        do {
+            let profileImageId = try await uploadSelectedPhotoIfNeeded()
+            let updatedMember = try await apiClient.updateMyMember(
+                nickname: nicknameDraft.trimmingCharacters(in: .whitespacesAndNewlines),
+                profileImageId: profileImageId
+            )
+            member = updatedMember
+            nicknameDraft = updatedMember.nickname ?? ""
+            clearSelectedPhoto()
+            authStore.updateMemberProfile(updatedMember)
+            return true
+        } catch let error as ApiError {
+            errorMessage = profileEditMessage(for: error)
+            return false
+        } catch {
+            errorMessage = "프로필을 저장하지 못했어요."
+            return false
+        }
+    }
+
+    private func uploadSelectedPhotoIfNeeded() async throws -> Int? {
+        guard let selectedPhotoData else {
+            return nil
+        }
+        isUploadingImage = true
+        let intent = try await apiClient.createImageUploadIntent(
+            ImageUploadIntentRequestDTO(
+                contentType: selectedPhotoContentType,
+                byteSize: selectedPhotoData.count,
+                fileExtension: selectedPhotoFileExtension
+            )
+        )
+        try await apiClient.uploadImage(
+            data: selectedPhotoData,
+            contentType: selectedPhotoContentType,
+            fileExtension: selectedPhotoFileExtension,
+            using: intent
+        )
+        let verifiedImage = try await apiClient.completeImageUpload(imageId: intent.imageId)
+        isUploadingImage = false
+        return verifiedImage.imageId
+    }
+
+    private func profileEditMessage(for error: ApiError) -> String {
+        switch error.code {
+        case ApiErrorCode.invalidNickname:
+            return "2~20자의 한글, 영문, 숫자, 밑줄만 사용할 수 있어요."
+        case ApiErrorCode.duplicateNickname:
+            return "이미 사용 중인 닉네임입니다."
+        default:
+            return error.userVisibleMessage(default: "프로필을 저장하지 못했어요.")
         }
     }
 }

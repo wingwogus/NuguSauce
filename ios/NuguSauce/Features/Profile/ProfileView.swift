@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct ProfileView: View {
     let apiClient: APIClientProtocol
@@ -20,10 +22,12 @@ struct ProfileView: View {
                 if authStore.isAuthenticated {
                     ProfileHeroCard(
                         displayName: viewModel.displayName,
+                        profileImageUrl: viewModel.profileImageUrl,
                         stats: [
                             ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 레시피"),
                             ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
                         ],
+                        editRoute: .profileEdit,
                         actionTitle: "로그아웃",
                         action: {
                             authStore.clear()
@@ -45,17 +49,13 @@ struct ProfileView: View {
             .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-        .task {
+        .task(id: profileRefreshID) {
             if authStore.isAuthenticated {
                 await viewModel.load()
             }
         }
         .onChange(of: authStore.currentSession) { _, session in
-            if session != nil {
-                Task {
-                    await viewModel.load()
-                }
-            } else {
+            if session == nil {
                 viewModel.clearData()
             }
         }
@@ -63,6 +63,19 @@ struct ProfileView: View {
 
     private var topBar: some View {
         SauceScreenTitle(title: "내 프로필")
+    }
+
+    private var profileRefreshID: String {
+        guard let session = authStore.currentSession else {
+            return "guest"
+        }
+        return [
+            session.memberId.map { String($0) } ?? "anonymous",
+            session.nickname ?? "",
+            session.displayName,
+            session.profileImageUrl ?? "",
+            String(session.profileSetupRequired)
+        ].joined(separator: "|")
     }
 
     private var appearanceSettingsCard: some View {
@@ -147,10 +160,12 @@ struct PublicProfileView: View {
                 if let member = viewModel.member {
                     ProfileHeroCard(
                         displayName: member.displayName,
+                        profileImageUrl: member.profileImageUrl,
                         stats: [
                             ProfileHeroStat(value: "\(viewModel.recipes.count)", label: "내 레시피"),
                             ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
                         ],
+                        editRoute: nil,
                         actionTitle: nil,
                         action: nil
                     )
@@ -195,15 +210,34 @@ private struct ProfileHeroStat: Identifiable {
 
 private struct ProfileHeroCard: View {
     let displayName: String
+    let profileImageUrl: String?
     let stats: [ProfileHeroStat]
+    let editRoute: AppRoute?
     let actionTitle: String?
     let action: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 82))
-                .foregroundStyle(SauceColor.onSurfaceVariant)
+            ZStack(alignment: .bottomTrailing) {
+                ProfileAvatar(imageURL: profileImageUrl, size: 98)
+
+                if let editRoute {
+                    NavigationLink(value: editRoute) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 15, weight: .black))
+                            .foregroundStyle(SauceColor.onPrimary)
+                            .frame(width: 34, height: 34)
+                            .background(SauceColor.primaryContainer)
+                            .clipShape(Circle())
+                            .overlay {
+                                Circle()
+                                    .stroke(SauceColor.surfaceContainerLow, lineWidth: 3)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("프로필 편집")
+                }
+            }
             Text(displayName)
                 .font(.largeTitle.weight(.black))
                 .foregroundStyle(SauceColor.onSurface)
@@ -234,6 +268,144 @@ private struct ProfileHeroCard: View {
         .padding(.vertical, 34)
         .background(SauceColor.surfaceContainerLow)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct ProfileEditView: View {
+    let apiClient: APIClientProtocol
+    @ObservedObject var authStore: AuthSessionStore
+    @StateObject private var viewModel: ProfileEditViewModel
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @Environment(\.dismiss) private var dismiss
+
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
+        self.apiClient = apiClient
+        self.authStore = authStore
+        _viewModel = StateObject(wrappedValue: ProfileEditViewModel(apiClient: apiClient, authStore: authStore))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                SauceScreenTitle(title: "프로필 편집")
+
+                VStack(alignment: .center, spacing: 18) {
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        ZStack(alignment: .bottomTrailing) {
+                            profilePreview
+
+                            Image(systemName: "pencil")
+                                .font(.system(size: 15, weight: .black))
+                                .foregroundStyle(SauceColor.onPrimary)
+                                .frame(width: 34, height: 34)
+                                .background(SauceColor.primaryContainer)
+                                .clipShape(Circle())
+                                .overlay {
+                                    Circle()
+                                        .stroke(SauceColor.surface, lineWidth: 3)
+                                }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("프로필 사진 변경")
+
+                    Text(viewModel.hasSelectedPhoto ? "새 사진 선택됨" : "프로필 사진")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SauceColor.onSurfaceVariant)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .background(SauceColor.surfaceContainerLow)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("닉네임")
+                        .font(.headline.weight(.bold))
+                    TextField("소스장인", text: $viewModel.nicknameDraft)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textContentType(.nickname)
+                        .padding(16)
+                        .background(SauceColor.surfaceContainerLow)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    SauceStatusBanner(message: errorMessage)
+                }
+
+                Button {
+                    Task {
+                        if await viewModel.save() {
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        if viewModel.isUploadingImage {
+                            ProgressView()
+                                .tint(SauceColor.onPrimary)
+                        }
+                        Text(viewModel.isSaving ? "저장 중..." : "변경사항 저장")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .primarySauceButton()
+                .disabled(!viewModel.canSave)
+            }
+            .padding(.horizontal, SauceSpacing.screen)
+            .padding(.bottom, 42)
+        }
+        .background(SauceColor.surface.ignoresSafeArea())
+        .task {
+            await viewModel.load()
+        }
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            Task {
+                await loadSelectedPhoto(newItem)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profilePreview: some View {
+        if let data = viewModel.selectedPhotoData,
+           let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 118, height: 118)
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .stroke(SauceColor.surface, lineWidth: 4)
+                }
+        } else {
+            ProfileAvatar(imageURL: viewModel.profileImageUrl, size: 118)
+        }
+    }
+
+    @MainActor
+    private func loadSelectedPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else {
+            viewModel.clearSelectedPhoto()
+            return
+        }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self) {
+                viewModel.setSelectedPhoto(
+                    data: ImageUploadPreprocessor.normalizedJPEGData(
+                        from: data,
+                        maxDimension: 1200,
+                        compressionQuality: 0.82
+                    ),
+                    contentType: "image/jpeg",
+                    fileExtension: "jpg"
+                )
+            }
+        } catch {
+            viewModel.clearSelectedPhoto()
+        }
     }
 }
 

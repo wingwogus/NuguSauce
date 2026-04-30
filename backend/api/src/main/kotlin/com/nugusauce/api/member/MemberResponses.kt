@@ -8,6 +8,7 @@ object MemberResponses {
         val id: Long,
         val nickname: String?,
         val displayName: String,
+        val profileImageUrl: String?,
         val profileSetupRequired: Boolean
     ) {
         companion object {
@@ -16,6 +17,7 @@ object MemberResponses {
                     id = result.id,
                     nickname = result.nickname,
                     displayName = result.displayName,
+                    profileImageUrl = result.profileImageUrl,
                     profileSetupRequired = result.profileSetupRequired
                 )
             }
@@ -26,6 +28,7 @@ object MemberResponses {
         val id: Long,
         val nickname: String?,
         val displayName: String,
+        val profileImageUrl: String?,
         val profileSetupRequired: Boolean,
         val recipes: List<RecipeResponses.RecipeSummaryResponse>,
         val favoriteRecipes: List<RecipeResponses.RecipeSummaryResponse>
@@ -36,6 +39,7 @@ object MemberResponses {
                     id = result.id,
                     nickname = result.nickname,
                     displayName = result.displayName,
+                    profileImageUrl = result.profileImageUrl,
                     profileSetupRequired = result.profileSetupRequired,
                     recipes = result.recipes.map(RecipeResponses.RecipeSummaryResponse::from),
                     favoriteRecipes = result.favoriteRecipes.map(RecipeResponses.RecipeSummaryResponse::from)

@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.report.RecipeReport
@@ -18,7 +19,7 @@ class RecipeModerationService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeReportRepository: RecipeReportRepository,
-    private val recipeImageUrlResolver: RecipeImageUrlResolver
+    private val imageUrlResolver: ImageUrlResolver
 ) {
     fun report(command: RecipeCommand.CreateReport): RecipeResult.ReportItem {
         if (command.reason.isBlank()) {
@@ -45,7 +46,11 @@ class RecipeModerationService(
         }
         recipe.changeVisibility(command.visibility.toDomainVisibility())
         val saved = sauceRecipeRepository.save(recipe)
-        return RecipeResult.detail(saved, imageUrl = recipeImageUrlResolver.imageUrl(saved))
+        return RecipeResult.detail(
+            saved,
+            imageUrl = imageUrlResolver.recipeImageUrl(saved),
+            authorProfileImageUrl = saved.author?.let(imageUrlResolver::memberProfileImageUrl)
+        )
     }
 
     private fun findMember(memberId: Long): Member {

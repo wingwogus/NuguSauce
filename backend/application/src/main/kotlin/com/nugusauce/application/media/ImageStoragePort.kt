@@ -12,6 +12,8 @@ interface ImageStoragePort {
     fun verifyUpload(providerKey: String): VerifiedUpload
 
     fun displayUrl(providerKey: String): String
+
+    fun delete(providerKey: String)
 }
 
 data class VerifiedUpload(

@@ -176,11 +176,11 @@ final class BackendAPIClient: APIClientProtocol {
         try await send(path: "/api/v1/members/\(id)")
     }
 
-    func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
+    func updateMyMember(nickname: String, profileImageId: Int? = nil) async throws -> MemberProfileDTO {
         try await send(
             path: "/api/v1/members/me",
             method: "PATCH",
-            body: AnyEncodable(UpdateMemberRequest(nickname: nickname)),
+            body: AnyEncodable(UpdateMemberRequest(nickname: nickname, profileImageId: profileImageId)),
             requiresAuthentication: true
         )
     }
@@ -360,6 +360,7 @@ private struct ReissueRequest: Encodable {
 
 private struct UpdateMemberRequest: Encodable {
     let nickname: String
+    let profileImageId: Int?
 }
 
 private struct AnyEncodable: Encodable {

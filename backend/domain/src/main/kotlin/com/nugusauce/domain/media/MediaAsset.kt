@@ -56,6 +56,9 @@ class MediaAsset(
     @Column(nullable = true)
     var attachedRecipeId: Long? = null,
 
+    @Column(nullable = true)
+    var attachedProfileMemberId: Long? = null,
+
     @Column(nullable = false)
     val createdAt: Instant = Instant.now(),
 
@@ -91,6 +94,9 @@ class MediaAsset(
         require(status == MediaAssetStatus.VERIFIED || status == MediaAssetStatus.ATTACHED) {
             "only verified media can be attached"
         }
+        require(attachedProfileMemberId == null) {
+            "media is already attached to a profile"
+        }
         require(attachedRecipeId == null || attachedRecipeId == recipeId) {
             "media is already attached to another recipe"
         }
@@ -98,6 +104,36 @@ class MediaAsset(
         status = MediaAssetStatus.ATTACHED
         touch(attachedAt)
     }
+
+    fun attachToProfile(memberId: Long, attachedAt: Instant = Instant.now()) {
+        require(status == MediaAssetStatus.VERIFIED || status == MediaAssetStatus.ATTACHED) {
+            "only verified media can be attached"
+        }
+        require(attachedRecipeId == null) {
+            "media is already attached to a recipe"
+        }
+        require(attachedProfileMemberId == null || attachedProfileMemberId == memberId) {
+            "media is already attached to another profile"
+        }
+        attachedProfileMemberId = memberId
+        status = MediaAssetStatus.ATTACHED
+        touch(attachedAt)
+    }
+
+    fun detachFromProfile(memberId: Long, detachedAt: Instant = Instant.now()) {
+        require(attachedRecipeId == null) {
+            "recipe media cannot be detached from a profile"
+        }
+        require(attachedProfileMemberId == null || attachedProfileMemberId == memberId) {
+            "media is attached to another profile"
+        }
+        attachedProfileMemberId = null
+        status = MediaAssetStatus.VERIFIED
+        touch(detachedAt)
+    }
+
+    val isAttached: Boolean
+        get() = attachedRecipeId != null || attachedProfileMemberId != null
 
     private fun touch(at: Instant = Instant.now()) {
         updatedAt = at

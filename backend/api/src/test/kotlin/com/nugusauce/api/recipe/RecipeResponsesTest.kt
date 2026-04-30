@@ -45,6 +45,7 @@ class RecipeResponsesTest {
                 authorType = "USER",
                 authorId = 7L,
                 authorName = "소스장인",
+                authorProfileImageUrl = "https://cdn.example.test/profile.jpg",
                 visibility = "VISIBLE",
                 ingredients = emptyList(),
                 tags = emptyList(),
@@ -59,6 +60,7 @@ class RecipeResponsesTest {
 
         assertEquals(7L, response.authorId)
         assertEquals("소스장인", response.authorName)
+        assertEquals("https://cdn.example.test/profile.jpg", response.authorProfileImageUrl)
         assertEquals(true, response.isFavorite)
         assertEquals(3, response.favoriteCount)
     }
@@ -77,6 +79,7 @@ class RecipeResponsesTest {
                 authorType = "CURATED",
                 authorId = null,
                 authorName = "NuguSauce",
+                authorProfileImageUrl = null,
                 visibility = "VISIBLE",
                 ingredients = emptyList(),
                 tags = emptyList(),
@@ -100,6 +103,7 @@ class RecipeResponsesTest {
                 recipeId = 1L,
                 authorId = 8L,
                 authorName = "리뷰장인",
+                authorProfileImageUrl = "https://cdn.example.test/reviewer.jpg",
                 rating = 5,
                 text = "고소하고 좋아요",
                 tasteTags = emptyList(),
@@ -109,5 +113,6 @@ class RecipeResponsesTest {
 
         assertEquals(8L, response.authorId)
         assertEquals("리뷰장인", response.authorName)
+        assertEquals("https://cdn.example.test/reviewer.jpg", response.authorProfileImageUrl)
     }
 }

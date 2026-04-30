@@ -2,6 +2,7 @@ package com.nugusauce.application.recipe
 
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
+import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
@@ -21,7 +22,8 @@ class RecipeReviewService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
-    private val recipeTagRepository: RecipeTagRepository
+    private val recipeTagRepository: RecipeTagRepository,
+    private val imageUrlResolver: ImageUrlResolver
 ) {
     fun create(command: RecipeCommand.CreateReview): RecipeResult.ReviewItem {
         if (command.rating !in 1..5) {
@@ -47,7 +49,10 @@ class RecipeReviewService(
         recipe.recordReview(command.rating, reviewedAt)
         sauceRecipeRepository.save(recipe)
 
-        return RecipeResult.review(recipeReviewRepository.save(review))
+        return RecipeResult.review(
+            recipeReviewRepository.save(review),
+            authorProfileImageUrl = imageUrlResolver.memberProfileImageUrl(author)
+        )
     }
 
     private fun findMember(memberId: Long): Member {
