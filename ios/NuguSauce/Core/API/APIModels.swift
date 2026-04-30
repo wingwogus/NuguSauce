@@ -41,6 +41,7 @@ struct ApiError: Decodable, Equatable, Error {
 
 enum ApiErrorCode {
     static let unauthorized = "AUTH_001"
+    static let forbidden = "AUTH_002"
     static let invalidKakaoToken = "AUTH_009"
     static let kakaoNonceMismatch = "AUTH_010"
     static let kakaoNonceReplay = "AUTH_011"
@@ -48,9 +49,53 @@ enum ApiErrorCode {
     static let invalidNickname = "USER_003"
     static let duplicateNickname = "USER_004"
     static let invalidInput = "COMMON_001"
+    static let invalidJSON = "COMMON_002"
+    static let internalError = "COMMON_999"
+    static let resourceNotFound = "RESOURCE_001"
     static let duplicateReview = "RECIPE_005"
+    static let invalidRating = "RECIPE_007"
+    static let invalidIngredientAmount = "RECIPE_008"
     static let duplicateFavorite = "RECIPE_010"
     static let favoriteNotFound = "RECIPE_011"
+    static let unsupportedMediaContentType = "MEDIA_002"
+    static let mediaFileTooLarge = "MEDIA_003"
+    static let mediaUploadNotVerified = "MEDIA_004"
+    static let mediaProviderUnavailable = "MEDIA_007"
+}
+
+extension ApiError {
+    func userVisibleMessage(default fallback: String) -> String {
+        switch code {
+        case ApiErrorCode.unauthorized:
+            return "로그인이 필요합니다."
+        case ApiErrorCode.forbidden:
+            return "접근 권한이 없어요."
+        case ApiErrorCode.invalidInput, ApiErrorCode.invalidJSON:
+            return "입력한 내용을 확인해주세요."
+        case ApiErrorCode.resourceNotFound:
+            return "요청한 정보를 찾을 수 없어요."
+        case ApiErrorCode.invalidNickname:
+            return "2~20자의 한글, 영문, 숫자, 밑줄만 사용할 수 있어요."
+        case ApiErrorCode.duplicateNickname:
+            return "이미 사용 중인 닉네임입니다."
+        case ApiErrorCode.duplicateReview:
+            return "이미 리뷰를 남긴 레시피입니다."
+        case ApiErrorCode.invalidRating:
+            return "평점을 확인해주세요."
+        case ApiErrorCode.invalidIngredientAmount:
+            return "재료 비율을 확인해주세요."
+        case ApiErrorCode.unsupportedMediaContentType:
+            return "지원하지 않는 이미지 형식입니다."
+        case ApiErrorCode.mediaFileTooLarge:
+            return "이미지 파일 크기가 너무 큽니다."
+        case ApiErrorCode.mediaUploadNotVerified, ApiErrorCode.mediaProviderUnavailable:
+            return "이미지 업로드를 잠시 사용할 수 없어요."
+        case ApiErrorCode.internalError:
+            return fallback
+        default:
+            return fallback
+        }
+    }
 }
 
 enum RecipeSort: String, CaseIterable, Identifiable {

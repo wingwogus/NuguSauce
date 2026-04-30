@@ -36,11 +36,11 @@ enum KakaoLoginServiceError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .missingNativeAppKey:
-            return "KAKAO_NATIVE_APP_KEY를 설정해주세요."
+            return "카카오 로그인에 실패했어요. 다시 시도해주세요."
         case .missingIDToken:
-            return "카카오 ID Token을 받지 못했습니다. Kakao Developers에서 OpenID Connect 설정을 확인해주세요."
+            return "카카오 로그인 정보를 확인하지 못했어요. 다시 시도해주세요."
         case .nonceGenerationFailed:
-            return "로그인 nonce를 만들지 못했습니다."
+            return "카카오 로그인에 실패했어요. 다시 시도해주세요."
         }
     }
 }
@@ -48,39 +48,37 @@ enum KakaoLoginServiceError: LocalizedError, Equatable {
 enum KakaoLoginErrorMessage {
     static func message(for error: Error, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> String {
         if isBundleIDMismatch(error) {
-            if let bundleIdentifier, !bundleIdentifier.isEmpty {
-                return "Kakao Developers의 iOS Bundle ID에 \(bundleIdentifier)를 등록해주세요."
-            }
-            return "Kakao Developers의 iOS Bundle ID와 앱 Bundle ID를 맞춰주세요."
+            return "카카오 로그인 설정을 확인할 수 없어요. 잠시 후 다시 시도해주세요."
         }
 
         if let apiError = error as? ApiError {
             return message(for: apiError)
         }
 
-        if let localizedError = error as? LocalizedError,
-           let message = localizedError.errorDescription {
-            return message
+        if let serviceError = error as? KakaoLoginServiceError {
+            return message(for: serviceError)
         }
 
-        return "카카오 로그인에 실패했습니다."
+        return "카카오 로그인에 실패했어요. 다시 시도해주세요."
     }
 
     private static func message(for apiError: ApiError) -> String {
         switch apiError.code {
         case ApiErrorCode.invalidKakaoToken:
-            return "카카오 토큰 검증에 실패했습니다. 백엔드 KAKAO_NATIVE_APP_KEY를 iOS Native App Key와 맞춰주세요. (\(apiError.code))"
-        case ApiErrorCode.kakaoNonceMismatch:
-            return "카카오 로그인 응답이 현재 요청과 일치하지 않습니다. 다시 시도해주세요. (\(apiError.code))"
-        case ApiErrorCode.kakaoNonceReplay:
-            return "이미 사용된 카카오 로그인 응답입니다. 다시 로그인해주세요. (\(apiError.code))"
+            return "카카오 로그인에 실패했어요. 다시 시도해주세요."
+        case ApiErrorCode.kakaoNonceMismatch, ApiErrorCode.kakaoNonceReplay:
+            return "로그인 요청이 만료되었어요. 다시 시도해주세요."
         case ApiErrorCode.kakaoVerifiedEmailRequired:
-            return "카카오 계정의 인증된 이메일 제공 동의가 필요합니다. Kakao Developers 동의항목을 확인해주세요. (\(apiError.code))"
+            return "카카오 계정의 인증된 이메일 제공 동의가 필요해요."
         default:
-            if !apiError.message.isEmpty {
-                return apiError.message
-            }
-            return "카카오 로그인에 실패했습니다. (\(apiError.code))"
+            return "카카오 로그인에 실패했어요. 다시 시도해주세요."
+        }
+    }
+
+    private static func message(for serviceError: KakaoLoginServiceError) -> String {
+        switch serviceError {
+        case .missingNativeAppKey, .missingIDToken, .nonceGenerationFailed:
+            return "카카오 로그인에 실패했어요. 다시 시도해주세요."
         }
     }
 

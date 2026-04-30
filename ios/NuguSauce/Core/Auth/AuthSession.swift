@@ -51,16 +51,7 @@ enum AuthSessionPersistenceFailure: Equatable {
     case refreshTokenDeleteFailed
 
     var message: String {
-        switch self {
-        case .emptyAccessToken:
-            return "백엔드 로그인 응답에 access token이 비어 있습니다."
-        case .accessTokenSaveFailed:
-            return "Access token을 Keychain에 저장하지 못했습니다. 앱을 완전히 종료한 뒤 다시 시도해주세요."
-        case .refreshTokenSaveFailed:
-            return "Refresh token을 Keychain에 저장하지 못했습니다. 앱을 완전히 종료한 뒤 다시 시도해주세요."
-        case .refreshTokenDeleteFailed:
-            return "기존 refresh token을 Keychain에서 정리하지 못했습니다. 앱을 완전히 종료한 뒤 다시 시도해주세요."
-        }
+        "로그인 세션을 안전하게 저장하지 못했어요. 다시 시도해주세요."
     }
 }
 

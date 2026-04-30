@@ -202,6 +202,29 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.didSubmit)
     }
 
+    func testCreateRecipeSubmitDoesNotExposeServerErrorMessage() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let client = TestAPIClient(
+            ingredients: [ingredient],
+            createRecipeError: ApiError(
+                code: ApiErrorCode.internalError,
+                message: "java.lang.IllegalStateException: failed in com.nugusauce.api.recipe",
+                detail: nil
+            )
+        )
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "사천식 매콤 소스"
+        let recipeID = await viewModel.submit()
+
+        XCTAssertNil(recipeID)
+        XCTAssertEqual(viewModel.errorMessage, "레시피를 등록하지 못했어요.")
+        XCTAssertFalse(viewModel.errorMessage?.contains("java.lang") == true)
+    }
+
     func testCreateRecipeSubmitUploadsSelectedPhotoBeforeCreate() async {
         let authStore = TestAuthSessionStore(accessToken: "real-access-token")
         let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
@@ -491,6 +514,21 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(tokenStore.read(account: .refreshToken))
     }
 
+    func testAuthSessionPersistenceFailureMessageDoesNotExposeTokenStorageDetails() {
+        let failures: [AuthSessionPersistenceFailure] = [
+            .emptyAccessToken,
+            .accessTokenSaveFailed,
+            .refreshTokenSaveFailed,
+            .refreshTokenDeleteFailed
+        ]
+
+        for failure in failures {
+            XCTAssertEqual(failure.message, "로그인 세션을 안전하게 저장하지 못했어요. 다시 시도해주세요.")
+            XCTAssertFalse(failure.message.localizedCaseInsensitiveContains("token"))
+            XCTAssertFalse(failure.message.localizedCaseInsensitiveContains("keychain"))
+        }
+    }
+
     func testKeychainTokenStoreSavesUpdatesReadsAndDeletesWithIsolatedService() {
         let store = KeychainTokenStore(service: "com.nugusauce.ios.auth.tests.\(UUID().uuidString)")
 
@@ -515,7 +553,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(second.range(of: #"[^0-9A-Za-z._-]"#, options: .regularExpression))
     }
 
-    func testKakaoBundleIDMismatchMessageNamesCurrentBundleID() {
+    func testKakaoBundleIDMismatchMessageHidesSDKDetails() {
         let error = NSError(
             domain: "KakaoSDK",
             code: -1,
@@ -526,23 +564,43 @@ final class ViewModelTests: XCTestCase {
 
         let message = KakaoLoginErrorMessage.message(for: error, bundleIdentifier: "com.nugusauce.ios")
 
-        XCTAssertEqual(message, "Kakao Developers의 iOS Bundle ID에 com.nugusauce.ios를 등록해주세요.")
+        XCTAssertEqual(message, "카카오 로그인 설정을 확인할 수 없어요. 잠시 후 다시 시도해주세요.")
+        XCTAssertFalse(message.contains("KOE009"))
+        XCTAssertFalse(message.contains("com.nugusauce.ios"))
     }
 
-    func testKakaoInvalidTokenMessagePointsToBackendAudienceConfiguration() {
+    func testKakaoInvalidTokenMessageDoesNotExposeBackendConfiguration() {
         let error = ApiError(code: ApiErrorCode.invalidKakaoToken, message: "invalid kakao token", detail: nil)
 
         let message = KakaoLoginErrorMessage.message(for: error)
 
-        XCTAssertEqual(message, "카카오 토큰 검증에 실패했습니다. 백엔드 KAKAO_NATIVE_APP_KEY를 iOS Native App Key와 맞춰주세요. (AUTH_009)")
+        XCTAssertEqual(message, "카카오 로그인에 실패했어요. 다시 시도해주세요.")
+        XCTAssertFalse(message.contains("KAKAO_NATIVE_APP_KEY"))
+        XCTAssertFalse(message.contains(ApiErrorCode.invalidKakaoToken))
     }
 
-    func testKakaoVerifiedEmailRequiredMessageExplainsConsent() {
+    func testKakaoVerifiedEmailRequiredMessageIsUserFacing() {
         let error = ApiError(code: ApiErrorCode.kakaoVerifiedEmailRequired, message: "verified email required", detail: nil)
 
         let message = KakaoLoginErrorMessage.message(for: error)
 
-        XCTAssertEqual(message, "카카오 계정의 인증된 이메일 제공 동의가 필요합니다. Kakao Developers 동의항목을 확인해주세요. (AUTH_012)")
+        XCTAssertEqual(message, "카카오 계정의 인증된 이메일 제공 동의가 필요해요.")
+        XCTAssertFalse(message.contains(ApiErrorCode.kakaoVerifiedEmailRequired))
+        XCTAssertFalse(message.contains("Kakao Developers"))
+    }
+
+    func testKakaoUnknownApiErrorDoesNotExposeServerMessageOrCode() {
+        let error = ApiError(
+            code: ApiErrorCode.internalError,
+            message: "java.lang.IllegalStateException: failed in com.nugusauce.api.auth",
+            detail: nil
+        )
+
+        let message = KakaoLoginErrorMessage.message(for: error)
+
+        XCTAssertEqual(message, "카카오 로그인에 실패했어요. 다시 시도해주세요.")
+        XCTAssertFalse(message.contains(ApiErrorCode.internalError))
+        XCTAssertFalse(message.contains("java.lang"))
     }
 
     func testKakaoLoginRequiresAdditionalConsentWhenEmailScopeIsMissing() {
@@ -619,6 +677,27 @@ final class ViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.isFavorite)
         XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testRecipeDetailFavoriteUnknownApiErrorDoesNotExposeServerMessage() async {
+        let client = TestAPIClient(
+            favoriteAddError: ApiError(
+                code: ApiErrorCode.internalError,
+                message: "java.lang.IllegalStateException: favorite write failed",
+                detail: nil
+            )
+        )
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+
+        await viewModel.toggleFavorite()
+
+        XCTAssertFalse(viewModel.isFavorite)
+        XCTAssertEqual(viewModel.errorMessage, "찜 상태를 변경하지 못했어요.")
+        XCTAssertFalse(viewModel.errorMessage?.contains("java.lang") == true)
     }
 
     func testRecipeDetailFavoriteHeartFillsWhileAddRequestIsInFlight() async {
@@ -718,6 +797,26 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(authStore.currentSession?.profileSetupRequired, false)
     }
 
+    func testProfileNicknameUnknownApiErrorDoesNotExposeCodeOrServerMessage() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            updateMemberError: ApiError(
+                code: ApiErrorCode.internalError,
+                message: "SQLIntegrityConstraintViolationException",
+                detail: nil
+            )
+        )
+        let viewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+        viewModel.nicknameDraft = "소스장인"
+
+        let didSave = await viewModel.saveNickname()
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.nicknameErrorMessage, "닉네임을 저장하지 못했어요.")
+        XCTAssertFalse(viewModel.nicknameErrorMessage?.contains(ApiErrorCode.internalError) == true)
+        XCTAssertFalse(viewModel.nicknameErrorMessage?.contains("SQLIntegrity") == true)
+    }
+
     func testProfileUsesUpdatedSessionAfterProfileSetupGateSavesNickname() async {
         let authStore = TestAuthSessionStore(accessToken: "real-access-token")
         let client = TestAPIClient(
@@ -795,9 +894,11 @@ private final class TestAPIClient: APIClientProtocol {
     private let ingredients: [IngredientDTO]
     private let tags: [TagDTO]
     private let detailIsFavorite: Bool
+    private let createRecipeError: Error?
     private let favoriteAddError: Error?
     private let favoriteDeleteError: Error?
     private let suspendFavoriteAdd: Bool
+    private let updateMemberError: Error?
     private var didStartFavoriteAdd = false
     private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
     private var favoriteAddCompletion: CheckedContinuation<Void, Error>?
@@ -821,9 +922,11 @@ private final class TestAPIClient: APIClientProtocol {
         ingredients: [IngredientDTO] = [],
         tags: [TagDTO] = [],
         detailIsFavorite: Bool = false,
+        createRecipeError: Error? = nil,
         favoriteAddError: Error? = nil,
         favoriteDeleteError: Error? = nil,
         suspendFavoriteAdd: Bool = false,
+        updateMemberError: Error? = nil,
         memberProfile: MemberProfileDTO = MemberProfileDTO(
             id: 1,
             nickname: "테스터",
@@ -838,9 +941,11 @@ private final class TestAPIClient: APIClientProtocol {
         self.ingredients = ingredients
         self.tags = tags
         self.detailIsFavorite = detailIsFavorite
+        self.createRecipeError = createRecipeError
         self.favoriteAddError = favoriteAddError
         self.favoriteDeleteError = favoriteDeleteError
         self.suspendFavoriteAdd = suspendFavoriteAdd
+        self.updateMemberError = updateMemberError
         self.memberProfile = memberProfile
     }
 
@@ -918,6 +1023,9 @@ private final class TestAPIClient: APIClientProtocol {
         )
     }
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        if let createRecipeError {
+            throw createRecipeError
+        }
         uploadEvents.append("create")
         createdRecipeRequests.append(request)
         return try await fetchRecipeDetail(id: 1)
@@ -980,6 +1088,9 @@ private final class TestAPIClient: APIClientProtocol {
         return memberProfile
     }
     func updateMyMember(nickname: String) async throws -> MemberProfileDTO {
+        if let updateMemberError {
+            throw updateMemberError
+        }
         updatedNicknames.append(nickname)
         memberProfile = MemberProfileDTO(
             id: memberProfile.id,

@@ -156,7 +156,7 @@ final class RecipeDetailViewModel: ObservableObject {
                     isFavorite = false
                 default:
                     isFavorite = previousFavoriteState
-                    errorMessage = apiError.message
+                    errorMessage = apiError.userVisibleMessage(default: "찜 상태를 변경하지 못했어요.")
                 }
             } else {
                 isFavorite = previousFavoriteState

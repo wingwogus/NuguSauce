@@ -178,7 +178,7 @@ final class CreateRecipeViewModel: ObservableObject {
         } catch {
             isSubmitting = false
             if let apiError = error as? ApiError {
-                errorMessage = apiError.message
+                errorMessage = apiError.userVisibleMessage(default: "레시피를 등록하지 못했어요.")
             } else {
                 errorMessage = "레시피를 등록하지 못했어요."
             }

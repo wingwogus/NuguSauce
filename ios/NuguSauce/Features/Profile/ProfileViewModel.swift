@@ -109,7 +109,7 @@ final class ProfileViewModel: ObservableObject {
         case ApiErrorCode.duplicateNickname:
             return "이미 사용 중인 닉네임입니다."
         default:
-            return "닉네임을 저장하지 못했어요. (\(error.code))"
+            return error.userVisibleMessage(default: "닉네임을 저장하지 못했어요.")
         }
     }
 }
