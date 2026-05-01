@@ -10,7 +10,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
-import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -118,7 +117,6 @@ class RecipeReviewServiceTest {
             description = "설명",
             spiceLevel = 3,
             richnessLevel = 4,
-            authorType = RecipeAuthorType.CURATED,
             visibility = visibility
         )
     }

@@ -154,7 +154,6 @@ class MemberControllerTest(
             spiceLevel = 3,
             richnessLevel = 4,
             imageUrl = null,
-            authorType = "USER",
             visibility = "VISIBLE",
             ratingSummary = RecipeResult.RatingSummary(0.0, 0),
             tags = emptyList(),

@@ -10,7 +10,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
-import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.springframework.stereotype.Service
@@ -40,7 +39,6 @@ class RecipeWriteService(
             richnessLevel = USER_RECIPE_DEFAULT_RICHNESS_LEVEL,
             imageAsset = imageAsset,
             tips = command.tips?.trim()?.takeIf { it.isNotBlank() },
-            authorType = RecipeAuthorType.USER,
             author = author
         )
 

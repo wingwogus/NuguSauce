@@ -10,7 +10,6 @@ import com.nugusauce.domain.recipe.report.RecipeReport
 import com.nugusauce.domain.recipe.report.RecipeReportRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
-import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -110,7 +109,6 @@ class LocalSeedService(
                 description = seed.description,
                 spiceLevel = seed.spiceLevel,
                 richnessLevel = seed.richnessLevel,
-                authorType = seed.authorType,
                 author = seed.authorEmail?.let(users::getValue),
                 visibility = seed.visibility
             ).apply {
@@ -122,7 +120,7 @@ class LocalSeedService(
                         null
                     )
                 }
-                if (seed.authorType == RecipeAuthorType.CURATED) {
+                if (seed.authorEmail == null) {
                     seed.tagNames.map(tags::getValue).forEach(::addTag)
                 }
             }
@@ -212,7 +210,6 @@ class LocalSeedService(
         val richnessLevel: Int,
         val tagNames: List<String>,
         val ingredients: List<IngredientAmountSeed>,
-        val authorType: RecipeAuthorType = RecipeAuthorType.CURATED,
         val authorEmail: String? = null,
         val visibility: RecipeVisibility = RecipeVisibility.VISIBLE
     )
@@ -468,7 +465,6 @@ class LocalSeedService(
                     IngredientAmountSeed("참기름", "1.0"),
                     IngredientAmountSeed("땅콩소스", "0.5")
                 ),
-                authorType = RecipeAuthorType.USER,
                 authorEmail = SEED_NORMAL_EMAIL
             ),
             RecipeSeed(
@@ -482,7 +478,6 @@ class LocalSeedService(
                     IngredientAmountSeed("식초", "1.0"),
                     IngredientAmountSeed("간장", "0.5")
                 ),
-                authorType = RecipeAuthorType.USER,
                 authorEmail = "reviewer@example.test"
             )
         )

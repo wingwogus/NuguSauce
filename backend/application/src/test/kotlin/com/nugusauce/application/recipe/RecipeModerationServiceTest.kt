@@ -10,7 +10,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.report.RecipeReport
 import com.nugusauce.domain.recipe.report.RecipeReportRepository
-import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -103,8 +102,7 @@ class RecipeModerationServiceTest {
             title = "건희 소스",
             description = "설명",
             spiceLevel = 3,
-            richnessLevel = 4,
-            authorType = RecipeAuthorType.CURATED
+            richnessLevel = 4
         )
     }
 

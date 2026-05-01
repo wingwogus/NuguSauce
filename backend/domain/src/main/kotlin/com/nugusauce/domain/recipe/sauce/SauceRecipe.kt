@@ -60,10 +60,6 @@ class SauceRecipe(
     @Column(nullable = true, length = 1000)
     val tips: String? = null,
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
-    val authorType: RecipeAuthorType,
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = true)
     val author: Member? = null,
@@ -106,9 +102,6 @@ class SauceRecipe(
         require(description.isNotBlank()) { "recipe description must not be blank" }
         require(spiceLevel in 0..5) { "spice level must be between 0 and 5" }
         require(richnessLevel in 0..5) { "richness level must be between 0 and 5" }
-        require(authorType != RecipeAuthorType.USER || author != null) {
-            "user recipes must have an author"
-        }
     }
 
     fun addIngredient(
@@ -140,7 +133,7 @@ class SauceRecipe(
     }
 
     fun addTag(tag: RecipeTag) {
-        require(authorType != RecipeAuthorType.USER) {
+        require(author == null) {
             "user recipes cannot select taste tags"
         }
         tags.add(tag)

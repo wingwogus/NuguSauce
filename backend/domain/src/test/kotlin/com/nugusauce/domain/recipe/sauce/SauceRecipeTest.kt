@@ -93,7 +93,6 @@ class SauceRecipeTest {
             description = "설명",
             spiceLevel = 0,
             richnessLevel = 0,
-            authorType = RecipeAuthorType.USER,
             author = author
         )
     }

@@ -276,7 +276,6 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             description = "$title 설명",
             spiceLevel = 3,
             richnessLevel = 4,
-            authorType = RecipeAuthorType.CURATED,
             visibility = visibility,
             createdAt = createdAt,
             lastReviewedAt = lastReviewedAt,

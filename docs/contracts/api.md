@@ -220,7 +220,6 @@ Success data:
       "title": "마늘 듬뿍 고소 소스",
       "description": "마늘 향이 강한 커스텀 조합",
       "imageUrl": null,
-      "authorType": "USER",
       "visibility": "VISIBLE",
       "ratingSummary": {
         "averageRating": 0.0,
@@ -238,7 +237,6 @@ Success data:
       "title": "건희 소스",
       "description": "고소하고 매콤한 인기 조합",
       "imageUrl": null,
-      "authorType": "CURATED",
       "visibility": "VISIBLE",
       "ratingSummary": {
         "averageRating": 4.7,
@@ -383,7 +381,6 @@ Success data:
     "title": "건희 소스",
     "description": "고소하고 매콤한 인기 조합",
     "imageUrl": null,
-    "authorType": "CURATED",
     "visibility": "VISIBLE",
     "ratingSummary": {
       "averageRating": 4.7,
@@ -417,7 +414,6 @@ Success data:
   "description": "고소하고 매콤한 인기 조합",
   "imageUrl": null,
   "tips": "참기름은 마지막에 넣는다",
-  "authorType": "CURATED",
   "authorId": null,
   "authorName": "NuguSauce",
   "authorProfileImageUrl": null,
@@ -633,7 +629,6 @@ Success data:
     "title": "마늘 듬뿍 고소 소스",
     "description": "마늘 향이 강한 커스텀 조합",
     "imageUrl": null,
-    "authorType": "USER",
     "visibility": "VISIBLE",
     "ratingSummary": {
       "averageRating": 0.0,

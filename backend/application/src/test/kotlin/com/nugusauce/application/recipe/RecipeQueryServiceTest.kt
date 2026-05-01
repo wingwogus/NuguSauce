@@ -12,7 +12,6 @@ import com.nugusauce.domain.recipe.ingredient.IngredientRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.review.RecipeReviewTagCountProjection
-import com.nugusauce.domain.recipe.sauce.RecipeAuthorType
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -197,7 +196,6 @@ class RecipeQueryServiceTest {
 
         val result = service.getDetail(10L)
 
-        assertEquals("USER", result.authorType)
         assertEquals(7L, result.authorId)
         assertEquals("소스장인", result.authorName)
     }
@@ -260,7 +258,6 @@ class RecipeQueryServiceTest {
             description = "설명",
             spiceLevel = 3,
             richnessLevel = 4,
-            authorType = if (author == null) RecipeAuthorType.CURATED else RecipeAuthorType.USER,
             author = author,
             visibility = visibility,
             createdAt = createdAt
