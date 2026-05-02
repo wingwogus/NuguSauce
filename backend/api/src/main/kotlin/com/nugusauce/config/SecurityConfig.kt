@@ -22,6 +22,7 @@ class SecurityConfig(
     private val accessDeniedHandler: CustomAccessDeniedHandler,
     private val authenticationEntryPoint: CustomAuthenticationEntryPoint,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val mdcLoggingFilter: MDCLoggingFilter,
     @Value("\${app.url:http://localhost:8081}") private val appUrl: String,
 ) {
 
@@ -96,16 +97,19 @@ class SecurityConfig(
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter::class.java
             )
+            .addFilterAfter(
+                mdcLoggingFilter,
+                UsernamePasswordAuthenticationFilter::class.java
+            )
 
         return http.build()
     }
 
     @Bean
-    fun loggingFilterRegistration(loggingFilter: LoggingFilter): FilterRegistrationBean<LoggingFilter> {
-        return FilterRegistrationBean<LoggingFilter>().apply {
-            filter = loggingFilter
-            order = Int.MIN_VALUE   // 첫 번째로 실행
-            addUrlPatterns("/*")
+    fun mdcLoggingFilterRegistration(mdcLoggingFilter: MDCLoggingFilter): FilterRegistrationBean<MDCLoggingFilter> {
+        return FilterRegistrationBean<MDCLoggingFilter>().apply {
+            filter = mdcLoggingFilter
+            isEnabled = false
         }
     }
 
