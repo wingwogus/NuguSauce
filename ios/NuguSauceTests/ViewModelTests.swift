@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import XCTest
 @testable import NuguSauce
 
@@ -14,6 +15,51 @@ final class ViewModelTests: XCTestCase {
         let restoredPreference = SauceThemePreference(rawValue: "legacy-or-corrupt-value") ?? .system
 
         XCTAssertEqual(restoredPreference, .system)
+    }
+
+    func testLightSurfaceTokensRemainTonallySeparated() {
+        let traits = UITraitCollection(userInterfaceStyle: .light)
+
+        let surfaceContainer = Self.brightness(of: SauceColor.surfaceContainer, traits: traits)
+        let surfaceContainerLow = Self.brightness(of: SauceColor.surfaceContainerLow, traits: traits)
+        let surface = Self.brightness(of: SauceColor.surface, traits: traits)
+        let surfaceLowest = Self.brightness(of: SauceColor.surfaceLowest, traits: traits)
+
+        XCTAssertLessThan(surfaceContainer, surfaceContainerLow)
+        XCTAssertLessThan(surfaceContainerLow, surface)
+        XCTAssertLessThan(surface, surfaceLowest)
+        XCTAssertGreaterThan(surfaceLowest - surfaceContainerLow, 0.04)
+    }
+
+    func testImageUploadPreprocessorCapsOutputPixelsForUpload() {
+        let originalImage = Self.noisyImage(width: 900, height: 700)
+        let originalData = originalImage.pngData()!
+
+        let normalizedData = ImageUploadPreprocessor.normalizedJPEGData(
+            from: originalData,
+            maxDimension: 320,
+            compressionQuality: 0.82
+        )
+        let normalizedImage = UIImage(data: normalizedData)
+
+        XCTAssertNotNil(normalizedImage)
+        XCTAssertLessThanOrEqual(max(normalizedImage?.cgImage?.width ?? 0, normalizedImage?.cgImage?.height ?? 0), 320)
+        XCTAssertLessThanOrEqual(normalizedData.count, ImageUploadPreprocessor.defaultMaxBytes)
+    }
+
+    func testImageUploadPreprocessorFitsDataUnderByteLimit() {
+        let originalImage = Self.noisyImage(width: 900, height: 900)
+        let originalData = originalImage.pngData()!
+
+        let normalizedData = ImageUploadPreprocessor.normalizedJPEGData(
+            from: originalData,
+            maxDimension: 900,
+            compressionQuality: 0.95,
+            maxBytes: 160_000
+        )
+
+        XCTAssertLessThanOrEqual(normalizedData.count, 160_000)
+        XCTAssertNotNil(UIImage(data: normalizedData))
     }
 
     func testRootTabSelectionReturnsHomeAfterProfileSetupCompletes() {
@@ -918,6 +964,50 @@ final class ViewModelTests: XCTestCase {
         let userDefaults = UserDefaults(suiteName: suiteName)!
         userDefaults.removePersistentDomain(forName: suiteName)
         return userDefaults
+    }
+
+    private static func brightness(of color: Color, traits: UITraitCollection) -> CGFloat {
+        let resolvedColor = UIColor(color).resolvedColor(with: traits)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        resolvedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        return (red + green + blue) / 3
+    }
+
+    private static func noisyImage(width: Int, height: Int) -> UIImage {
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * width + x) * 4
+                bytes[offset] = UInt8((x * 31 + y * 17) % 256)
+                bytes[offset + 1] = UInt8((x * 11 + y * 47) % 256)
+                bytes[offset + 2] = UInt8((x * 71 + y * 23) % 256)
+                bytes[offset + 3] = 255
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        let data = Data(bytes)
+        let provider = CGDataProvider(data: data as CFData)!
+        let cgImage = CGImage(
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo,
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        )!
+        return UIImage(cgImage: cgImage)
     }
 }
 
