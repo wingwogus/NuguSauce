@@ -27,13 +27,15 @@
 		F00000000000000000000118 /* Features/Profile/ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000118 /* Features/Profile/ProfileView.swift */; };
 		F00000000000000000000119 /* Shared/DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000119 /* Shared/DesignSystem.swift */; };
 		F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000120 /* Shared/SauceComponents.swift */; };
-		F00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */; };
 		F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */; };
 		F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */; };
 		F00000000000000000000124 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000124 /* Resources/Assets.xcassets */; };
 		F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000125 /* Features/Auth/LoginView.swift */; };
+		F00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */; };
+		F00000000000000000000127 /* Core/API/CachingAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000127 /* Core/API/CachingAPIClient.swift */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
+		F00000000000000000000203 /* CachingAPIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000203 /* CachingAPIClientTests.swift */; };
 		F00000000000000000000301 /* NuguSauceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000301 /* NuguSauceUITests.swift */; };
 		F00000000000000000000401 /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = P00000000000000000000401 /* KakaoSDKCommon */; };
 		F00000000000000000000402 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = P00000000000000000000402 /* KakaoSDKAuth */; };
@@ -78,14 +80,16 @@
 		A00000000000000000000118 /* Features/Profile/ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Profile/ProfileView.swift; sourceTree = "<group>"; };
 		A00000000000000000000119 /* Shared/DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DesignSystem.swift; sourceTree = "<group>"; };
 		A00000000000000000000120 /* Shared/SauceComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/SauceComponents.swift; sourceTree = "<group>"; };
-		A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ImageUploadPreprocessor.swift; sourceTree = "<group>"; };
 		A00000000000000000000121 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesViewModel.swift; sourceTree = "<group>"; };
 		A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Favorites/FavoritesView.swift; sourceTree = "<group>"; };
 		A00000000000000000000124 /* Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000125 /* Features/Auth/LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Auth/LoginView.swift; sourceTree = "<group>"; };
+		A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ImageUploadPreprocessor.swift; sourceTree = "<group>"; };
+		A00000000000000000000127 /* Core/API/CachingAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/API/CachingAPIClient.swift; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000202 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000203 /* CachingAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachingAPIClientTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000301 /* NuguSauceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NuguSauceUITests.swift; sourceTree = "<group>"; };
 		A00000000000000000000901 /* NuguSauce.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NuguSauce.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000902 /* NuguSauceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NuguSauceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -138,6 +142,7 @@
 				A00000000000000000000103 /* App/RootTabView.swift */,
 				A00000000000000000000104 /* Core/API/APIModels.swift */,
 				A00000000000000000000105 /* Core/API/BackendAPIClient.swift */,
+				A00000000000000000000127 /* Core/API/CachingAPIClient.swift */,
 				A00000000000000000000106 /* Core/Auth/AuthSession.swift */,
 				A00000000000000000000107 /* Core/Auth/KakaoLoginService.swift */,
 				A00000000000000000000108 /* Core/Models/RecipeModels.swift */,
@@ -168,6 +173,7 @@
 			children = (
 				A00000000000000000000201 /* APIContractTests.swift */,
 				A00000000000000000000202 /* ViewModelTests.swift */,
+				A00000000000000000000203 /* CachingAPIClientTests.swift */,
 			);
 			path = NuguSauceTests;
 			sourceTree = "<group>";
@@ -332,6 +338,7 @@
 				F00000000000000000000103 /* App/RootTabView.swift in Sources */,
 				F00000000000000000000104 /* Core/API/APIModels.swift in Sources */,
 				F00000000000000000000105 /* Core/API/BackendAPIClient.swift in Sources */,
+				F00000000000000000000127 /* Core/API/CachingAPIClient.swift in Sources */,
 				F00000000000000000000106 /* Core/Auth/AuthSession.swift in Sources */,
 				F00000000000000000000107 /* Core/Auth/KakaoLoginService.swift in Sources */,
 				F00000000000000000000108 /* Core/Models/RecipeModels.swift in Sources */,
@@ -360,6 +367,7 @@
 			files = (
 				F00000000000000000000201 /* APIContractTests.swift in Sources */,
 				F00000000000000000000202 /* ViewModelTests.swift in Sources */,
+				F00000000000000000000203 /* CachingAPIClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

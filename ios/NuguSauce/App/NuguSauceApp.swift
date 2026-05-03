@@ -4,14 +4,15 @@ import KakaoSDKCommon
 
 @main
 struct NuguSauceApp: App {
-    private let apiClient: BackendAPIClient
+    private let apiClient: APIClientProtocol
     @StateObject private var authStore: AuthSessionStore
     @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init() {
         let authStore = AuthSessionStore()
         _authStore = StateObject(wrappedValue: authStore)
-        apiClient = BackendAPIClient(authStore: authStore)
+        let backendAPIClient = BackendAPIClient(authStore: authStore)
+        apiClient = CachingAPIClient(upstream: backendAPIClient, authStore: authStore)
         if let nativeAppKey = KakaoSDKConfiguration.nativeAppKey {
             KakaoSDK.initSDK(appKey: nativeAppKey)
         }

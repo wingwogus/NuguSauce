@@ -29,8 +29,21 @@ final class FavoritesViewModel: ObservableObject {
         do {
             recipes = try await apiClient.fetchFavoriteRecipes()
         } catch {
-            errorMessage = "찜한 레시피를 불러오지 못했어요."
+            errorMessage = "찜한 소스를 불러오지 못했어요."
         }
+    }
+
+    func refresh() async {
+        guard authStore.isAuthenticated else {
+            clearData()
+            return
+        }
+
+        if let cacheControl = apiClient as? CacheControllingAPIClient {
+            await cacheControl.invalidate(scope: .favorites)
+        }
+
+        await load()
     }
 
     func clearData() {
