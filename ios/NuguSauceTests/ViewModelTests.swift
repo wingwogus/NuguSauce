@@ -307,6 +307,43 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(requestIngredient.ratio ?? -1, 0.3, accuracy: 0.0001)
     }
 
+    func testCreateRecipeRatioSliderInputKeepsTenthsDespiteFloatingPointDrift() throws {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let viewModel = CreateRecipeViewModel(apiClient: TestAPIClient(), authStore: authStore)
+
+        viewModel.addIngredient(ingredient)
+        let editableIngredient = try XCTUnwrap(viewModel.ingredients.first)
+        viewModel.updateRatio(for: editableIngredient, ratio: 1.199999999999)
+
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 1.2, accuracy: 0.0001)
+        XCTAssertEqual(viewModel.ingredients.first?.amount ?? -1, 1.2, accuracy: 0.0001)
+    }
+
+    func testCreateRecipeRatioTextInputUpdatesRatioAndClampsRange() throws {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let viewModel = CreateRecipeViewModel(apiClient: TestAPIClient(), authStore: authStore)
+
+        viewModel.addIngredient(ingredient)
+        let editableIngredient = try XCTUnwrap(viewModel.ingredients.first)
+
+        XCTAssertTrue(viewModel.updateRatio(for: editableIngredient, inputText: "2.76"))
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 2.7, accuracy: 0.0001)
+
+        XCTAssertTrue(viewModel.updateRatio(for: editableIngredient, inputText: "0.04"))
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 0.1, accuracy: 0.0001)
+
+        XCTAssertTrue(viewModel.updateRatio(for: editableIngredient, inputText: "7,8"))
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 5.0, accuracy: 0.0001)
+
+        XCTAssertFalse(viewModel.updateRatio(for: editableIngredient, inputText: "소스"))
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 5.0, accuracy: 0.0001)
+
+        XCTAssertFalse(viewModel.updateRatio(for: editableIngredient, inputText: "nan"))
+        XCTAssertEqual(viewModel.ingredients.first?.ratio ?? -1, 5.0, accuracy: 0.0001)
+    }
+
     func testRecipeMeasurementFormatterDisplaysTruncatedTenths() {
         XCTAssertEqual(RecipeMeasurementFormatter.oneDecimalText(0.39), "0.3")
         XCTAssertEqual(RecipeMeasurementFormatter.oneDecimalText(1.0), "1.0")

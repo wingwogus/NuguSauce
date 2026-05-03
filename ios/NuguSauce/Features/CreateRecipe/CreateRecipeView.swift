@@ -9,6 +9,8 @@ struct CreateRecipeView: View {
     @StateObject private var viewModel: CreateRecipeViewModel
     @State private var expandedQuickAddSectionIDs: Set<String> = []
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var ratioInputDrafts: [EditableIngredient.ID: String] = [:]
+    @FocusState private var focusedRatioIngredientID: EditableIngredient.ID?
     private let quickAddDisclosureAnimation = Animation.spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.08)
     private let quickAddColumns = [
         GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
@@ -29,7 +31,7 @@ struct CreateRecipeView: View {
                     formContent
                 } else {
                     LoginGatePlaceholder(
-                        title: "레시피 등록은 로그인 후 가능해요.",
+                        title: "소스 등록은 로그인 후 가능해요.",
                         message: "로그인 화면으로 이동해 나만의 소스 조합을 기록해보세요.",
                         systemImage: "plus.circle.fill"
                     )
@@ -45,6 +47,23 @@ struct CreateRecipeView: View {
         .onChange(of: selectedPhotoItem) { _, newItem in
             Task {
                 await loadSelectedPhoto(newItem)
+            }
+        }
+        .onChange(of: focusedRatioIngredientID) { previousID, newID in
+            guard let previousID, previousID != newID else {
+                return
+            }
+            commitRatioInput(for: previousID)
+        }
+        .toolbar {
+            if focusedRatioIngredientID != nil {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("완료") {
+                        commitFocusedRatioInput()
+                        focusedRatioIngredientID = nil
+                    }
+                }
             }
         }
     }
@@ -63,7 +82,7 @@ struct CreateRecipeView: View {
                     }
                 }
             } label: {
-                Text(viewModel.isSubmitting ? "등록 중..." : "레시피 등록하기")
+                Text(viewModel.isSubmitting ? "등록 중..." : "소스 등록하기")
             }
             .primarySauceButton()
             .opacity(viewModel.canSubmit ? 1 : 0.72)
@@ -73,7 +92,7 @@ struct CreateRecipeView: View {
     }
 
     private var topBar: some View {
-        SauceScreenTitle(title: "새 레시피 등록")
+        SauceScreenTitle(title: "새 소스 등록")
     }
 
     private var statusBanners: some View {
@@ -159,7 +178,7 @@ struct CreateRecipeView: View {
         .padding(.leading, 14)
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(SauceColor.surfaceContainer)
+                .fill(SauceColor.redTint)
                 .frame(width: 3)
         }
     }
@@ -198,13 +217,9 @@ struct CreateRecipeView: View {
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
                 Spacer()
-                Text(RecipeMeasurementFormatter.oneDecimalText(ingredient.ratio))
-                    .font(.title3.weight(.black))
-                    .foregroundStyle(SauceColor.primaryContainer)
-                Text("비율")
-                    .font(.caption)
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                ratioInput(for: ingredient)
                 Button {
+                    ratioInputDrafts[ingredient.id] = nil
                     viewModel.removeIngredient(ingredient)
                 } label: {
                     Image(systemName: "xmark")
@@ -219,15 +234,77 @@ struct CreateRecipeView: View {
             Slider(
                 value: Binding(
                     get: { ingredient.ratio },
-                    set: { viewModel.updateRatio(for: ingredient, ratio: $0) }
+                    set: { newRatio in
+                        ratioInputDrafts[ingredient.id] = nil
+                        viewModel.updateRatio(for: ingredient, ratio: newRatio)
+                    }
                 ),
-                in: 0.5...5.0,
-                step: 0.5
+                in: RecipeRatioInputRules.range,
+                step: RecipeRatioInputRules.step
             )
             .tint(SauceColor.primaryContainer)
         }
         .padding(22)
         .sauceCard(cornerRadius: 14)
+    }
+
+    private func ratioInput(for ingredient: EditableIngredient) -> some View {
+        HStack(alignment: .lastTextBaseline, spacing: 6) {
+            TextField("1.0", text: ratioInputBinding(for: ingredient))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.title3.weight(.black))
+                .foregroundStyle(SauceColor.primaryContainer)
+                .frame(width: 58)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(SauceColor.surfaceContainerLow)
+                .clipShape(Capsule())
+                .focused($focusedRatioIngredientID, equals: ingredient.id)
+                .accessibilityIdentifier("ingredient-ratio-input-\(ingredient.ingredient.id)")
+                .accessibilityLabel("\(ingredient.ingredient.name) 비율 직접 입력")
+                .onSubmit {
+                    commitRatioInput(for: ingredient.id)
+                }
+
+            Text("비율")
+                .font(.caption)
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+        }
+    }
+
+    private func ratioInputBinding(for ingredient: EditableIngredient) -> Binding<String> {
+        Binding(
+            get: {
+                ratioInputDrafts[ingredient.id] ?? RecipeMeasurementFormatter.oneDecimalText(ingredient.ratio)
+            },
+            set: { newValue in
+                ratioInputDrafts[ingredient.id] = newValue
+                _ = viewModel.updateRatio(for: ingredient, inputText: newValue)
+            }
+        )
+    }
+
+    private func commitFocusedRatioInput() {
+        guard let focusedRatioIngredientID else {
+            return
+        }
+        commitRatioInput(for: focusedRatioIngredientID)
+    }
+
+    private func commitRatioInput(for ingredientID: EditableIngredient.ID) {
+        guard let draft = ratioInputDrafts[ingredientID] else {
+            return
+        }
+
+        guard let ingredient = viewModel.ingredients.first(where: { $0.id == ingredientID }),
+              viewModel.updateRatio(for: ingredient, inputText: draft),
+              let updatedIngredient = viewModel.ingredients.first(where: { $0.id == ingredientID }) else {
+            ratioInputDrafts[ingredientID] = nil
+            return
+        }
+
+        ratioInputDrafts[ingredientID] = RecipeMeasurementFormatter.oneDecimalText(updatedIngredient.ratio)
     }
 
     private var quickAdd: some View {
@@ -296,6 +373,10 @@ struct CreateRecipeView: View {
         .padding(.vertical, 11)
         .background(SauceColor.surfaceLowest)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(SauceColor.outline.opacity(0.16), lineWidth: 1)
+        }
         .accessibilityIdentifier("ingredient-search-field")
     }
 
@@ -388,7 +469,6 @@ struct CreateRecipeView: View {
             .padding(.vertical, 10)
             .background(isSelected ? SauceColor.redTint : SauceColor.surfaceLowest)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: SauceColor.primary.opacity(isSelected ? 0.08 : 0.03), radius: 10, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("quick-add-ingredient-\(ingredient.id)")

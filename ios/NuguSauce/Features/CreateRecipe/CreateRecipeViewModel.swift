@@ -14,6 +14,35 @@ struct IngredientQuickAddSection: Identifiable, Equatable {
     let ingredients: [IngredientDTO]
 }
 
+enum RecipeRatioInputRules {
+    static let range: ClosedRange<Double> = 0.1...5.0
+    static let step = 0.1
+
+    static func normalizedRatio(_ value: Double) -> Double {
+        guard value.isFinite else {
+            return range.lowerBound
+        }
+
+        let clampedValue = min(max(value, range.lowerBound), range.upperBound)
+        return RecipeMeasurementFormatter.truncatedTenths(clampedValue + 0.000_000_001)
+    }
+
+    static func ratio(from inputText: String) -> Double? {
+        let normalizedText = inputText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard !normalizedText.isEmpty else {
+            return nil
+        }
+
+        guard let ratio = Double(normalizedText), ratio.isFinite else {
+            return nil
+        }
+
+        return ratio
+    }
+}
+
 @MainActor
 final class CreateRecipeViewModel: ObservableObject {
     @Published var title = ""
@@ -104,9 +133,19 @@ final class CreateRecipeViewModel: ObservableObject {
         guard let index = ingredients.firstIndex(where: { $0.id == editableIngredient.id }) else {
             return
         }
-        let truncatedRatio = RecipeMeasurementFormatter.truncatedTenths(ratio)
-        ingredients[index].ratio = truncatedRatio
-        ingredients[index].amount = truncatedRatio
+        let normalizedRatio = RecipeRatioInputRules.normalizedRatio(ratio)
+        ingredients[index].ratio = normalizedRatio
+        ingredients[index].amount = normalizedRatio
+    }
+
+    @discardableResult
+    func updateRatio(for editableIngredient: EditableIngredient, inputText: String) -> Bool {
+        guard let ratio = RecipeRatioInputRules.ratio(from: inputText) else {
+            return false
+        }
+
+        updateRatio(for: editableIngredient, ratio: ratio)
+        return true
     }
 
     func setSelectedPhoto(
@@ -178,9 +217,9 @@ final class CreateRecipeViewModel: ObservableObject {
         } catch {
             isSubmitting = false
             if let apiError = error as? ApiError {
-                errorMessage = apiError.userVisibleMessage(default: "레시피를 등록하지 못했어요.")
+                errorMessage = apiError.userVisibleMessage(default: "소스를 등록하지 못했어요.")
             } else {
-                errorMessage = "레시피를 등록하지 못했어요."
+                errorMessage = "소스를 등록하지 못했어요."
             }
             return nil
         }
