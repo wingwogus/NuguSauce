@@ -135,7 +135,7 @@ struct RecipeDetailView: View {
 
     @ViewBuilder
     private func recipeAuthorLabel(name: String, detail: RecipeDetailDTO) -> some View {
-        if detail.authorType == .user, let authorId = detail.authorId {
+        if let authorId = detail.authorId {
             NavigationLink(value: AppRoute.publicProfile(authorId)) {
                 authorIdentityLabel(name: name, imageURL: detail.authorProfileImageUrl)
             }

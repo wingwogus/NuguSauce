@@ -1,10 +1,5 @@
 import Foundation
 
-enum AuthorType: String, Codable, Equatable {
-    case curated = "CURATED"
-    case user = "USER"
-}
-
 enum RecipeVisibility: String, Codable, Equatable {
     case visible = "VISIBLE"
     case hidden = "HIDDEN"
@@ -35,7 +30,6 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     let title: String
     let description: String
     let imageUrl: String?
-    let authorType: AuthorType
     let visibility: RecipeVisibility
     let ratingSummary: RatingSummaryDTO
     let reviewTags: [ReviewTagDTO]
@@ -62,7 +56,6 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let description: String
     let imageUrl: String?
     let tips: String?
-    let authorType: AuthorType
     let authorId: Int?
     let authorName: String?
     let authorProfileImageUrl: String?
@@ -88,7 +81,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
         if let trimmedName, !trimmedName.isEmpty {
             return trimmedName
         }
-        return authorType == .curated ? "NuguSauce" : nil
+        return nil
     }
 }
 
