@@ -5,10 +5,9 @@ final class NuguSauceUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.tabBars.buttons["홈"].exists)
-        XCTAssertTrue(app.tabBars.buttons["검색"].exists)
-        XCTAssertTrue(app.tabBars.buttons["등록"].exists)
-        XCTAssertTrue(app.tabBars.buttons["프로필"].exists)
+        let tabLabels = app.tabBars.buttons.allElementsBoundByIndex.map(\.label)
+
+        XCTAssertEqual(tabLabels, ["홈", "찜", "등록", "검색", "프로필"])
     }
 
     func testHomeShowsReferenceSections() {

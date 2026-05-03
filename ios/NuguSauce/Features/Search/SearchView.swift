@@ -198,7 +198,6 @@ struct SearchView: View {
         .padding(14)
         .background(SauceColor.surfaceLowest)
         .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
-        .shadow(color: SauceColor.primary.opacity(0.06), radius: 18, x: 0, y: 8)
     }
 }
 

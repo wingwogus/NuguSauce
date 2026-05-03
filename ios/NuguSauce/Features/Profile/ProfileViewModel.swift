@@ -286,7 +286,7 @@ final class PublicProfileViewModel: ObservableObject {
     }
 
     var authoredRecipeSectionTitle: String {
-        "\(displayName)\(KoreanParticle.subject(for: displayName)) 올린 레시피"
+        "\(displayName)\(KoreanParticle.subject(for: displayName)) 올린 소스"
     }
 
     func load() async {

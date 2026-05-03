@@ -47,12 +47,12 @@ enum SauceColor {
     static let onSurfaceVariant = dynamic(light: color(0.372, 0.235, 0.211), dark: color(0.863, 0.753, 0.733))
     static let muted = dynamic(light: color(0.620, 0.580, 0.590), dark: color(0.678, 0.600, 0.584))
     static let outline = dynamic(light: color(0.580, 0.431, 0.412), dark: color(0.788, 0.580, 0.549))
-    static let chip = dynamic(light: color(0.925, 0.914, 0.910), dark: color(0.231, 0.176, 0.165))
+    static let chip = dynamic(light: color(1.000, 0.956, 0.960), dark: color(0.231, 0.176, 0.165))
     static let redTint = dynamic(light: color(1.000, 0.918, 0.925), dark: color(0.267, 0.110, 0.129))
-    static let photoPlaceholderStart = dynamic(light: color(0.860, 0.900, 0.900), dark: color(0.169, 0.196, 0.188))
-    static let photoPlaceholderEnd = dynamic(light: color(0.950, 0.920, 0.880), dark: color(0.282, 0.216, 0.176))
+    static let photoPlaceholderStart = dynamic(light: color(1.000, 0.956, 0.960), dark: color(0.169, 0.196, 0.188))
+    static let photoPlaceholderEnd = dynamic(light: color(1.000, 0.918, 0.925), dark: color(0.282, 0.216, 0.176))
     static let onPrimary = Color.white
-    static let cardShadow = dynamic(light: color(0.718, 0.000, 0.047), dark: color(0.000, 0.000, 0.000))
+    static let cardShadow = Color.clear
 
     private static func dynamic(light: UIColor, dark: UIColor) -> Color {
         Color(
@@ -78,7 +78,6 @@ extension View {
     func sauceCard(cornerRadius: CGFloat = SauceSpacing.cardRadius) -> some View {
         background(SauceColor.surfaceLowest)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: SauceColor.cardShadow.opacity(0.08), radius: 24, x: 0, y: 12)
     }
 
     func primarySauceButton() -> some View {
@@ -94,6 +93,5 @@ extension View {
                 )
             )
             .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
-            .shadow(color: SauceColor.primary.opacity(0.22), radius: 22, x: 0, y: 10)
     }
 }

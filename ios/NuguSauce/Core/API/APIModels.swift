@@ -80,7 +80,7 @@ extension ApiError {
         case ApiErrorCode.duplicateNickname:
             return "이미 사용 중인 닉네임입니다."
         case ApiErrorCode.duplicateReview:
-            return "이미 리뷰를 남긴 레시피입니다."
+            return "이미 리뷰를 남긴 소스입니다."
         case ApiErrorCode.invalidRating:
             return "평점을 확인해주세요."
         case ApiErrorCode.invalidIngredientAmount:

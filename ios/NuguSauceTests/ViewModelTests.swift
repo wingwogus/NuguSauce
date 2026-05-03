@@ -267,7 +267,7 @@ final class ViewModelTests: XCTestCase {
         let recipeID = await viewModel.submit()
 
         XCTAssertNil(recipeID)
-        XCTAssertEqual(viewModel.errorMessage, "레시피를 등록하지 못했어요.")
+        XCTAssertEqual(viewModel.errorMessage, "소스를 등록하지 못했어요.")
         XCTAssertFalse(viewModel.errorMessage?.contains("java.lang") == true)
     }
 
@@ -417,7 +417,7 @@ final class ViewModelTests: XCTestCase {
     func testFavoritesLoadUsesFavoriteEndpointWhenAuthenticated() async {
         let favoriteRecipe = Self.recipe(id: 2, title: "찜한 땅콩 소스")
         let client = TestAPIClient(
-            recipes: [Self.recipe(id: 1, title: "홈 레시피")],
+            recipes: [Self.recipe(id: 1, title: "홈 소스")],
             favoriteRecipes: [favoriteRecipe]
         )
         let viewModel = FavoritesViewModel(
@@ -938,7 +938,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(client.fetchedMemberIDs, [8])
         XCTAssertEqual(viewModel.member?.displayName, "마라초보")
         XCTAssertEqual(viewModel.nicknameText, "@마라초보")
-        XCTAssertEqual(viewModel.authoredRecipeSectionTitle, "마라초보가 올린 레시피")
+        XCTAssertEqual(viewModel.authoredRecipeSectionTitle, "마라초보가 올린 소스")
         XCTAssertEqual(viewModel.recipes.map(\.id), [81])
         XCTAssertEqual(viewModel.favoriteRecipes.map(\.id), [82])
         XCTAssertNil(viewModel.errorMessage)

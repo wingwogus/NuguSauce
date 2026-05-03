@@ -198,7 +198,7 @@ struct RecipeDetailView: View {
                         ForEach(1...5, id: \.self) { index in
                             Image(systemName: index <= review.rating ? "star.fill" : "star.fill")
                                 .font(.caption2)
-                                .foregroundStyle(index <= review.rating ? SauceColor.secondary : SauceColor.surfaceContainer)
+                                .foregroundStyle(index <= review.rating ? SauceColor.secondary : SauceColor.redTint)
                         }
                     }
                     Text(review.text ?? "")
@@ -298,7 +298,7 @@ private struct ReviewComposeView: View {
             .padding(.horizontal, SauceSpacing.screen)
             .padding(.vertical, 24)
         }
-        .background(SauceColor.redTint.opacity(0.18).ignoresSafeArea())
+        .background(SauceColor.surface.ignoresSafeArea())
         .navigationTitle("리뷰 작성")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -380,7 +380,7 @@ private struct ReviewComposeView: View {
                     } label: {
                         Image(systemName: "star.fill")
                             .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(rating <= viewModel.selectedRating ? SauceColor.secondary : SauceColor.surfaceContainer)
+                            .foregroundStyle(rating <= viewModel.selectedRating ? SauceColor.secondary : SauceColor.redTint)
                             .frame(width: 48, height: 48)
                     }
                     .buttonStyle(.plain)

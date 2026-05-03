@@ -4,6 +4,10 @@ struct FavoritesView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: FavoritesViewModel
+    private let favoriteGridColumns = [
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14)
+    ]
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         self.apiClient = apiClient
@@ -20,7 +24,7 @@ struct FavoritesView: View {
                     favoriteContent
                 } else {
                     LoginGatePlaceholder(
-                        title: "찜한 레시피는 로그인 후 볼 수 있어요.",
+                        title: "찜한 소스는 로그인 후 볼 수 있어요.",
                         message: "로그인 화면으로 이동해 저장한 소스 조합을 확인해보세요.",
                         systemImage: "bookmark.fill"
                     )
@@ -48,13 +52,13 @@ struct FavoritesView: View {
             }
         }
         .refreshable {
-            await viewModel.load()
+            await viewModel.refresh()
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            SauceScreenTitle(title: "찜한 레시피")
+            SauceScreenTitle(title: "찜한 소스")
             Text("\(viewModel.recipes.count)개 저장됨")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
@@ -72,10 +76,10 @@ struct FavoritesView: View {
         } else if viewModel.recipes.isEmpty {
             emptyState
         } else {
-            VStack(alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: favoriteGridColumns, alignment: .center, spacing: 18) {
                 ForEach(viewModel.recipes) { recipe in
                     NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                        RecipeCard(recipe: recipe)
+                        RecipeGridCard(recipe: recipe)
                     }
                     .buttonStyle(.plain)
                 }
@@ -88,7 +92,7 @@ struct FavoritesView: View {
             Image(systemName: "bookmark")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(SauceColor.primaryContainer)
-            Text("찜한 레시피가 없어요.")
+            Text("찜한 소스가 없어요.")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(SauceColor.onSurface)
         }

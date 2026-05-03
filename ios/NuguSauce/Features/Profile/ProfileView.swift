@@ -24,8 +24,8 @@ struct ProfileView: View {
                         displayName: viewModel.displayName,
                         profileImageUrl: viewModel.profileImageUrl,
                         stats: [
-                            ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 레시피"),
-                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
+                            ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 소스"),
+                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 소스")
                         ],
                         editRoute: .profileEdit,
                         actionTitle: "로그아웃",
@@ -36,11 +36,11 @@ struct ProfileView: View {
                     if viewModel.profileSetupRequired {
                         nicknameSetupCard
                     }
-                    ProfileRecipeSection(title: "내가 올린 레시피", recipes: viewModel.myRecipes)
+                    ProfileRecipeSection(title: "내가 올린 소스", recipes: viewModel.myRecipes)
                 } else {
                     LoginGatePlaceholder(
                         title: "내 프로필은 로그인 후 볼 수 있어요.",
-                        message: "로그인 화면으로 이동해 내가 만든 조합과 저장한 레시피를 확인해보세요.",
+                        message: "로그인 화면으로 이동해 내가 만든 조합과 저장한 소스를 확인해보세요.",
                         systemImage: "person.crop.circle.fill"
                     )
                 }
@@ -162,8 +162,8 @@ struct PublicProfileView: View {
                         displayName: member.displayName,
                         profileImageUrl: member.profileImageUrl,
                         stats: [
-                            ProfileHeroStat(value: "\(viewModel.recipes.count)", label: "내 레시피"),
-                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 레시피")
+                            ProfileHeroStat(value: "\(viewModel.recipes.count)", label: "내 소스"),
+                            ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 소스")
                         ],
                         editRoute: nil,
                         actionTitle: nil,
@@ -445,7 +445,7 @@ struct ProfileSetupGateView: View {
                         .foregroundStyle(SauceColor.primaryContainer)
                     Text("닉네임을 정해주세요")
                         .font(.title.weight(.black))
-                    Text("저장한 닉네임은 레시피와 리뷰에 표시됩니다.")
+                    Text("저장한 닉네임은 소스와 리뷰에 표시됩니다.")
                         .font(.subheadline)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }

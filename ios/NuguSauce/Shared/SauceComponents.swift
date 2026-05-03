@@ -37,6 +37,46 @@ struct RecipeTasteTag: View {
     }
 }
 
+struct RecipeMiniTagRow: View {
+    private let titles: [String]
+
+    init(recipe: RecipeSummaryDTO) {
+        titles = recipe.reviewTagTitles
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(titles.indices, id: \.self) { index in
+                RecipeTasteTag(title: titles[index])
+            }
+        }
+        .lineLimit(1)
+    }
+}
+
+struct RecipeCardMetricRow: View {
+    let recipe: RecipeSummaryDTO
+    var starColor = SauceColor.secondary
+    var bookmarkColor = SauceColor.primaryContainer
+
+    var body: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "star.fill")
+                    .foregroundStyle(starColor)
+                Text(recipe.ratingReviewText)
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "bookmark.fill")
+                    .foregroundStyle(bookmarkColor)
+                Text("\(recipe.displayFavoriteCount.formatted())")
+            }
+        }
+        .lineLimit(1)
+    }
+}
+
 struct RatingBadge: View {
     let rating: Double
 
@@ -373,7 +413,10 @@ struct SauceSearchBar: View {
         .padding(.vertical, 6)
         .background(SauceColor.surfaceLowest)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: SauceColor.cardShadow.opacity(0.04), radius: 16, x: 0, y: 8)
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(SauceColor.outline.opacity(0.16), lineWidth: 1)
+        }
         .contentShape(Rectangle())
         .onTapGesture {
             if !isEditable {
@@ -440,44 +483,106 @@ struct RecipeCard: View {
     let recipe: RecipeSummaryDTO
 
     var body: some View {
+        RecipePhotoCard(
+            recipe: recipe,
+            imageHeight: 340,
+            imageCornerRadius: 32,
+            titleFont: .system(size: 28, weight: .black),
+            subtitleFont: .title3.weight(.semibold),
+            ratingFont: .title3.weight(.semibold),
+            spacing: 12,
+            bookmarkSize: 52,
+            imageBookmarkPadding: 16
+        )
+    }
+}
+
+struct RecipeGridCard: View {
+    let recipe: RecipeSummaryDTO
+
+    var body: some View {
+        RecipePhotoCard(
+            recipe: recipe,
+            imageHeight: 164,
+            imageCornerRadius: 22,
+            titleFont: .headline.weight(.black),
+            subtitleFont: .subheadline.weight(.semibold),
+            ratingFont: .subheadline.weight(.semibold),
+            spacing: 6,
+            bookmarkSize: 38,
+            imageBookmarkPadding: 10,
+            showsReviewTags: false
+        )
+    }
+}
+
+struct RecipePhotoCard: View {
+    let recipe: RecipeSummaryDTO
+    var imageHeight: CGFloat
+    var imageCornerRadius: CGFloat
+    var titleFont: Font
+    var subtitleFont: Font
+    var ratingFont: Font
+    var spacing: CGFloat
+    var bookmarkSize: CGFloat
+    var imageBookmarkPadding: CGFloat
+    var showsReviewTags = true
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 240)
-                RatingBadge(rating: recipe.ratingSummary.averageRating)
-                    .padding(14)
+            ZStack(alignment: .topTrailing) {
+                RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: imageHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: imageCornerRadius, style: .continuous))
+
+                RecipeBookmarkOverlay(isFavorited: recipe.isFavorited, size: bookmarkSize)
+                    .padding(imageBookmarkPadding)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: spacing) {
                 Text(recipe.title)
-                    .font(.title3.weight(.bold))
+                    .font(titleFont)
                     .foregroundStyle(SauceColor.onSurface)
-                Text(recipe.description)
-                    .font(.subheadline)
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.78)
 
-                HStack(spacing: 6) {
-                    ForEach(recipe.reviewTags.prefix(3)) { tag in
-                        RecipeTasteTag(title: tag.name)
-                    }
-                }
-
-                HStack {
-                    Label("\(recipe.displayFavoriteCount.formatted())", systemImage: "bookmark.fill")
-                        .font(.caption.weight(.semibold))
+                if showsReviewTags, let reviewTagSubtitle = recipe.reviewTagSubtitle {
+                    Text(reviewTagSubtitle)
+                        .font(subtitleFont)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                        .frame(width: 36, height: 36)
-                        .background(SauceColor.redTint)
-                        .clipShape(Circle())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                 }
+
+                RecipeCardMetricRow(recipe: recipe)
+                    .font(ratingFont)
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
             }
-            .padding(18)
+            .padding(.top, 16)
         }
-        .sauceCard()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RecipeBookmarkOverlay: View {
+    let isFavorited: Bool
+    var size: CGFloat
+
+    var body: some View {
+        Image(systemName: isFavorited ? "bookmark.fill" : "bookmark")
+            .font(.system(size: size * 0.58, weight: .black))
+            .foregroundStyle(isFavorited ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+            .frame(width: size, height: size)
+    }
+}
+
+extension RecipeSummaryDTO {
+    var reviewTagTitles: [String] {
+        reviewTags.prefix(2).map(\.name)
+    }
+
+    var reviewTagSubtitle: String? {
+        let subtitle = reviewTagTitles.joined(separator: " · ")
+        return subtitle.isEmpty ? nil : subtitle
     }
 }
 
@@ -496,22 +601,15 @@ struct CompactRecipeRow: View {
                         .font(.headline.weight(.bold))
                         .lineLimit(1)
                     Spacer()
-                    Label(recipe.ratingReviewText, systemImage: "star.fill")
+                    RecipeCardMetricRow(recipe: recipe)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(SauceColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                 }
-                Text(recipe.description)
-                    .font(.caption)
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                    .lineLimit(1)
                 HStack(spacing: 8) {
-                    RecipeTasteTag(title: recipe.reviewTags.first?.name ?? "태그 없음")
+                    RecipeMiniTagRow(recipe: recipe)
                     Spacer()
-                    Label("\(recipe.displayFavoriteCount.formatted())", systemImage: "bookmark.fill")
-                        .font(.caption2)
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
             }
         }

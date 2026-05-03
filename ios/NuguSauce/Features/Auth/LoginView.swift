@@ -29,7 +29,7 @@ struct LoginView: View {
                         .font(.title3.weight(.black))
                         .foregroundStyle(SauceColor.onSurface)
                         .multilineTextAlignment(.center)
-                    Text("카카오 계정으로 계속하면 찜, 프로필, 레시피 등록과 리뷰 작성 기능을 사용할 수 있어요.")
+                    Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
                         .font(.subheadline)
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .multilineTextAlignment(.center)

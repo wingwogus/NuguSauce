@@ -90,17 +90,6 @@ struct RootTabView: View {
             }
             .tag(RootTab.home)
 
-            NavigationStack {
-                SearchView(apiClient: apiClient, authStore: authStore)
-                    .navigationDestination(for: AppRoute.self) { route in
-                        destination(for: route)
-                    }
-            }
-            .tabItem {
-                Label("검색", systemImage: "magnifyingglass")
-            }
-            .tag(RootTab.search)
-
             NavigationStack(path: $favoritesNavigationPath) {
                 FavoritesView(apiClient: apiClient, authStore: authStore)
                     .navigationDestination(for: AppRoute.self) { route in
@@ -128,6 +117,17 @@ struct RootTabView: View {
                 Label("등록", systemImage: "plus.circle.fill")
             }
             .tag(RootTab.create)
+
+            NavigationStack {
+                SearchView(apiClient: apiClient, authStore: authStore)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        destination(for: route)
+                    }
+            }
+            .tabItem {
+                Label("검색", systemImage: "magnifyingglass")
+            }
+            .tag(RootTab.search)
 
             NavigationStack(path: $profileNavigationPath) {
                 ProfileView(apiClient: apiClient, authStore: authStore)

@@ -38,7 +38,7 @@ final class HomeViewModel: ObservableObject {
             recipes = popularRecipes
             recentRecipes = latestRecipes
         } catch {
-            errorMessage = "레시피를 불러오지 못했어요."
+            errorMessage = "소스를 불러오지 못했어요."
         }
         isLoading = false
     }

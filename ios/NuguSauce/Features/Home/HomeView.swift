@@ -38,7 +38,7 @@ struct HomeView: View {
             }
             .padding(.bottom, 34)
         }
-        .background(SauceColor.surface.ignoresSafeArea())
+        .background(SauceColor.surfaceLowest.ignoresSafeArea())
         .navigationBarHidden(true)
         .task {
             await viewModel.load()
@@ -64,7 +64,6 @@ struct HomeView: View {
 
             Button(action: openProfile) {
                 ProfileAvatar(imageURL: authStore.currentSession?.profileImageUrl, size: 44)
-                    .shadow(color: SauceColor.cardShadow.opacity(0.08), radius: 12, x: 0, y: 6)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.profileButton")
@@ -92,7 +91,7 @@ struct HomeView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("지금 핫한 소스")
+                        Text("🔥 HOT")
                             .font(.caption.weight(.black))
                             .foregroundStyle(SauceColor.onPrimary)
                             .padding(.horizontal, 12)
@@ -111,7 +110,10 @@ struct HomeView: View {
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
                             .lineLimit(2)
 
-                        Label(recipe.ratingReviewText, systemImage: "star.fill")
+                        RecipeCardMetricRow(
+                            recipe: recipe,
+                            bookmarkColor: SauceColor.onPrimary.opacity(0.92)
+                        )
                             .font(.caption.weight(.bold))
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.92))
 
@@ -126,7 +128,7 @@ struct HomeView: View {
                             Spacer()
                             HomeFavoriteStateBadge(
                                 isFavorite: recipe.isFavorited,
-                                foreground: SauceColor.onPrimary,
+                                foreground: SauceColor.primaryContainer,
                                 inactiveForeground: SauceColor.onPrimary.opacity(0.86)
                             )
                         }
@@ -135,7 +137,6 @@ struct HomeView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: SauceColor.cardShadow.opacity(0.12), radius: 26, x: 0, y: 14)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, SauceSpacing.screen)
@@ -150,7 +151,9 @@ struct HomeView: View {
     }
 
     private var popularRankingSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let popularRecipes = viewModel.popularRankingRecipes
+
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
                     .foregroundStyle(SauceColor.secondary)
@@ -159,7 +162,7 @@ struct HomeView: View {
                     .foregroundStyle(SauceColor.onSurface)
             }
 
-            if viewModel.popularRankingRecipes.isEmpty {
+            if popularRecipes.isEmpty {
                 Text("인기 소스가 아직 없어요.")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
@@ -169,8 +172,8 @@ struct HomeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .accessibilityIdentifier("home.popularRanking.empty")
             } else {
-                VStack(spacing: 12) {
-                    ForEach(Array(viewModel.popularRankingRecipes.enumerated()), id: \.element.id) { index, recipe in
+                VStack(spacing: 4) {
+                    ForEach(Array(popularRecipes.enumerated()), id: \.element.id) { index, recipe in
                         NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
                             HomePopularRankRow(rank: index + 1, recipe: recipe)
                         }
@@ -213,7 +216,7 @@ struct HomeView: View {
                 ) {
                     ForEach(viewModel.latestGridRecipes) { recipe in
                         NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                            HomeLatestGridCard(recipe: recipe)
+                            RecipeGridCard(recipe: recipe)
                         }
                         .buttonStyle(.plain)
                     }
@@ -260,92 +263,57 @@ private struct HomePopularRankRow: View {
     let recipe: RecipeSummaryDTO
 
     var body: some View {
-        HStack(spacing: 14) {
-            Text("\(rank)")
-                .font(.title3.weight(.black))
-                .foregroundStyle(rank == 1 ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
-                .frame(width: 28)
+        HStack(alignment: .top, spacing: 14) {
+            RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 96)
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 78)
-                .frame(width: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(recipe.title)
-                    .font(.headline.weight(.bold))
+                    .font(.headline.weight(.black))
                     .foregroundStyle(SauceColor.onSurface)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 6) {
-                    ForEach(recipe.reviewTags.prefix(2)) { tag in
-                        RecipeTasteTag(title: tag.name)
-                    }
-                }
+                RecipeMiniTagRow(recipe: recipe)
+
+                Spacer(minLength: 0)
+
+                RecipeCardMetricRow(recipe: recipe)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
             }
+            .frame(height: 96, alignment: .topLeading)
 
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 0) {
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .foregroundStyle(SauceColor.secondary)
-                    Text(recipe.ratingReviewText)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.onSurface)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                }
+                HomeFavoriteStateBadge(
+                    isFavorite: recipe.isFavorited,
+                    size: 34,
+                    foreground: SauceColor.primaryContainer,
+                    inactiveForeground: SauceColor.onSurfaceVariant
+                )
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 18)
 
-                HomeFavoriteStateBadge(isFavorite: recipe.isFavorited)
+                Text("TOP \(rank)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .overlay {
+                        Capsule()
+                            .stroke(SauceColor.outline.opacity(0.18), lineWidth: 1)
+                    }
             }
-            .frame(width: 70, height: 78, alignment: .topTrailing)
+            .frame(height: 96, alignment: .topTrailing)
         }
-        .padding(14)
-        .background(SauceColor.surfaceLowest)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: SauceColor.cardShadow.opacity(0.05), radius: 16, x: 0, y: 8)
-    }
-}
-
-private struct HomeLatestGridCard: View {
-    let recipe: RecipeSummaryDTO
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 132)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            Text(recipe.title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(SauceColor.onSurface)
-                .lineLimit(2)
-                .frame(minHeight: 38, alignment: .topLeading)
-
-            HStack(spacing: 6) {
-                ForEach(recipe.reviewTags.prefix(2)) { tag in
-                    RecipeTasteTag(title: tag.name)
-                }
-            }
-            .frame(height: 24, alignment: .leading)
-
-            HStack(spacing: 6) {
-                Image(systemName: "star.fill")
-                    .foregroundStyle(SauceColor.secondary)
-                Text(recipe.ratingReviewText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 4)
-                HomeFavoriteStateBadge(isFavorite: recipe.isFavorited, size: 26)
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(SauceColor.onSurfaceVariant)
-        }
-        .padding(10)
-        .background(SauceColor.surfaceLowest)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: SauceColor.cardShadow.opacity(0.06), radius: 18, x: 0, y: 10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
     }
 }
 
