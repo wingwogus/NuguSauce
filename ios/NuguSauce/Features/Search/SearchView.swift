@@ -18,8 +18,7 @@ struct SearchView: View {
                 SauceScreenTitle(title: "검색")
                 searchField
                 sortPicker
-                tagSection
-                ingredientSection
+                filterBar
                 results
             }
             .padding(.horizontal, SauceSpacing.screen)
@@ -30,9 +29,23 @@ struct SearchView: View {
             await viewModel.load()
         }
         .sheet(item: $activeFilterSheet) { sheet in
-            filterSheet(for: sheet)
+            SearchFilterBottomSheet(
+                initialTab: sheet,
+                tags: viewModel.tags,
+                ingredients: viewModel.ingredients,
+                initialDraft: viewModel.makeFilterDraft(),
+                resetDraft: {
+                    viewModel.resetFilterDraft()
+                },
+                applySelection: { draft in
+                    viewModel.applyFilterDraft(draft)
+                    Task {
+                        try? await viewModel.search()
+                    }
+                }
+            )
             .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -58,54 +71,26 @@ struct SearchView: View {
         }
     }
 
-    private var tagSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("맛별 필터")
-                    .font(.headline.weight(.bold))
-                Spacer()
-                if !viewModel.selectedTagIDs.isEmpty {
-                    Text("\(viewModel.selectedTagIDs.count)개 선택")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                }
-            }
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                filterPill(
+                    sheet: .flavor,
+                    title: "맛",
+                    summary: viewModel.selectedTagSummary,
+                    selectedCount: viewModel.selectedTagIDs.count
+                )
 
-            Button {
-                activeFilterSheet = .flavor
-            } label: {
-                filterButtonLabel(title: "맛별", summary: viewModel.selectedTagSummary, systemImage: "slider.horizontal.3")
+                filterPill(
+                    sheet: .ingredient,
+                    title: "재료",
+                    summary: viewModel.selectedIngredientSummary,
+                    selectedCount: viewModel.selectedIngredientIDs.count
+                )
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("flavor-filter-button")
-            .accessibilityLabel("맛별 필터")
-            .accessibilityValue(Text(viewModel.selectedTagSummary))
+            .padding(.vertical, 2)
         }
-    }
-
-    private var ingredientSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("재료별 필터")
-                    .font(.headline.weight(.bold))
-                Spacer()
-                if !viewModel.selectedIngredientIDs.isEmpty {
-                    Text("\(viewModel.selectedIngredientIDs.count)개 선택")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                }
-            }
-
-            Button {
-                activeFilterSheet = .ingredient
-            } label: {
-                filterButtonLabel(title: "재료별", summary: viewModel.selectedIngredientSummary, systemImage: "leaf.fill")
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("ingredient-filter-button")
-            .accessibilityLabel("재료별 필터")
-            .accessibilityValue(Text(viewModel.selectedIngredientSummary))
-        }
+        .accessibilityIdentifier("search-filter-bar")
     }
 
     private var results: some View {
@@ -121,92 +106,92 @@ struct SearchView: View {
         }
     }
 
-    @ViewBuilder
-    private func filterSheet(for sheet: SearchFilterSheet) -> some View {
-        switch sheet {
-        case .flavor:
-            FilterSelectionSheet(
-                title: "맛별 선택",
-                helperText: "원하는 맛을 골라 검색 결과를 좁혀보세요.",
-                emptyText: "불러온 맛 태그가 없습니다.",
-                accessibilityIdentifier: "flavor-filter-sheet",
-                items: viewModel.tags,
-                selectedIDs: viewModel.selectedTagIDs,
-                itemTitle: \.name,
-                clearSelection: {
-                    viewModel.clearTags()
-                    Task {
-                        try? await viewModel.search()
-                    }
-                },
-                toggleSelection: { tag in
-                    viewModel.toggleTag(tag)
-                    Task {
-                        try? await viewModel.search()
-                    }
-                }
-            )
-        case .ingredient:
-            FilterSelectionSheet(
-                title: "재료별 선택",
-                helperText: "재료를 골라 검색 결과를 좁혀보세요.",
-                emptyText: "불러온 재료가 없습니다.",
-                accessibilityIdentifier: "ingredient-filter-sheet",
-                items: viewModel.ingredients,
-                selectedIDs: viewModel.selectedIngredientIDs,
-                itemTitle: \.name,
-                clearSelection: {
-                    viewModel.clearIngredients()
-                    Task {
-                        try? await viewModel.search()
-                    }
-                },
-                toggleSelection: { ingredient in
-                    viewModel.toggleIngredient(ingredient)
-                    Task {
-                        try? await viewModel.search()
-                    }
-                }
-            )
-        }
-    }
-
-    private func filterButtonLabel(title: String, summary: String, systemImage: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(SauceColor.primaryContainer)
-                .frame(width: 38, height: 38)
-                .background(SauceColor.redTint)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 4) {
+    private func filterPill(
+        sheet: SearchFilterSheet,
+        title: String,
+        summary: String,
+        selectedCount: Int
+    ) -> some View {
+        Button {
+            activeFilterSheet = sheet
+        } label: {
+            HStack(spacing: 7) {
                 Text(title)
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(SauceColor.onSurface)
-                Text(summary)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
+
+                if selectedCount > 0 {
+                    Text(summary)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                }
+
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.down")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(SauceColor.onSurfaceVariant)
+            .foregroundStyle(selectedCount > 0 ? SauceColor.onPrimary : SauceColor.onSurfaceVariant)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selectedCount > 0 ? SauceColor.primaryContainer : SauceColor.surfaceContainerLow)
+            .clipShape(Capsule())
         }
-        .padding(14)
-        .background(SauceColor.surfaceLowest)
-        .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(sheet.buttonAccessibilityIdentifier)
+        .accessibilityLabel("\(title) 필터")
+        .accessibilityValue(Text(summary))
     }
 }
 
-private enum SearchFilterSheet: String, Identifiable {
+private enum SearchFilterSheet: String, Identifiable, CaseIterable {
     case flavor
     case ingredient
 
     var id: String {
         rawValue
+    }
+
+    var tabTitle: String {
+        switch self {
+        case .flavor:
+            return "맛"
+        case .ingredient:
+            return "재료"
+        }
+    }
+
+    var helperText: String {
+        switch self {
+        case .flavor:
+            return "원하는 맛을 골라 검색 결과를 좁혀보세요."
+        case .ingredient:
+            return "재료를 골라 검색 결과를 좁혀보세요."
+        }
+    }
+
+    var emptyText: String {
+        switch self {
+        case .flavor:
+            return "불러온 맛 태그가 없습니다."
+        case .ingredient:
+            return "불러온 재료가 없습니다."
+        }
+    }
+
+    var buttonAccessibilityIdentifier: String {
+        switch self {
+        case .flavor:
+            return "flavor-filter-button"
+        case .ingredient:
+            return "ingredient-filter-button"
+        }
+    }
+
+    var tabAccessibilityIdentifier: String {
+        switch self {
+        case .flavor:
+            return "search-filter-tab-flavor"
+        case .ingredient:
+            return "search-filter-tab-ingredient"
+        }
     }
 }
 
@@ -223,73 +208,200 @@ struct FlexibleChips<Item: Identifiable, Content: View>: View {
     }
 }
 
-private struct FilterSelectionSheet<Item: Identifiable>: View where Item.ID == Int {
-    let title: String
-    let helperText: String
-    let emptyText: String
-    let accessibilityIdentifier: String
-    let items: [Item]
-    let selectedIDs: Set<Int>
-    let itemTitle: (Item) -> String
-    let clearSelection: () -> Void
-    let toggleSelection: (Item) -> Void
+private struct SearchFilterBottomSheet: View {
+    let tags: [TagDTO]
+    let ingredients: [IngredientDTO]
+    let resetDraft: () -> SearchFilterDraft
+    let applySelection: (SearchFilterDraft) -> Void
+    @State private var selectedTab: SearchFilterSheet
+    @State private var draft: SearchFilterDraft
     @Environment(\.dismiss) private var dismiss
 
+    init(
+        initialTab: SearchFilterSheet,
+        tags: [TagDTO],
+        ingredients: [IngredientDTO],
+        initialDraft: SearchFilterDraft,
+        resetDraft: @escaping () -> SearchFilterDraft,
+        applySelection: @escaping (SearchFilterDraft) -> Void
+    ) {
+        self.tags = tags
+        self.ingredients = ingredients
+        self.resetDraft = resetDraft
+        self.applySelection = applySelection
+        _selectedTab = State(initialValue: initialTab)
+        _draft = State(initialValue: initialDraft)
+    }
+
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            dragHandle
+            tabRow
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(helperText)
-                        .font(.subheadline)
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
-
-                    if items.isEmpty {
-                        Text(emptyText)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(SauceColor.onSurfaceVariant)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(18)
-                            .background(SauceColor.surfaceContainerLow)
-                            .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
-                    } else {
-                        FlexibleChips(items: items) { item in
-                            Button {
-                                toggleSelection(item)
-                            } label: {
-                                SauceChip(
-                                    title: itemTitle(item),
-                                    isSelected: selectedIDs.contains(item.id),
-                                    icon: selectedIDs.contains(item.id) ? "checkmark" : nil
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    sheetContent
                 }
                 .padding(.horizontal, SauceSpacing.screen)
-                .padding(.vertical, 20)
+                .padding(.top, 22)
+                .padding(.bottom, 120)
             }
-            .background(SauceColor.surface.ignoresSafeArea())
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("전체 해제") {
-                        clearSelection()
+
+            footer
+        }
+        .background(SauceColor.surfaceLowest.ignoresSafeArea())
+        .accessibilityIdentifier("search-filter-sheet")
+    }
+
+    private var dragHandle: some View {
+        Capsule()
+            .fill(SauceColor.surfaceContainer)
+            .frame(width: 48, height: 5)
+            .padding(.top, 10)
+            .padding(.bottom, 18)
+            .accessibilityHidden(true)
+    }
+
+    private var tabRow: some View {
+        HStack(spacing: 28) {
+            ForEach(SearchFilterSheet.allCases) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    VStack(spacing: 9) {
+                        Text(tab.tabTitle)
+                            .font(.headline.weight(selectedTab == tab ? .bold : .semibold))
+                            .foregroundStyle(selectedTab == tab ? SauceColor.onSurface : SauceColor.onSurfaceVariant)
+
+                        Capsule()
+                            .fill(selectedTab == tab ? SauceColor.onSurface : Color.clear)
+                            .frame(width: 34, height: 3)
                     }
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(selectedIDs.isEmpty ? SauceColor.muted : SauceColor.primaryContainer)
-                    .disabled(selectedIDs.isEmpty)
+                    .frame(minWidth: 50)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("완료") {
-                        dismiss()
-                    }
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(SauceColor.primaryContainer)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(tab.tabAccessibilityIdentifier)
+                .accessibilityValue(selectedTab == tab ? "선택됨" : "선택 안 됨")
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, SauceSpacing.screen)
+        .padding(.bottom, 2)
+        .background(SauceColor.surfaceLowest)
+    }
+
+    @ViewBuilder
+    private var sheetContent: some View {
+        switch selectedTab {
+        case .flavor:
+            optionSection(
+                helperText: SearchFilterSheet.flavor.helperText,
+                emptyText: SearchFilterSheet.flavor.emptyText,
+                items: tags,
+                selectedIDs: draft.tagIDs,
+                itemTitle: { $0.name },
+                toggle: toggleTag
+            )
+        case .ingredient:
+            optionSection(
+                helperText: SearchFilterSheet.ingredient.helperText,
+                emptyText: SearchFilterSheet.ingredient.emptyText,
+                items: ingredients,
+                selectedIDs: draft.ingredientIDs,
+                itemTitle: { $0.name },
+                toggle: toggleIngredient
+            )
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            Button {
+                draft = resetDraft()
+            } label: {
+                Text("초기화")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                    .frame(width: 102)
+                    .padding(.vertical, 18)
+                    .background(SauceColor.surfaceContainerLow)
+                    .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("search-filter-reset-button")
+
+            Button {
+                applySelection(draft)
+                dismiss()
+            } label: {
+                Text("결과 보기")
+                    .primarySauceButton()
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("search-filter-apply-button")
+        }
+        .padding(.horizontal, SauceSpacing.screen)
+        .padding(.top, 14)
+        .padding(.bottom, 22)
+        .background(SauceColor.surfaceLowest)
+    }
+
+    @ViewBuilder
+    private func optionSection<Item: Identifiable>(
+        helperText: String,
+        emptyText: String,
+        items: [Item],
+        selectedIDs: Set<Int>,
+        itemTitle: @escaping (Item) -> String,
+        toggle: @escaping (Item) -> Void
+    ) -> some View where Item.ID == Int {
+        Text(helperText)
+            .font(.subheadline)
+            .foregroundStyle(SauceColor.onSurfaceVariant)
+
+        if items.isEmpty {
+            Text(emptyText)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .background(SauceColor.surfaceContainerLow)
+                .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+        } else {
+            FlexibleChips(items: items) { item in
+                let isSelected = selectedIDs.contains(item.id)
+
+                Button {
+                    toggle(item)
+                } label: {
+                    SauceChip(
+                        title: itemTitle(item),
+                        isSelected: isSelected,
+                        icon: isSelected ? "checkmark" : nil
+                    )
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("search-filter-chip-\(item.id)")
+                .accessibilityLabel(itemTitle(item))
+                .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
             }
         }
-        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func toggleTag(_ tag: TagDTO) {
+        if draft.tagIDs.contains(tag.id) {
+            draft.tagIDs.remove(tag.id)
+        } else {
+            draft.tagIDs.insert(tag.id)
+        }
+    }
+
+    private func toggleIngredient(_ ingredient: IngredientDTO) {
+        if draft.ingredientIDs.contains(ingredient.id) {
+            draft.ingredientIDs.remove(ingredient.id)
+        } else {
+            draft.ingredientIDs.insert(ingredient.id)
+        }
     }
 }

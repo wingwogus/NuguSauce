@@ -174,6 +174,51 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.queryModel.sort, .rating)
     }
 
+    func testSearchFilterDraftMirrorsAndAppliesCommittedFilters() {
+        let viewModel = SearchViewModel(apiClient: TestAPIClient())
+        viewModel.selectedTagIDs = [1, 3]
+        viewModel.selectedIngredientIDs = [2]
+
+        let draft = viewModel.makeFilterDraft()
+
+        XCTAssertEqual(draft.tagIDs, [1, 3])
+        XCTAssertEqual(draft.ingredientIDs, [2])
+
+        viewModel.applyFilterDraft(SearchFilterDraft(tagIDs: [4], ingredientIDs: [5, 6]))
+
+        XCTAssertEqual(viewModel.selectedTagIDs, [4])
+        XCTAssertEqual(viewModel.selectedIngredientIDs, [5, 6])
+        XCTAssertEqual(viewModel.queryModel.tagIDs, [4])
+        XCTAssertEqual(viewModel.queryModel.ingredientIDs, [5, 6])
+    }
+
+    func testSearchFilterDraftResetDoesNotMutateCommittedFilters() {
+        let viewModel = SearchViewModel(apiClient: TestAPIClient())
+        viewModel.selectedTagIDs = [1]
+        viewModel.selectedIngredientIDs = [2]
+
+        let resetDraft = viewModel.resetFilterDraft()
+
+        XCTAssertEqual(resetDraft, SearchFilterDraft.empty)
+        XCTAssertEqual(viewModel.selectedTagIDs, [1])
+        XCTAssertEqual(viewModel.selectedIngredientIDs, [2])
+    }
+
+    func testSearchFilterDraftApplyDoesNotFetchUntilSearchRuns() async throws {
+        let client = TestAPIClient()
+        let viewModel = SearchViewModel(apiClient: client)
+
+        viewModel.applyFilterDraft(SearchFilterDraft(tagIDs: [7], ingredientIDs: [9]))
+
+        XCTAssertTrue(client.fetchedRecipeQueries.isEmpty)
+
+        try await viewModel.search()
+
+        XCTAssertEqual(client.fetchedRecipeQueries.count, 1)
+        XCTAssertEqual(client.fetchedRecipeQueries.first?.tagIDs ?? [], [7])
+        XCTAssertEqual(client.fetchedRecipeQueries.first?.ingredientIDs ?? [], [9])
+    }
+
     func testSearchSelectedTagSummaryUsesLoadedFlavorTags() async {
         let viewModel = SearchViewModel(
             apiClient: TestAPIClient(
@@ -1076,6 +1121,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var updatedNicknames: [String] = []
     private(set) var updatedProfileImageIDs: [Int?] = []
     private(set) var fetchedMemberIDs: [Int] = []
+    private(set) var fetchedRecipeQueries: [RecipeListQuery] = []
 
     init(
         hotRecipes: [RecipeSummaryDTO]? = nil,
@@ -1113,6 +1159,7 @@ private final class TestAPIClient: APIClientProtocol {
     }
 
     func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
+        fetchedRecipeQueries.append(query)
         fetchRecipeSorts.append(query.sort)
         switch query.sort {
         case .hot:

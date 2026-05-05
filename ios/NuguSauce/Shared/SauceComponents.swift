@@ -569,8 +569,8 @@ private struct RecipeBookmarkOverlay: View {
 
     var body: some View {
         Image(systemName: isFavorited ? "bookmark.fill" : "bookmark")
-            .font(.system(size: size * 0.58, weight: .black))
-            .foregroundStyle(isFavorited ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+            .font(.system(size: size * 0.58, weight: isFavorited ? .black : .regular))
+            .foregroundStyle(isFavorited ? SauceColor.primaryContainer : SauceColor.onPrimary)
             .frame(width: size, height: size)
     }
 }

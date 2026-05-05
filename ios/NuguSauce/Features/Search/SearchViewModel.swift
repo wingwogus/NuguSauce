@@ -1,5 +1,12 @@
 import Foundation
 
+struct SearchFilterDraft: Equatable {
+    var tagIDs: Set<Int>
+    var ingredientIDs: Set<Int>
+
+    static let empty = SearchFilterDraft(tagIDs: [], ingredientIDs: [])
+}
+
 @MainActor
 final class SearchViewModel: ObservableObject {
     @Published var query = ""
@@ -40,6 +47,19 @@ final class SearchViewModel: ObservableObject {
 
     var queryModel: RecipeListQuery {
         RecipeListQuery(keyword: query, tagIDs: selectedTagIDs, ingredientIDs: selectedIngredientIDs, sort: sort)
+    }
+
+    func makeFilterDraft() -> SearchFilterDraft {
+        SearchFilterDraft(tagIDs: selectedTagIDs, ingredientIDs: selectedIngredientIDs)
+    }
+
+    func applyFilterDraft(_ draft: SearchFilterDraft) {
+        selectedTagIDs = draft.tagIDs
+        selectedIngredientIDs = draft.ingredientIDs
+    }
+
+    func resetFilterDraft() -> SearchFilterDraft {
+        .empty
     }
 
     func load() async {

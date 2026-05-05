@@ -325,7 +325,7 @@ private struct HomeFavoriteStateBadge: View {
 
     var body: some View {
         Image(systemName: isFavorite ? "bookmark.fill" : "bookmark")
-            .font(.system(size: size * 0.58, weight: .black))
+            .font(.system(size: size * 0.58, weight: isFavorite ? .black : .regular))
             .foregroundStyle(isFavorite ? foreground : inactiveForeground)
             .frame(width: size, height: size)
             .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")

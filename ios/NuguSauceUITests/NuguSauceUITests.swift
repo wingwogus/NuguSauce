@@ -32,7 +32,16 @@ final class NuguSauceUITests: XCTestCase {
 
         flavorFilterButton.tap()
 
-        XCTAssertTrue(app.staticTexts["원하는 맛을 골라 검색 결과를 좁혀보세요."].waitForExistence(timeout: 5))
+        let sheet = app.descendants(matching: .any)["search-filter-sheet"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["search-filter-tab-flavor"].exists)
+        XCTAssertTrue(app.buttons["search-filter-reset-button"].exists)
+        XCTAssertTrue(app.buttons["search-filter-apply-button"].exists)
+        XCTAssertTrue(app.staticTexts["원하는 맛을 골라 검색 결과를 좁혀보세요."].exists)
+
+        app.buttons["search-filter-apply-button"].tap()
+
+        XCTAssertTrue(waitForNonExistence(sheet, timeout: 5))
     }
 
     func testSearchIngredientFilterPresentsSelectionSheet() {
@@ -46,7 +55,12 @@ final class NuguSauceUITests: XCTestCase {
 
         ingredientFilterButton.tap()
 
-        XCTAssertTrue(app.staticTexts["재료를 골라 검색 결과를 좁혀보세요."].waitForExistence(timeout: 5))
+        let sheet = app.descendants(matching: .any)["search-filter-sheet"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["search-filter-tab-ingredient"].exists)
+        XCTAssertTrue(app.buttons["search-filter-reset-button"].exists)
+        XCTAssertTrue(app.buttons["search-filter-apply-button"].exists)
+        XCTAssertTrue(app.staticTexts["재료를 골라 검색 결과를 좁혀보세요."].exists)
     }
 
     func testProfileTabRoutesSignedOutUserToLoginScreen() {
@@ -63,5 +77,11 @@ final class NuguSauceUITests: XCTestCase {
         identifiers.contains { identifier in
             app.descendants(matching: .any)[identifier].waitForExistence(timeout: 5)
         }
+    }
+
+    private func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }
