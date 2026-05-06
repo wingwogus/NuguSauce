@@ -10,6 +10,7 @@ enum class ErrorCode(
     INVALID_JSON("COMMON_002", "error.invalid_json", 400),
     INTERNAL_ERROR("COMMON_999", "error.internal_error", 500),
     RESOURCE_NOT_FOUND("RESOURCE_001", "error.resource_not_found", 404),
+    CONSENT_REQUIRED("CONSENT_001", "error.consent_required", 428),
     USER_NOT_FOUND("USER_001", "error.user_not_found", 404),
     USER_ALREADY_EXISTS("USER_002", "error.user_already_exists", 409),
     INVALID_NICKNAME("USER_003", "error.invalid_nickname", 400),

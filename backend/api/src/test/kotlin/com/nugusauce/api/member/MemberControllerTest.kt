@@ -1,6 +1,7 @@
 package com.nugusauce.api.member
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.member.MemberCommand
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.`when`
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -37,6 +39,9 @@ class MemberControllerTest(
 ) {
     @MockBean
     private lateinit var memberService: MemberService
+
+    @MockBean
+    private lateinit var consentService: ConsentService
 
     @MockBean
     private lateinit var tokenProvider: TokenProvider
@@ -91,6 +96,7 @@ class MemberControllerTest(
             .andExpect(jsonPath("$.data.nickname", equalTo("소스장인")))
             .andExpect(jsonPath("$.data.profileImageUrl", equalTo("https://cdn.example.test/profile.jpg")))
             .andExpect(jsonPath("$.data.profileSetupRequired", equalTo(false)))
+        verify(consentService).requireRequiredConsents(1L)
     }
 
     @Test

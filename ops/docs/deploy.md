@@ -10,6 +10,7 @@ Current target topology:
 Required backend prerequisites before production rollout:
 
 - build the backend API jar with `./gradlew --no-daemon clean :api:bootJar`
+- apply `ops/docs/consent-rollout.sql` to the target PostgreSQL database before deploying any backend image that enforces `CONSENT_001`
 - build and push `docker.io/vantagac/nugusauce-api:<git-sha>`
 - expose actuator health and Prometheus endpoints on management port `9090`
 - allow actuator health and Prometheus routes through Spring Security

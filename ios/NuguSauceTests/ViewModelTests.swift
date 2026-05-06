@@ -326,6 +326,7 @@ final class ViewModelTests: XCTestCase {
         viewModel.addIngredient(ingredient)
         viewModel.title = "사진 소스"
         viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.photoRightsAccepted = true
 
         let recipeID = await viewModel.submit()
 
@@ -335,6 +336,52 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(client.uploadedImageByteCounts, [3])
         XCTAssertEqual(client.completedImageIDs, [50])
         XCTAssertEqual(client.createdRecipeRequests.first?.imageId, 50)
+    }
+
+    func testCreateRecipeSubmitRequiresPhotoRightsConfirmation() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let client = TestAPIClient(ingredients: [ingredient])
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "사진 소스"
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+
+        let recipeID = await viewModel.submit()
+
+        XCTAssertNil(recipeID)
+        XCTAssertEqual(viewModel.errorMessage, "직접 촬영했거나 사용할 권리가 있는 사진만 올릴 수 있어요.")
+        XCTAssertTrue(client.uploadEvents.isEmpty)
+    }
+
+    func testCreateRecipeConsentRequiredLoadsConsentStatusAndAcceptsRecovery() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let client = TestAPIClient(
+            ingredients: [ingredient],
+            createRecipeError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus()
+        )
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "동의 필요한 소스"
+
+        let recipeID = await viewModel.submit()
+
+        XCTAssertNil(recipeID)
+        XCTAssertEqual(client.fetchConsentStatusCallCount, 1)
+        XCTAssertEqual(viewModel.pendingConsentStatus?.missingPolicies.first?.policyType, "terms_of_service")
+        XCTAssertEqual(viewModel.errorMessage, "필수 약관과 개인정보/콘텐츠 정책 동의가 필요해요.")
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertTrue(didAccept)
+        XCTAssertNil(viewModel.pendingConsentStatus)
+        XCTAssertEqual(client.acceptedConsentRequests.first?.acceptedPolicies.first?.policyType, "terms_of_service")
     }
 
     func testCreateRecipeRatioIsTruncatedToTenthsInStateAndRequest() throws {
@@ -586,10 +633,10 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(restoredStore.persistenceFailure)
     }
 
-    func testAuthSessionPersistsKakaoMemberProfileSetupRequirement() {
+    func testAuthSessionRejectsKakaoMemberUntilProfileSetupCompletes() {
         let tokenStore = MemoryAuthTokenStore()
         let userDefaults = makeUserDefaults()
-        let firstStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
         let member = MemberProfileDTO(
             id: 7,
             nickname: nil,
@@ -597,25 +644,20 @@ final class ViewModelTests: XCTestCase {
             profileSetupRequired: true
         )
 
-        XCTAssertTrue(
-            firstStore.saveSession(
+        XCTAssertFalse(
+            store.saveSession(
                 accessToken: "live-access-token",
                 refreshToken: "live-refresh-token",
                 member: member
             )
         )
 
-        XCTAssertTrue(firstStore.requiresProfileSetup)
-        XCTAssertEqual(firstStore.currentSession?.memberId, 7)
-        XCTAssertEqual(firstStore.currentSession?.displayName, "사용자 7")
-        XCTAssertNil(firstStore.currentSession?.nickname)
-
-        let restoredStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
-
-        XCTAssertTrue(restoredStore.requiresProfileSetup)
-        XCTAssertEqual(restoredStore.currentSession?.memberId, 7)
-        XCTAssertEqual(restoredStore.currentSession?.displayName, "사용자 7")
-        XCTAssertNil(restoredStore.currentSession?.nickname)
+        XCTAssertFalse(store.isAuthenticated)
+        XCTAssertFalse(store.requiresProfileSetup)
+        XCTAssertNil(store.currentSession)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+        XCTAssertEqual(store.persistenceFailure, .profileSetupIncomplete)
     }
 
     func testAuthSessionSaveFailsClosedWhenAccessTokenCannotBePersisted() {
@@ -647,6 +689,7 @@ final class ViewModelTests: XCTestCase {
     func testAuthSessionPersistenceFailureMessageDoesNotExposeTokenStorageDetails() {
         let failures: [AuthSessionPersistenceFailure] = [
             .emptyAccessToken,
+            .profileSetupIncomplete,
             .accessTokenSaveFailed,
             .refreshTokenSaveFailed,
             .refreshTokenDeleteFailed
@@ -657,6 +700,83 @@ final class ViewModelTests: XCTestCase {
             XCTAssertFalse(failure.message.localizedCaseInsensitiveContains("token"))
             XCTAssertFalse(failure.message.localizedCaseInsensitiveContains("keychain"))
         }
+    }
+
+    @MainActor
+    func testLoginViewModelPersistsSessionOnlyAfterConsentAndNickname() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(),
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didCompleteAfterKakao = await viewModel.loginWithKakao()
+
+        XCTAssertFalse(didCompleteAfterKakao)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertEqual(client.fetchConsentStatusAccessTokens, ["real-access-token"])
+        XCTAssertEqual(viewModel.pendingConsentStatus?.missingPolicies.first?.policyType, "terms_of_service")
+
+        let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
+
+        XCTAssertFalse(didCompleteAfterConsent)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertEqual(client.acceptConsentAccessTokens, ["real-access-token"])
+        XCTAssertTrue(viewModel.shouldShowNicknameSetup)
+
+        viewModel.nicknameDraft = "소스장인"
+        let didCompleteAfterNickname = await viewModel.saveNicknameAndCompleteLogin()
+
+        XCTAssertTrue(didCompleteAfterNickname)
+        XCTAssertTrue(authStore.isAuthenticated)
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "real-access-token")
+        XCTAssertEqual(authStore.currentSession?.nickname, "소스장인")
+        XCTAssertEqual(client.updateMemberAccessTokens, ["real-access-token"])
+    }
+
+    @MainActor
+    func testLoginViewModelDoesNotPersistSessionWhenNicknameSaveFails() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            updateMemberError: ApiError(code: ApiErrorCode.duplicateNickname, message: "duplicate", detail: nil),
+            consentStatus: Self.missingConsentStatus(),
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        XCTAssertFalse(await viewModel.loginWithKakao())
+        XCTAssertFalse(await viewModel.acceptRequiredConsents())
+
+        viewModel.nicknameDraft = "중복닉"
+        let didComplete = await viewModel.saveNicknameAndCompleteLogin()
+
+        XCTAssertFalse(didComplete)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertEqual(viewModel.nicknameErrorMessage, "이미 사용 중인 닉네임입니다.")
     }
 
     func testKeychainTokenStoreSavesUpdatesReadsAndDeletesWithIsolatedService() {
@@ -877,6 +997,31 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.selectedTasteTagIDs.isEmpty)
     }
 
+    func testRecipeDetailConsentRequiredLoadsConsentStatusAndAcceptsRecovery() async {
+        let client = TestAPIClient(
+            createReviewError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus()
+        )
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+        viewModel.reviewText = "고소하고 좋아요"
+
+        let didSubmit = await viewModel.submitReview()
+
+        XCTAssertFalse(didSubmit)
+        XCTAssertEqual(client.fetchConsentStatusCallCount, 1)
+        XCTAssertEqual(viewModel.pendingConsentStatus?.missingPolicies.first?.policyType, "terms_of_service")
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertTrue(didAccept)
+        XCTAssertNil(viewModel.pendingConsentStatus)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 1)
+    }
+
     func testRecipeDetailRejectsReviewWhenLoggedOut() async {
         let viewModel = RecipeDetailViewModel(
             recipeID: 10,
@@ -966,6 +1111,7 @@ final class ViewModelTests: XCTestCase {
 
         await viewModel.load()
         viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.photoRightsAccepted = true
         viewModel.nicknameDraft = "새닉네임"
         let didSave = await viewModel.save()
 
@@ -978,6 +1124,48 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.member?.profileImageUrl, "https://cdn.example.test/profile/50.jpg")
         XCTAssertEqual(authStore.currentSession?.displayName, "새닉네임")
         XCTAssertEqual(authStore.currentSession?.profileImageUrl, "https://cdn.example.test/profile/50.jpg")
+    }
+
+    func testProfileEditSaveRequiresPhotoRightsConfirmation() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient()
+        let viewModel = ProfileEditViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.nicknameDraft = "새닉네임"
+
+        let didSave = await viewModel.save()
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.errorMessage, "직접 촬영했거나 사용할 권리가 있는 사진만 올릴 수 있어요.")
+        XCTAssertTrue(client.uploadEvents.isEmpty)
+    }
+
+    func testProfileEditConsentRequiredLoadsConsentStatusAndAcceptsRecovery() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            imageUploadIntentError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus()
+        )
+        let viewModel = ProfileEditViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.photoRightsAccepted = true
+        viewModel.nicknameDraft = "새닉네임"
+
+        let didSave = await viewModel.save()
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(client.fetchConsentStatusCallCount, 1)
+        XCTAssertEqual(viewModel.pendingConsentStatus?.missingPolicies.first?.policyType, "terms_of_service")
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertTrue(didAccept)
+        XCTAssertNil(viewModel.pendingConsentStatus)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 1)
     }
 
     func testProfileUsesUpdatedSessionAfterProfileSetupGateSavesNickname() async {
@@ -1091,6 +1279,23 @@ final class ViewModelTests: XCTestCase {
         )!
         return UIImage(cgImage: cgImage)
     }
+
+    private static func missingConsentStatus() -> ConsentStatusDTO {
+        let policy = ConsentPolicyDTO(
+            policyType: "terms_of_service",
+            version: "2026-05-01",
+            title: "서비스 이용약관",
+            url: "https://nugusauce.jaehyuns.com/legal/terms",
+            required: true,
+            accepted: false,
+            activeFrom: "2026-05-01T00:00:00Z"
+        )
+        return ConsentStatusDTO(
+            policies: [policy],
+            missingPolicies: [policy],
+            requiredConsentsAccepted: false
+        )
+    }
 }
 
 private final class TestAPIClient: APIClientProtocol {
@@ -1102,10 +1307,13 @@ private final class TestAPIClient: APIClientProtocol {
     private let tags: [TagDTO]
     private let detailIsFavorite: Bool
     private let createRecipeError: Error?
+    private let createReviewError: Error?
+    private let imageUploadIntentError: Error?
     private let favoriteAddError: Error?
     private let favoriteDeleteError: Error?
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
+    private var consentStatus: ConsentStatusDTO
     private var didStartFavoriteAdd = false
     private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
     private var favoriteAddCompletion: CheckedContinuation<Void, Error>?
@@ -1122,6 +1330,11 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var updatedProfileImageIDs: [Int?] = []
     private(set) var fetchedMemberIDs: [Int] = []
     private(set) var fetchedRecipeQueries: [RecipeListQuery] = []
+    private(set) var fetchConsentStatusCallCount = 0
+    private(set) var acceptedConsentRequests: [ConsentAcceptRequestDTO] = []
+    private(set) var fetchConsentStatusAccessTokens: [String] = []
+    private(set) var acceptConsentAccessTokens: [String] = []
+    private(set) var updateMemberAccessTokens: [String] = []
 
     init(
         hotRecipes: [RecipeSummaryDTO]? = nil,
@@ -1132,10 +1345,13 @@ private final class TestAPIClient: APIClientProtocol {
         tags: [TagDTO] = [],
         detailIsFavorite: Bool = false,
         createRecipeError: Error? = nil,
+        createReviewError: Error? = nil,
+        imageUploadIntentError: Error? = nil,
         favoriteAddError: Error? = nil,
         favoriteDeleteError: Error? = nil,
         suspendFavoriteAdd: Bool = false,
         updateMemberError: Error? = nil,
+        consentStatus: ConsentStatusDTO = ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true),
         memberProfile: MemberProfileDTO = MemberProfileDTO(
             id: 1,
             nickname: "테스터",
@@ -1151,10 +1367,13 @@ private final class TestAPIClient: APIClientProtocol {
         self.tags = tags
         self.detailIsFavorite = detailIsFavorite
         self.createRecipeError = createRecipeError
+        self.createReviewError = createReviewError
+        self.imageUploadIntentError = imageUploadIntentError
         self.favoriteAddError = favoriteAddError
         self.favoriteDeleteError = favoriteDeleteError
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
+        self.consentStatus = consentStatus
         self.memberProfile = memberProfile
     }
 
@@ -1196,6 +1415,9 @@ private final class TestAPIClient: APIClientProtocol {
     func fetchIngredients() async throws -> [IngredientDTO] { ingredients }
     func fetchTags() async throws -> [TagDTO] { tags }
     func createImageUploadIntent(_ request: ImageUploadIntentRequestDTO) async throws -> ImageUploadIntentDTO {
+        if let imageUploadIntentError {
+            throw imageUploadIntentError
+        }
         uploadEvents.append("intent")
         imageUploadIntentRequests.append(request)
         return ImageUploadIntentDTO(
@@ -1242,6 +1464,9 @@ private final class TestAPIClient: APIClientProtocol {
         return try await fetchRecipeDetail(id: 1)
     }
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
+        if let createReviewError {
+            throw createReviewError
+        }
         createdReviewRequests.append(request)
         return RecipeReviewDTO(
             id: 1,
@@ -1315,11 +1540,58 @@ private final class TestAPIClient: APIClientProtocol {
         )
         return memberProfile
     }
+    func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO {
+        updateMemberAccessTokens.append(accessToken)
+        return try await updateMyMember(nickname: nickname, profileImageId: profileImageId)
+    }
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         KakaoLoginResponseDTO(accessToken: "real-access-token", refreshToken: "real-refresh-token", member: memberProfile)
     }
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         TokenResponseDTO(accessToken: "reissued-access-token", refreshToken: refreshToken)
+    }
+    func fetchConsentStatus() async throws -> ConsentStatusDTO {
+        fetchConsentStatusCallCount += 1
+        return consentStatus
+    }
+    func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO {
+        fetchConsentStatusAccessTokens.append(accessToken)
+        return try await fetchConsentStatus()
+    }
+    func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO {
+        acceptedConsentRequests.append(request)
+        consentStatus = ConsentStatusDTO(
+            policies: consentStatus.policies.map {
+                ConsentPolicyDTO(
+                    policyType: $0.policyType,
+                    version: $0.version,
+                    title: $0.title,
+                    url: $0.url,
+                    required: $0.required,
+                    accepted: true,
+                    activeFrom: $0.activeFrom
+                )
+            },
+            missingPolicies: [],
+            requiredConsentsAccepted: true
+        )
+        return consentStatus
+    }
+    func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO {
+        acceptConsentAccessTokens.append(accessToken)
+        return try await acceptConsents(request)
+    }
+}
+
+private struct TestKakaoLoginService: KakaoLoginServicing {
+    var credential = KakaoOIDCCredential(
+        idToken: "kakao-id-token",
+        nonce: "nonce",
+        kakaoAccessToken: "kakao-access-token"
+    )
+
+    func login() async throws -> KakaoOIDCCredential {
+        credential
     }
 }
 
@@ -1333,10 +1605,13 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
     }
 
     var isAuthenticated: Bool {
-        currentSession != nil
+        currentSession?.profileSetupRequired == false
     }
 
     var accessToken: String? {
+        guard isAuthenticated else {
+            return nil
+        }
         currentSession?.accessToken
     }
 

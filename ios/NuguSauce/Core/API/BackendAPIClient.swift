@@ -185,6 +185,16 @@ final class BackendAPIClient: APIClientProtocol {
         )
     }
 
+    func updateMyMember(nickname: String, profileImageId: Int? = nil, accessToken: String) async throws -> MemberProfileDTO {
+        try await send(
+            path: "/api/v1/members/me",
+            method: "PATCH",
+            body: AnyEncodable(UpdateMemberRequest(nickname: nickname, profileImageId: profileImageId)),
+            requiresAuthentication: true,
+            accessTokenOverride: accessToken
+        )
+    }
+
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         try await send(
             path: "/api/v1/auth/kakao/login",
@@ -201,13 +211,45 @@ final class BackendAPIClient: APIClientProtocol {
         )
     }
 
+    func fetchConsentStatus() async throws -> ConsentStatusDTO {
+        try await send(path: "/api/v1/consents/status", requiresAuthentication: true)
+    }
+
+    func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO {
+        try await send(
+            path: "/api/v1/consents/status",
+            requiresAuthentication: true,
+            accessTokenOverride: accessToken
+        )
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO {
+        try await send(
+            path: "/api/v1/consents/accept",
+            method: "POST",
+            body: AnyEncodable(request),
+            requiresAuthentication: true
+        )
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO {
+        try await send(
+            path: "/api/v1/consents/accept",
+            method: "POST",
+            body: AnyEncodable(request),
+            requiresAuthentication: true,
+            accessTokenOverride: accessToken
+        )
+    }
+
     private func send<Response: Decodable>(
         path: String,
         method: String = "GET",
         queryItems: [URLQueryItem] = [],
         body: AnyEncodable? = nil,
         requiresAuthentication: Bool = false,
-        includesAuthenticationIfAvailable: Bool = false
+        includesAuthenticationIfAvailable: Bool = false,
+        accessTokenOverride: String? = nil
     ) async throws -> Response {
         let request = try makeRequest(
             path: path,
@@ -215,7 +257,8 @@ final class BackendAPIClient: APIClientProtocol {
             queryItems: queryItems,
             body: body,
             requiresAuthentication: requiresAuthentication,
-            includesAuthenticationIfAvailable: includesAuthenticationIfAvailable
+            includesAuthenticationIfAvailable: includesAuthenticationIfAvailable,
+            accessTokenOverride: accessTokenOverride
         )
         let (data, response) = try await session.data(for: request)
         return try decodeEnvelope(Response.self, from: data, response: response)
@@ -232,7 +275,8 @@ final class BackendAPIClient: APIClientProtocol {
             queryItems: [],
             body: nil,
             requiresAuthentication: requiresAuthentication,
-            includesAuthenticationIfAvailable: false
+            includesAuthenticationIfAvailable: false,
+            accessTokenOverride: nil
         )
         let (data, response) = try await session.data(for: request)
         _ = try decodeEnvelope(EmptyResponse.self, from: data, response: response)
@@ -244,7 +288,8 @@ final class BackendAPIClient: APIClientProtocol {
         queryItems: [URLQueryItem],
         body: AnyEncodable?,
         requiresAuthentication: Bool,
-        includesAuthenticationIfAvailable: Bool
+        includesAuthenticationIfAvailable: Bool,
+        accessTokenOverride: String? = nil
     ) throws -> URLRequest {
         guard var components = URLComponents(url: url(for: path), resolvingAgainstBaseURL: false) else {
             throw APIClientError.invalidURL
@@ -265,12 +310,12 @@ final class BackendAPIClient: APIClientProtocol {
         }
 
         if requiresAuthentication {
-            guard let accessToken = authStore.accessToken, !accessToken.isEmpty else {
+            guard let accessToken = accessTokenOverride ?? authStore.accessToken, !accessToken.isEmpty else {
                 throw APIClientError.missingAuthentication
             }
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         } else if includesAuthenticationIfAvailable,
-                  let accessToken = authStore.accessToken,
+                  let accessToken = accessTokenOverride ?? authStore.accessToken,
                   !accessToken.isEmpty {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }

@@ -15,6 +15,8 @@ final class RecipeDetailViewModel: ObservableObject {
     @Published private(set) var didSubmitReview = false
     @Published private(set) var isFavorite = false
     @Published private(set) var isUpdatingFavorite = false
+    @Published private(set) var pendingConsentStatus: ConsentStatusDTO?
+    @Published private(set) var isAcceptingConsents = false
 
     let recipeID: Int
     private let apiClient: APIClientProtocol
@@ -118,8 +120,51 @@ final class RecipeDetailViewModel: ObservableObject {
             selectedTasteTagIDs.removeAll()
             didSubmitReview = true
             return true
+        } catch let error as ApiError {
+            if error.code == ApiErrorCode.consentRequired {
+                await loadConsentStatusAfterBlockedWrite()
+            } else {
+                errorMessage = error.userVisibleMessage(default: "리뷰를 저장하지 못했어요.")
+            }
+            return false
         } catch {
             errorMessage = "리뷰를 저장하지 못했어요."
+            return false
+        }
+    }
+
+    func acceptRequiredConsents() async -> Bool {
+        guard !isAcceptingConsents,
+              let pendingConsentStatus else {
+            return false
+        }
+
+        isAcceptingConsents = true
+        errorMessage = nil
+        defer {
+            isAcceptingConsents = false
+        }
+
+        do {
+            let updatedStatus = try await apiClient.acceptConsents(
+                ConsentAcceptRequestDTO(
+                    acceptedPolicies: pendingConsentStatus.missingPolicies.map {
+                        ConsentPolicyAcceptanceDTO(policyType: $0.policyType, version: $0.version)
+                    }
+                )
+            )
+            if updatedStatus.requiredConsentsAccepted {
+                self.pendingConsentStatus = nil
+                return true
+            }
+            self.pendingConsentStatus = updatedStatus
+            errorMessage = "필수 동의를 완료해주세요."
+            return false
+        } catch let error as ApiError {
+            errorMessage = error.userVisibleMessage(default: "필수 동의를 저장하지 못했어요.")
+            return false
+        } catch {
+            errorMessage = "필수 동의를 저장하지 못했어요."
             return false
         }
     }
@@ -162,6 +207,17 @@ final class RecipeDetailViewModel: ObservableObject {
                 isFavorite = previousFavoriteState
                 errorMessage = "찜 상태를 변경하지 못했어요."
             }
+        }
+    }
+
+    private func loadConsentStatusAfterBlockedWrite() async {
+        do {
+            pendingConsentStatus = try await apiClient.fetchConsentStatus()
+            errorMessage = "필수 약관과 개인정보/콘텐츠 정책 동의가 필요해요."
+        } catch let error as ApiError {
+            errorMessage = error.userVisibleMessage(default: "필수 동의 상태를 확인하지 못했어요.")
+        } catch {
+            errorMessage = "필수 동의 상태를 확인하지 못했어요."
         }
     }
 }

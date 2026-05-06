@@ -312,6 +312,14 @@ struct ProfileEditView: View {
                     Text(viewModel.hasSelectedPhoto ? "새 사진 선택됨" : "프로필 사진")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
+
+                    if viewModel.hasSelectedPhoto {
+                        Toggle("직접 촬영했거나 사용할 권리가 있는 사진입니다.", isOn: $viewModel.photoRightsAccepted)
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(SauceColor.onSurfaceVariant)
+                            .tint(SauceColor.primaryContainer)
+                            .padding(.horizontal, 22)
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -332,6 +340,18 @@ struct ProfileEditView: View {
 
                 if let errorMessage = viewModel.errorMessage {
                     SauceStatusBanner(message: errorMessage)
+                }
+
+                if let pendingConsentStatus = viewModel.pendingConsentStatus,
+                   !pendingConsentStatus.requiredConsentsAccepted {
+                    ConsentRequiredPanel(
+                        status: pendingConsentStatus,
+                        isAccepting: viewModel.isAcceptingConsents
+                    ) {
+                        Task {
+                            _ = await viewModel.acceptRequiredConsents()
+                        }
+                    }
                 }
 
                 Button {

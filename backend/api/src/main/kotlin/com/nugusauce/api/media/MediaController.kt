@@ -1,6 +1,7 @@
 package com.nugusauce.api.media
 
 import com.nugusauce.api.common.ApiResponse
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.MediaAssetService
@@ -18,16 +19,19 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/media/images")
 class MediaController(
-    private val mediaAssetService: MediaAssetService
+    private val mediaAssetService: MediaAssetService,
+    private val consentService: ConsentService
 ) {
     @PostMapping("/upload-intent")
     fun createImageUploadIntent(
         @AuthenticationPrincipal userId: String?,
         @Valid @RequestBody request: MediaRequests.CreateImageUploadIntentRequest
     ): ResponseEntity<ApiResponse<MediaResponses.ImageUploadIntentResponse>> {
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
         val result = mediaAssetService.createImageUploadIntent(
             MediaCommand.CreateImageUploadIntent(
-                memberId = requireUserId(userId),
+                memberId = memberId,
                 contentType = request.contentType,
                 byteSize = request.byteSize,
                 fileExtension = request.fileExtension

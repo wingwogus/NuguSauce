@@ -133,6 +133,10 @@ Success data:
 `member.email` is never returned from this endpoint. Kakao identity data proves
 login only; the public NuguSauce nickname is a service profile field.
 
+iOS must treat the returned token pair as pending login state until required
+policy acceptance and required profile setup are complete. The token pair must
+not be persisted as an authenticated app session before those gates pass.
+
 ### `POST /api/v1/auth/reissue`
 
 Refresh token may come from the request body or `refreshToken` cookie.
@@ -145,6 +149,94 @@ Success data:
   "refreshToken": "<nugusauce_refresh_token>"
 }
 ```
+
+## Consent API
+
+Kakao login proves identity only. It does not count as NuguSauce service-policy
+acceptance until the backend records the current required policy versions for
+that member.
+
+Required policies are versioned by backend data:
+
+- `terms_of_service`
+- `privacy_policy`
+- `content_policy`
+
+When a required policy version changes, previously accepted older versions no
+longer satisfy write/upload gates for that policy type.
+
+### Consent enforcement
+
+These endpoints require JWT and all current required consents:
+
+- `POST /api/v1/media/images/upload-intent`
+- `POST /api/v1/recipes`
+- `POST /api/v1/recipes/{recipeId}/reviews`
+- `POST /api/v1/recipes/{recipeId}/reports`
+- `PATCH /api/v1/members/me` when `profileImageId` is supplied
+
+These endpoints must remain usable without service-policy acceptance:
+
+- Kakao login, token reissue, and logout
+- `GET /api/v1/members/me`
+- `GET /api/v1/consents/status`
+- `POST /api/v1/consents/accept`
+- Public read endpoints
+
+Missing required consent fails with `CONSENT_001`.
+
+### `GET /api/v1/consents/status`
+
+Requires JWT.
+
+Success data:
+
+```json
+{
+  "policies": [
+    {
+      "policyType": "terms_of_service",
+      "version": "2026-05-01",
+      "title": "서비스 이용약관",
+      "url": "https://nugusauce.jaehyuns.com/legal/terms",
+      "required": true,
+      "accepted": false,
+      "activeFrom": "2026-05-01T00:00:00Z"
+    }
+  ],
+  "missingPolicies": [
+    {
+      "policyType": "terms_of_service",
+      "version": "2026-05-01",
+      "title": "서비스 이용약관",
+      "url": "https://nugusauce.jaehyuns.com/legal/terms",
+      "required": true,
+      "accepted": false,
+      "activeFrom": "2026-05-01T00:00:00Z"
+    }
+  ],
+  "requiredConsentsAccepted": false
+}
+```
+
+### `POST /api/v1/consents/accept`
+
+Requires JWT. The request must contain current required policy versions from
+the status response. Stale versions fail with `COMMON_001`.
+
+Request:
+
+```json
+{
+  "acceptedPolicies": [
+    { "policyType": "terms_of_service", "version": "2026-05-01" },
+    { "policyType": "privacy_policy", "version": "2026-05-01" },
+    { "policyType": "content_policy", "version": "2026-05-01" }
+  ]
+}
+```
+
+Success data matches the consent status shape.
 
 ## Member API
 
@@ -276,7 +368,8 @@ changes.
 
 ### `POST /api/v1/media/images/upload-intent`
 
-Requires JWT.
+Requires JWT and all current required consents. iOS must show a photo/content
+rights confirmation before requesting an upload intent.
 
 Request:
 

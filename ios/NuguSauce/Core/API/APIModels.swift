@@ -62,6 +62,7 @@ enum ApiErrorCode {
     static let mediaUploadNotVerified = "MEDIA_004"
     static let mediaAlreadyAttached = "MEDIA_006"
     static let mediaProviderUnavailable = "MEDIA_007"
+    static let consentRequired = "CONSENT_001"
 }
 
 extension ApiError {
@@ -93,6 +94,8 @@ extension ApiError {
             return "이미지 업로드를 잠시 사용할 수 없어요."
         case ApiErrorCode.mediaAlreadyAttached:
             return "이미 사용 중인 이미지입니다."
+        case ApiErrorCode.consentRequired:
+            return "필수 약관과 개인정보/콘텐츠 정책 동의가 필요해요."
         case ApiErrorCode.internalError:
             return fallback
         default:
@@ -169,6 +172,35 @@ struct KakaoLoginResponseDTO: Codable, Equatable {
     let member: MemberProfileDTO
 }
 
+struct ConsentStatusDTO: Codable, Equatable {
+    let policies: [ConsentPolicyDTO]
+    let missingPolicies: [ConsentPolicyDTO]
+    let requiredConsentsAccepted: Bool
+}
+
+struct ConsentPolicyDTO: Codable, Equatable, Identifiable {
+    let policyType: String
+    let version: String
+    let title: String
+    let url: String
+    let required: Bool
+    let accepted: Bool
+    let activeFrom: String
+
+    var id: String {
+        "\(policyType):\(version)"
+    }
+}
+
+struct ConsentAcceptRequestDTO: Codable, Equatable {
+    let acceptedPolicies: [ConsentPolicyAcceptanceDTO]
+}
+
+struct ConsentPolicyAcceptanceDTO: Codable, Equatable {
+    let policyType: String
+    let version: String
+}
+
 enum APIClientError: Error, Equatable {
     case invalidBaseURL(String)
     case invalidURL
@@ -202,6 +234,11 @@ protocol APIClientProtocol {
     func fetchMyMember() async throws -> MemberProfileDTO
     func fetchMember(id: Int) async throws -> MemberProfileDTO
     func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO
+    func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO
     func reissue(refreshToken: String) async throws -> TokenResponseDTO
+    func fetchConsentStatus() async throws -> ConsentStatusDTO
+    func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO
+    func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO
+    func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO
 }

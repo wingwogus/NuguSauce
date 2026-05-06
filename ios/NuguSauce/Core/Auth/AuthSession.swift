@@ -49,6 +49,7 @@ protocol AuthSessionStoreProtocol: AnyObject {
 
 enum AuthSessionPersistenceFailure: Equatable {
     case emptyAccessToken
+    case profileSetupIncomplete
     case accessTokenSaveFailed
     case refreshTokenSaveFailed
     case refreshTokenDeleteFailed
@@ -77,11 +78,14 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
     }
 
     var isAuthenticated: Bool {
-        currentSession != nil
+        currentSession?.profileSetupRequired == false
     }
 
     var accessToken: String? {
-        currentSession?.accessToken
+        guard isAuthenticated else {
+            return nil
+        }
+        return currentSession?.accessToken
     }
 
     var requiresProfileSetup: Bool {
@@ -98,6 +102,10 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
         let nickname = userDefaults.string(forKey: nicknameKey)
         let profileImageUrl = userDefaults.string(forKey: profileImageUrlKey)
         let profileSetupRequired = (userDefaults.object(forKey: profileSetupRequiredKey) as? Bool) ?? false
+        guard !profileSetupRequired else {
+            rollbackFailedSave()
+            return
+        }
         currentSession = AuthSession(
             displayName: displayName,
             accessToken: accessToken,
@@ -141,6 +149,10 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
 
     @discardableResult
     func saveSession(accessToken: String, refreshToken: String?, member: MemberProfileDTO) -> Bool {
+        let profileSetupRequired = member.profileSetupRequired ?? ((member.nickname ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        guard !profileSetupRequired else {
+            return failSave(.profileSetupIncomplete)
+        }
         guard saveSession(accessToken: accessToken, refreshToken: refreshToken, displayName: member.displayName) else {
             return false
         }

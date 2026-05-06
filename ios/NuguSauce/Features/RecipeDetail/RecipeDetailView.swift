@@ -291,6 +291,17 @@ private struct ReviewComposeView: View {
 
                 if let errorMessage = viewModel.errorMessage {
                     SauceStatusBanner(message: errorMessage)
+                }
+                if let pendingConsentStatus = viewModel.pendingConsentStatus,
+                   !pendingConsentStatus.requiredConsentsAccepted {
+                    ConsentRequiredPanel(
+                        status: pendingConsentStatus,
+                        isAccepting: viewModel.isAcceptingConsents
+                    ) {
+                        Task {
+                            _ = await viewModel.acceptRequiredConsents()
+                        }
+                    }
                 } else if !viewModel.isAuthenticated {
                     SauceStatusBanner(message: "로그인 후 리뷰를 작성할 수 있어요.")
                 }

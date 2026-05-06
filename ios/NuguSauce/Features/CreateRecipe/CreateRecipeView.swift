@@ -75,6 +75,17 @@ struct CreateRecipeView: View {
             ingredientEditor
             quickAdd
             statusBanners
+            if let pendingConsentStatus = viewModel.pendingConsentStatus,
+               !pendingConsentStatus.requiredConsentsAccepted {
+                ConsentRequiredPanel(
+                    status: pendingConsentStatus,
+                    isAccepting: viewModel.isAcceptingConsents
+                ) {
+                    Task {
+                        _ = await viewModel.acceptRequiredConsents()
+                    }
+                }
+            }
             Button {
                 Task {
                     if let recipeID = await viewModel.submit() {
@@ -107,63 +118,72 @@ struct CreateRecipeView: View {
     }
 
     private var photoUpload: some View {
-        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [SauceColor.photoPlaceholderStart, SauceColor.photoPlaceholderEnd],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+        VStack(alignment: .leading, spacing: 12) {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                ZStack(alignment: .bottomLeading) {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [SauceColor.photoPlaceholderStart, SauceColor.photoPlaceholderEnd],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
 
-                if let data = viewModel.selectedPhotoData,
-                   let image = UIImage(data: data) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
+                    if let data = viewModel.selectedPhotoData,
+                       let image = UIImage(data: data) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    } else {
+                        VStack(spacing: 10) {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 42, weight: .bold))
+                                .foregroundStyle(SauceColor.onSurfaceVariant)
+                            Text("소스 사진 추가")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(SauceColor.onSurfaceVariant)
+                        }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                } else {
-                    VStack(spacing: 10) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 42, weight: .bold))
-                            .foregroundStyle(SauceColor.onSurfaceVariant)
-                        Text("소스 사진 추가")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(SauceColor.onSurfaceVariant)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
 
-                HStack(spacing: 10) {
-                    Image(systemName: viewModel.hasSelectedPhoto ? "photo.fill" : "plus.circle.fill")
-                        .font(.subheadline.weight(.bold))
-                    Text(viewModel.hasSelectedPhoto ? "사진 변경" : "사진 선택")
-                        .font(.subheadline.weight(.bold))
-                }
-                .foregroundStyle(SauceColor.onPrimary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(SauceColor.primary.opacity(0.92))
-                .clipShape(Capsule())
-                .padding(16)
+                    HStack(spacing: 10) {
+                        Image(systemName: viewModel.hasSelectedPhoto ? "photo.fill" : "plus.circle.fill")
+                            .font(.subheadline.weight(.bold))
+                        Text(viewModel.hasSelectedPhoto ? "사진 변경" : "사진 선택")
+                            .font(.subheadline.weight(.bold))
+                    }
+                    .foregroundStyle(SauceColor.onPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(SauceColor.primary.opacity(0.92))
+                    .clipShape(Capsule())
+                    .padding(16)
 
-                if viewModel.isUploadingImage {
-                    ProgressView()
-                        .tint(SauceColor.onPrimary)
-                        .padding(12)
-                        .background(SauceColor.primary.opacity(0.88))
-                        .clipShape(Circle())
-                        .padding(16)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    if viewModel.isUploadingImage {
+                        ProgressView()
+                            .tint(SauceColor.onPrimary)
+                            .padding(12)
+                            .background(SauceColor.primary.opacity(0.88))
+                            .clipShape(Circle())
+                            .padding(16)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    }
                 }
+                .frame(height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .frame(height: 260)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .buttonStyle(.plain)
+
+            if viewModel.hasSelectedPhoto {
+                Toggle("직접 촬영했거나 사용할 권리가 있는 사진입니다.", isOn: $viewModel.photoRightsAccepted)
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .tint(SauceColor.primaryContainer)
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private var titleFields: some View {

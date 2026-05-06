@@ -227,10 +227,13 @@ private final class CachingTestAuthStore: AuthSessionStoreProtocol {
     }
 
     var isAuthenticated: Bool {
-        currentSession != nil
+        currentSession?.profileSetupRequired == false
     }
 
     var accessToken: String? {
+        guard isAuthenticated else {
+            return nil
+        }
         currentSession?.accessToken
     }
 
@@ -430,11 +433,36 @@ private final class CountingAPIClient: APIClientProtocol {
         )
     }
 
+    func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO {
+        return MemberProfileDTO(
+            id: authStore.currentSession?.memberId ?? -1,
+            nickname: nickname,
+            displayName: nickname,
+            profileSetupRequired: false
+        )
+    }
+
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         throw APIClientError.missingData
     }
 
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         throw APIClientError.missingData
+    }
+
+    func fetchConsentStatus() async throws -> ConsentStatusDTO {
+        ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true)
+    }
+
+    func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO {
+        ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true)
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO {
+        ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true)
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO {
+        ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true)
     }
 }

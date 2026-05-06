@@ -59,6 +59,9 @@ final class CreateRecipeViewModel: ObservableObject {
     @Published private(set) var selectedPhotoData: Data?
     @Published private(set) var selectedPhotoContentType = "image/jpeg"
     @Published private(set) var selectedPhotoFileExtension = "jpg"
+    @Published var photoRightsAccepted = false
+    @Published private(set) var pendingConsentStatus: ConsentStatusDTO?
+    @Published private(set) var isAcceptingConsents = false
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
@@ -75,7 +78,8 @@ final class CreateRecipeViewModel: ObservableObject {
     var canSubmit: Bool {
         isAuthenticated &&
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !ingredients.isEmpty
+        !ingredients.isEmpty &&
+        (selectedPhotoData == nil || photoRightsAccepted)
     }
 
     var hasSelectedPhoto: Bool {
@@ -156,6 +160,7 @@ final class CreateRecipeViewModel: ObservableObject {
         selectedPhotoData = data
         selectedPhotoContentType = contentType
         selectedPhotoFileExtension = fileExtension
+        photoRightsAccepted = false
         errorMessage = nil
     }
 
@@ -163,6 +168,7 @@ final class CreateRecipeViewModel: ObservableObject {
         selectedPhotoData = nil
         selectedPhotoContentType = "image/jpeg"
         selectedPhotoFileExtension = "jpg"
+        photoRightsAccepted = false
     }
 
     func makeRequest(imageId: Int? = nil) -> CreateRecipeRequestDTO {
@@ -197,8 +203,13 @@ final class CreateRecipeViewModel: ObservableObject {
             errorMessage = "로그인이 필요합니다."
             return nil
         }
-        guard canSubmit else {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !ingredients.isEmpty else {
             errorMessage = "소스 이름과 재료를 입력해주세요."
+            return nil
+        }
+        guard selectedPhotoData == nil || photoRightsAccepted else {
+            errorMessage = "직접 촬영했거나 사용할 권리가 있는 사진만 올릴 수 있어요."
             return nil
         }
 
@@ -214,14 +225,65 @@ final class CreateRecipeViewModel: ObservableObject {
             submittedRecipeID = recipe.id
             didSubmit = true
             return recipe.id
-        } catch {
+        } catch let error as ApiError {
             isSubmitting = false
-            if let apiError = error as? ApiError {
-                errorMessage = apiError.userVisibleMessage(default: "소스를 등록하지 못했어요.")
+            if error.code == ApiErrorCode.consentRequired {
+                await loadConsentStatusAfterBlockedWrite()
             } else {
-                errorMessage = "소스를 등록하지 못했어요."
+                errorMessage = error.userVisibleMessage(default: "소스를 등록하지 못했어요.")
             }
             return nil
+        } catch {
+            isSubmitting = false
+            errorMessage = "소스를 등록하지 못했어요."
+            return nil
+        }
+    }
+
+    func acceptRequiredConsents() async -> Bool {
+        guard !isAcceptingConsents,
+              let pendingConsentStatus else {
+            return false
+        }
+
+        isAcceptingConsents = true
+        errorMessage = nil
+        defer {
+            isAcceptingConsents = false
+        }
+
+        do {
+            let updatedStatus = try await apiClient.acceptConsents(
+                ConsentAcceptRequestDTO(
+                    acceptedPolicies: pendingConsentStatus.missingPolicies.map {
+                        ConsentPolicyAcceptanceDTO(policyType: $0.policyType, version: $0.version)
+                    }
+                )
+            )
+            if updatedStatus.requiredConsentsAccepted {
+                self.pendingConsentStatus = nil
+                return true
+            }
+            self.pendingConsentStatus = updatedStatus
+            errorMessage = "필수 동의를 완료해주세요."
+            return false
+        } catch let error as ApiError {
+            errorMessage = error.userVisibleMessage(default: "필수 동의를 저장하지 못했어요.")
+            return false
+        } catch {
+            errorMessage = "필수 동의를 저장하지 못했어요."
+            return false
+        }
+    }
+
+    private func loadConsentStatusAfterBlockedWrite() async {
+        do {
+            pendingConsentStatus = try await apiClient.fetchConsentStatus()
+            errorMessage = "필수 약관과 개인정보/콘텐츠 정책 동의가 필요해요."
+        } catch let error as ApiError {
+            errorMessage = error.userVisibleMessage(default: "필수 동의 상태를 확인하지 못했어요.")
+        } catch {
+            errorMessage = "필수 동의 상태를 확인하지 못했어요."
         }
     }
 

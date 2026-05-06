@@ -1,6 +1,7 @@
 package com.nugusauce.api.member
 
 import com.nugusauce.api.common.ApiResponse
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.member.MemberCommand
@@ -17,7 +18,8 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/members")
 class MemberController(
-    private val memberService: MemberService
+    private val memberService: MemberService,
+    private val consentService: ConsentService
 ) {
     @GetMapping("/me")
     fun getMe(
@@ -32,9 +34,13 @@ class MemberController(
         @AuthenticationPrincipal userId: String?,
         @RequestBody request: MemberRequests.UpdateMeRequest
     ): ResponseEntity<ApiResponse<MemberResponses.MeResponse>> {
+        val memberId = requireUserId(userId)
+        if (request.profileImageId != null) {
+            consentService.requireRequiredConsents(memberId)
+        }
         val result = memberService.updateMe(
             MemberCommand.UpdateMe(
-                memberId = requireUserId(userId),
+                memberId = memberId,
                 nickname = request.nickname,
                 profileImageId = request.profileImageId
             )

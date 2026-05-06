@@ -1,6 +1,7 @@
 package com.nugusauce.api.media
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.media.MediaAssetService
 import com.nugusauce.application.media.MediaCommand
 import com.nugusauce.application.media.MediaResult
@@ -8,6 +9,7 @@ import com.nugusauce.application.security.TokenProvider
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -30,6 +32,9 @@ class MediaControllerTest(
 ) {
     @MockBean
     private lateinit var mediaAssetService: MediaAssetService
+
+    @MockBean
+    private lateinit var consentService: ConsentService
 
     @MockBean
     private lateinit var tokenProvider: TokenProvider
@@ -82,6 +87,7 @@ class MediaControllerTest(
                 .andExpect(jsonPath("$.data.upload.fileField", equalTo("file")))
                 .andExpect(jsonPath("$.data.upload.fields.signature", equalTo("signature")))
                 .andExpect(jsonPath("$.data.constraints.maxBytes", equalTo(5_242_880)))
+            verify(consentService).requireRequiredConsents(1L)
         } finally {
             SecurityContextHolder.clearContext()
         }

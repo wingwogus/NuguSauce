@@ -1,6 +1,9 @@
 package com.nugusauce.api.recipe
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.consent.ConsentService
+import com.nugusauce.application.exception.ErrorCode
+import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.recipe.RecipeCommand
 import com.nugusauce.application.recipe.RecipeFavoriteService
 import com.nugusauce.application.recipe.RecipeModerationService
@@ -11,6 +14,7 @@ import com.nugusauce.application.recipe.RecipeWriteService
 import com.nugusauce.application.security.TokenProvider
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -47,6 +51,9 @@ class RecipeControllerValidationTest(
 
     @MockBean
     private lateinit var recipeFavoriteService: RecipeFavoriteService
+
+    @MockBean
+    private lateinit var consentService: ConsentService
 
     @MockBean
     private lateinit var tokenProvider: TokenProvider
@@ -179,6 +186,74 @@ class RecipeControllerValidationTest(
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
     }
+
+    @Test
+    fun `create maps missing consent to stable error`() {
+        doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                post("/api/v1/recipes")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(validCreateRecipeBody())
+            )
+                .andExpect(status().`is`(428))
+                .andExpect(jsonPath("$.error.code", equalTo("CONSENT_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `review maps missing consent to stable error`() {
+        doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                post("/api/v1/recipes/10/reviews")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"rating":5,"text":"고소하고 좋아요"}""")
+            )
+                .andExpect(status().`is`(428))
+                .andExpect(jsonPath("$.error.code", equalTo("CONSENT_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `report maps missing consent to stable error`() {
+        doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                post("/api/v1/recipes/10/reports")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"부적절한 내용"}""")
+            )
+                .andExpect(status().`is`(428))
+                .andExpect(jsonPath("$.error.code", equalTo("CONSENT_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    private fun consentRequired(): BusinessException =
+        BusinessException(
+            ErrorCode.CONSENT_REQUIRED,
+            detail = mapOf("missingPolicies" to listOf(mapOf("policyType" to "terms_of_service")))
+        )
+
+    private fun validCreateRecipeBody(): String =
+        """
+        {
+          "title": "내 소스",
+          "description": "설명",
+          "ingredients": [
+            { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+          ]
+        }
+        """.trimIndent()
 
     private fun recipeDetail(isFavorite: Boolean): RecipeResult.RecipeDetail {
         return RecipeResult.RecipeDetail(

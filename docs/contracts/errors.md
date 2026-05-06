@@ -30,6 +30,10 @@ Common:
 - `COMMON_999`: internal error
 - `RESOURCE_001`: resource not found
 
+Consent:
+
+- `CONSENT_001`: required service, privacy, or content/photo policy consent is missing
+
 Auth/user:
 
 - `AUTH_001`: unauthorized

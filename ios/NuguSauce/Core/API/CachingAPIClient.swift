@@ -250,12 +250,38 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         return member
     }
 
+    func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO {
+        let member = try await upstream.updateMyMember(
+            nickname: nickname,
+            profileImageId: profileImageId,
+            accessToken: accessToken
+        )
+        await invalidate(scopes: [.profile, .recipeLists, .favorites])
+        return member
+    }
+
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         try await upstream.authenticateWithKakao(idToken: idToken, nonce: nonce, kakaoAccessToken: kakaoAccessToken)
     }
 
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         try await upstream.reissue(refreshToken: refreshToken)
+    }
+
+    func fetchConsentStatus() async throws -> ConsentStatusDTO {
+        try await upstream.fetchConsentStatus()
+    }
+
+    func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO {
+        try await upstream.fetchConsentStatus(accessToken: accessToken)
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO {
+        try await upstream.acceptConsents(request)
+    }
+
+    func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO {
+        try await upstream.acceptConsents(request, accessToken: accessToken)
     }
 
     private func invalidateFavoriteAffectedReads(recipeID: Int) async {

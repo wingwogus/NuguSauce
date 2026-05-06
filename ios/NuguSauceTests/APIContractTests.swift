@@ -300,6 +300,125 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(request.httpMethod, "POST")
     }
 
+    func testConsentStatusDecodesMissingPolicies() throws {
+        let json = """
+        {
+          "policies": [
+            {
+              "policyType": "terms_of_service",
+              "version": "2026-05-01",
+              "title": "서비스 이용약관",
+              "url": "https://nugusauce.jaehyuns.com/legal/terms",
+              "required": true,
+              "accepted": false,
+              "activeFrom": "2026-05-01T00:00:00Z"
+            }
+          ],
+          "missingPolicies": [
+            {
+              "policyType": "terms_of_service",
+              "version": "2026-05-01",
+              "title": "서비스 이용약관",
+              "url": "https://nugusauce.jaehyuns.com/legal/terms",
+              "required": true,
+              "accepted": false,
+              "activeFrom": "2026-05-01T00:00:00Z"
+            }
+          ],
+          "requiredConsentsAccepted": false
+        }
+        """.data(using: .utf8)!
+
+        let status = try JSONDecoder().decode(ConsentStatusDTO.self, from: json)
+
+        XCTAssertFalse(status.requiredConsentsAccepted)
+        XCTAssertEqual(status.missingPolicies.first?.policyType, "terms_of_service")
+        XCTAssertEqual(status.missingPolicies.first?.id, "terms_of_service:2026-05-01")
+    }
+
+    func testBackendClientFetchesConsentStatus() async throws {
+        URLProtocolTestTransport.responseData = consentStatusEnvelope(requiredConsentsAccepted: false)
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let status = try await client.fetchConsentStatus()
+
+        XCTAssertFalse(status.requiredConsentsAccepted)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/consents/status")
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
+    func testBackendClientFetchesConsentStatusWithPendingLoginToken() async throws {
+        URLProtocolTestTransport.responseData = consentStatusEnvelope(requiredConsentsAccepted: false)
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let status = try await client.fetchConsentStatus(accessToken: "pending-login-token")
+
+        XCTAssertFalse(status.requiredConsentsAccepted)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/consents/status")
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pending-login-token")
+    }
+
+    func testBackendClientAcceptsConsents() async throws {
+        URLProtocolTestTransport.responseData = consentStatusEnvelope(requiredConsentsAccepted: true)
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+        URLProtocolTestTransport.lastRequestBody = nil
+
+        let client = makeBackendClient()
+
+        let status = try await client.acceptConsents(
+            ConsentAcceptRequestDTO(
+                acceptedPolicies: [
+                    ConsentPolicyAcceptanceDTO(policyType: "terms_of_service", version: "2026-05-01")
+                ]
+            )
+        )
+
+        XCTAssertTrue(status.requiredConsentsAccepted)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/consents/accept")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+        let body = try XCTUnwrap(URLProtocolTestTransport.lastRequestBody)
+        let bodyJSON = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        let policies = bodyJSON?["acceptedPolicies"] as? [[String: Any]]
+        XCTAssertEqual(policies?.first?["policyType"] as? String, "terms_of_service")
+        XCTAssertEqual(policies?.first?["version"] as? String, "2026-05-01")
+    }
+
+    func testBackendClientAcceptsConsentsWithPendingLoginToken() async throws {
+        URLProtocolTestTransport.responseData = consentStatusEnvelope(requiredConsentsAccepted: true)
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let status = try await client.acceptConsents(
+            ConsentAcceptRequestDTO(
+                acceptedPolicies: [
+                    ConsentPolicyAcceptanceDTO(policyType: "terms_of_service", version: "2026-05-01")
+                ]
+            ),
+            accessToken: "pending-login-token"
+        )
+
+        XCTAssertTrue(status.requiredConsentsAccepted)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/consents/accept")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pending-login-token")
+    }
+
     func testBackendClientFetchesMyMemberProfile() async throws {
         URLProtocolTestTransport.responseData = """
         {
@@ -540,19 +659,7 @@ final class APIContractTests: XCTestCase {
     }
 
     func testBackendClientUpdatesMyMemberProfile() async throws {
-        URLProtocolTestTransport.responseData = """
-        {
-          "success": true,
-          "data": {
-            "id": 7,
-            "nickname": "소스장인",
-            "displayName": "소스장인",
-            "profileImageUrl": "https://cdn.example.test/profile/50.jpg",
-            "profileSetupRequired": false
-          },
-          "error": null
-        }
-        """.data(using: .utf8)!
+        URLProtocolTestTransport.responseData = memberProfileEnvelope(nickname: "소스장인", profileImageId: 50)
         URLProtocolTestTransport.statusCode = 200
         URLProtocolTestTransport.lastRequest = nil
         URLProtocolTestTransport.lastRequestBody = nil
@@ -571,6 +678,81 @@ final class APIContractTests: XCTestCase {
         let bodyJSON = try JSONSerialization.jsonObject(with: body) as? [String: Any]
         XCTAssertEqual(bodyJSON?["nickname"] as? String, "소스장인")
         XCTAssertEqual(bodyJSON?["profileImageId"] as? Int, 50)
+    }
+
+    func testBackendClientUpdatesMyMemberProfileWithPendingLoginToken() async throws {
+        URLProtocolTestTransport.responseData = memberProfileEnvelope(nickname: "새닉네임", profileImageId: nil)
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        let member = try await client.updateMyMember(
+            nickname: "새닉네임",
+            profileImageId: nil,
+            accessToken: "pending-login-token"
+        )
+
+        XCTAssertEqual(member.displayName, "새닉네임")
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/members/me")
+        XCTAssertEqual(request.httpMethod, "PATCH")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pending-login-token")
+    }
+
+    private func memberProfileEnvelope(nickname: String, profileImageId: Int?) -> Data {
+        let imageURL = profileImageId.map { "\"https://cdn.example.test/profile/\($0).jpg\"" } ?? "null"
+        return """
+        {
+          "success": true,
+          "data": {
+            "id": 7,
+            "nickname": "\(nickname)",
+            "displayName": "\(nickname)",
+            "profileImageUrl": \(imageURL),
+            "profileSetupRequired": false
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+    }
+
+    private func consentStatusEnvelope(requiredConsentsAccepted: Bool) -> Data {
+        let missingPoliciesJSON = requiredConsentsAccepted ? "[]" : """
+        [
+          {
+            "policyType": "terms_of_service",
+            "version": "2026-05-01",
+            "title": "서비스 이용약관",
+            "url": "https://nugusauce.jaehyuns.com/legal/terms",
+            "required": true,
+            "accepted": false,
+            "activeFrom": "2026-05-01T00:00:00Z"
+          }
+        ]
+        """
+
+        """
+        {
+          "success": true,
+          "data": {
+            "policies": [
+              {
+                "policyType": "terms_of_service",
+                "version": "2026-05-01",
+                "title": "서비스 이용약관",
+                "url": "https://nugusauce.jaehyuns.com/legal/terms",
+                "required": true,
+                "accepted": \(requiredConsentsAccepted ? "true" : "false"),
+                "activeFrom": "2026-05-01T00:00:00Z"
+              }
+            ],
+            "missingPolicies": \(missingPoliciesJSON),
+            "requiredConsentsAccepted": \(requiredConsentsAccepted ? "true" : "false")
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
     }
 
     private func makeBackendClient() -> BackendAPIClient {
@@ -592,8 +774,8 @@ private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
         refreshToken: "real-refresh-token"
     )
 
-    var isAuthenticated: Bool { currentSession != nil }
-    var accessToken: String? { currentSession?.accessToken }
+    var isAuthenticated: Bool { currentSession?.profileSetupRequired == false }
+    var accessToken: String? { isAuthenticated ? currentSession?.accessToken : nil }
 
     func restore() {}
 

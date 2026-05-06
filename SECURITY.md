@@ -27,3 +27,12 @@ Security-sensitive work includes auth, token handling, Kakao OIDC, user identity
 - Fixture users must use fake emails and stable synthetic IDs.
 - Public recipe/review fixtures should not include real user data.
 - Moderation/reporting features must avoid exposing reporter identity in public APIs.
+
+## Consent Rules
+
+- Kakao login is identity proof only; it must not be treated as service-policy acceptance unless the current required policy versions are recorded for the member.
+- iOS must not persist the Kakao-issued NuguSauce session until required policy acceptance and required profile setup are both complete.
+- Required consent evidence must store member id, policy version id, accepted timestamp, and source.
+- Privacy, service terms, and content/photo rights policies gate image upload intent, recipe create, review create, report create, and profile image update.
+- Public reads, Kakao login, token reissue/logout, `GET /api/v1/members/me`, and consent status/accept endpoints must stay reachable before service-policy acceptance.
+- When a required policy version changes, older acceptances do not satisfy the gate for that policy type.

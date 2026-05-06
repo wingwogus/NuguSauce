@@ -1,6 +1,7 @@
 package com.nugusauce.api.recipe
 
 import com.nugusauce.api.common.ApiResponse
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.recipe.RecipeCommand
@@ -29,7 +30,8 @@ class RecipeController(
     private val recipeWriteService: RecipeWriteService,
     private val recipeReviewService: RecipeReviewService,
     private val recipeModerationService: RecipeModerationService,
-    private val recipeFavoriteService: RecipeFavoriteService
+    private val recipeFavoriteService: RecipeFavoriteService,
+    private val consentService: ConsentService
 ) {
     @GetMapping("/recipes")
     fun searchRecipes(
@@ -67,9 +69,11 @@ class RecipeController(
     ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
         rejectAuthorTasteClassification(request)
         rejectDeprecatedImageUrl(request)
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
         val result = recipeWriteService.create(
             RecipeCommand.CreateRecipe(
-                authorId = requireUserId(userId),
+                authorId = memberId,
                 title = request.title,
                 description = request.description,
                 imageId = request.imageId,
@@ -107,9 +111,11 @@ class RecipeController(
         @PathVariable recipeId: Long,
         @Valid @RequestBody request: RecipeRequests.CreateReviewRequest
     ): ResponseEntity<ApiResponse<RecipeResponses.ReviewResponse>> {
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
         val result = recipeReviewService.create(
             RecipeCommand.CreateReview(
-                authorId = requireUserId(userId),
+                authorId = memberId,
                 recipeId = recipeId,
                 rating = request.rating,
                 text = request.text,
@@ -135,9 +141,11 @@ class RecipeController(
         @PathVariable recipeId: Long,
         @Valid @RequestBody request: RecipeRequests.CreateReportRequest
     ): ResponseEntity<ApiResponse<RecipeResponses.ReportResponse>> {
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
         val result = recipeModerationService.report(
             RecipeCommand.CreateReport(
-                reporterId = requireUserId(userId),
+                reporterId = memberId,
                 recipeId = recipeId,
                 reason = request.reason
             )
