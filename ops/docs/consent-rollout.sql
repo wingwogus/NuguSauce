@@ -40,7 +40,7 @@ VALUES
         'TERMS_OF_SERVICE',
         '2026-05-01',
         '서비스 이용약관',
-        'https://nugusauce.jaehyuns.com/legal/terms',
+        'nugusauce://legal/terms',
         TRUE,
         '2026-05-01T00:00:00Z'
     ),
@@ -48,7 +48,7 @@ VALUES
         'PRIVACY_POLICY',
         '2026-05-01',
         '개인정보 처리방침',
-        'https://nugusauce.jaehyuns.com/legal/privacy',
+        'nugusauce://legal/privacy',
         TRUE,
         '2026-05-01T00:00:00Z'
     ),
@@ -56,7 +56,7 @@ VALUES
         'CONTENT_POLICY',
         '2026-05-01',
         '콘텐츠/사진 권리 정책',
-        'https://nugusauce.jaehyuns.com/legal/content-policy',
+        'nugusauce://legal/content-policy',
         TRUE,
         '2026-05-01T00:00:00Z'
     )

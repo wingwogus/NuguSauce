@@ -116,7 +116,7 @@ class ConsentControllerTest(
             policyType = "terms_of_service",
             version = "2026-05-01",
             title = "서비스 이용약관",
-            url = "https://nugusauce.jaehyuns.com/legal/terms",
+            url = "nugusauce://legal/terms",
             required = true,
             accepted = accepted,
             activeFrom = Instant.parse("2026-05-01T00:00:00Z")

@@ -196,7 +196,8 @@ final class APIContractTests: XCTestCase {
             "displayName": "사용자 1",
             "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
             "profileSetupRequired": true
-          }
+          },
+          "nextStep": "profile_required"
         }
         """.data(using: .utf8)!
 
@@ -207,6 +208,27 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(response.member.displayName, "사용자 1")
         XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
+        XCTAssertEqual(response.nextStep, .profileRequired)
+    }
+
+    func testKakaoLoginResponseWithoutNextStepDefaultsToConsentRequired() throws {
+        let json = """
+        {
+          "accessToken": "access-token",
+          "refreshToken": "refresh-token",
+          "member": {
+            "id": 1,
+            "nickname": "소스장인",
+            "displayName": "소스장인",
+            "profileImageUrl": null,
+            "profileSetupRequired": false
+          }
+        }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json)
+
+        XCTAssertEqual(response.nextStep, .consentRequired)
     }
 
     func testBackendClientBuildsRecipeListRequest() async throws {
@@ -274,7 +296,8 @@ final class APIContractTests: XCTestCase {
               "displayName": "사용자 1",
               "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
               "profileSetupRequired": true
-            }
+            },
+            "nextStep": "profile_required"
           },
           "error": null
         }
@@ -295,6 +318,7 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(response.member.displayName, "사용자 1")
         XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
+        XCTAssertEqual(response.nextStep, .profileRequired)
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/auth/kakao/login")
         XCTAssertEqual(request.httpMethod, "POST")
@@ -308,7 +332,7 @@ final class APIContractTests: XCTestCase {
               "policyType": "terms_of_service",
               "version": "2026-05-01",
               "title": "서비스 이용약관",
-              "url": "https://nugusauce.jaehyuns.com/legal/terms",
+              "url": "nugusauce://legal/terms",
               "required": true,
               "accepted": false,
               "activeFrom": "2026-05-01T00:00:00Z"
@@ -319,7 +343,7 @@ final class APIContractTests: XCTestCase {
               "policyType": "terms_of_service",
               "version": "2026-05-01",
               "title": "서비스 이용약관",
-              "url": "https://nugusauce.jaehyuns.com/legal/terms",
+              "url": "nugusauce://legal/terms",
               "required": true,
               "accepted": false,
               "activeFrom": "2026-05-01T00:00:00Z"
@@ -724,7 +748,7 @@ final class APIContractTests: XCTestCase {
             "policyType": "terms_of_service",
             "version": "2026-05-01",
             "title": "서비스 이용약관",
-            "url": "https://nugusauce.jaehyuns.com/legal/terms",
+            "url": "nugusauce://legal/terms",
             "required": true,
             "accepted": false,
             "activeFrom": "2026-05-01T00:00:00Z"
@@ -732,7 +756,7 @@ final class APIContractTests: XCTestCase {
         ]
         """
 
-        """
+        return """
         {
           "success": true,
           "data": {
@@ -741,7 +765,7 @@ final class APIContractTests: XCTestCase {
                 "policyType": "terms_of_service",
                 "version": "2026-05-01",
                 "title": "서비스 이용약관",
-                "url": "https://nugusauce.jaehyuns.com/legal/terms",
+                "url": "nugusauce://legal/terms",
                 "required": true,
                 "accepted": \(requiredConsentsAccepted ? "true" : "false"),
                 "activeFrom": "2026-05-01T00:00:00Z"

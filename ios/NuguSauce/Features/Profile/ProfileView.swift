@@ -344,8 +344,9 @@ struct ProfileEditView: View {
 
                 if let pendingConsentStatus = viewModel.pendingConsentStatus,
                    !pendingConsentStatus.requiredConsentsAccepted {
-                    ConsentRequiredPanel(
+                    ConsentAgreementScreen(
                         status: pendingConsentStatus,
+                        isLoading: false,
                         isAccepting: viewModel.isAcceptingConsents
                     ) {
                         Task {

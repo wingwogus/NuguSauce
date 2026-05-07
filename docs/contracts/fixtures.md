@@ -17,6 +17,7 @@ Fixtures define stable product context for backend tests and optional local back
 - `ingredients_master`: sauce bar ingredients
 - `reviews`: mixed rating distribution and review text
 - `favorites`: member-saved recipes for My Profile
+- `policy_versions`: current required service, privacy, and content/photo policy versions
 
 ## Identity Rules
 
@@ -64,6 +65,9 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
   with the number of visible or hidden `favorites` records referencing that
   recipe. The `recipe_favorite` relation remains the identity source of truth;
   `favoriteCount` is the read/ranking optimization.
+- Local backend seed data must include the current required `policy_version`
+  records for `TERMS_OF_SERVICE`, `PRIVACY_POLICY`, and `CONTENT_POLICY` so
+  Kakao login can compute `nextStep` without a separate migration step.
 
 ## Sauce Seed Notes
 

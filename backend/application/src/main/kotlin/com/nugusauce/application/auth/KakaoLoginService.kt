@@ -1,5 +1,6 @@
 package com.nugusauce.application.auth
 
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageUrlResolver
@@ -29,6 +30,7 @@ class KakaoLoginService(
     private val kakaoNonceReplayRepository: KakaoNonceReplayRepository,
     private val externalIdentityRepository: ExternalIdentityRepository,
     private val memberRepository: MemberRepository,
+    private val consentService: ConsentService,
     private val tokenProvider: TokenProvider,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val imageUrlResolver: ImageUrlResolver,
@@ -49,7 +51,11 @@ class KakaoLoginService(
             ?.member
             ?: linkOrCreateMember(claims, command.kakaoAccessToken)
 
-        return issueAndStoreTokens(member)
+        val consentStatus = consentService.status(member.id)
+        val memberProfile = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
+        val nextStep = nextStep(consentStatus.requiredConsentsAccepted, memberProfile.profileSetupRequired)
+
+        return issueAndStoreTokens(member, memberProfile, nextStep)
     }
 
     private fun reserveNonce(claims: KakaoOidcClaims) {
@@ -107,7 +113,22 @@ class KakaoLoginService(
         return userInfo.email?.takeIf { it.isNotBlank() && userInfo.emailVerified }
     }
 
-    private fun issueAndStoreTokens(member: Member): AuthResult.KakaoLogin {
+    private fun nextStep(
+        requiredConsentsAccepted: Boolean,
+        profileSetupRequired: Boolean
+    ): AuthResult.LoginNextStep {
+        return when {
+            !requiredConsentsAccepted -> AuthResult.LoginNextStep.CONSENT_REQUIRED
+            profileSetupRequired -> AuthResult.LoginNextStep.PROFILE_REQUIRED
+            else -> AuthResult.LoginNextStep.DONE
+        }
+    }
+
+    private fun issueAndStoreTokens(
+        member: Member,
+        memberProfile: MemberResult.Me,
+        nextStep: AuthResult.LoginNextStep
+    ): AuthResult.KakaoLogin {
         val tokenPair = tokenProvider.generateToken(member.id, member.role)
         refreshTokenRepository.save(
             member.id,
@@ -117,7 +138,8 @@ class KakaoLoginService(
         return AuthResult.KakaoLogin(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
-            member = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
+            member = memberProfile,
+            nextStep = nextStep
         )
     }
 }

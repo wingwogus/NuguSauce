@@ -82,7 +82,7 @@ class ConsentRepositoryTest @Autowired constructor(
             policyType = type,
             version = version,
             title = type.wireValue,
-            url = "https://nugusauce.jaehyuns.com/legal/${type.wireValue}",
+            url = "nugusauce://legal/${type.wireValue}",
             required = required,
             activeFrom = activeFrom,
             createdAt = Instant.parse("2026-05-01T00:00:00Z")

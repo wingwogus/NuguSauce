@@ -708,6 +708,7 @@ final class ViewModelTests: XCTestCase {
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
         let client = TestAPIClient(
             consentStatus: Self.missingConsentStatus(),
+            kakaoLoginNextStep: .consentRequired,
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -728,6 +729,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(tokenStore.read(account: .accessToken))
         XCTAssertEqual(client.fetchConsentStatusAccessTokens, ["real-access-token"])
         XCTAssertEqual(viewModel.pendingConsentStatus?.missingPolicies.first?.policyType, "terms_of_service")
+        XCTAssertEqual(viewModel.flowStep, .consent)
 
         let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
 
@@ -735,7 +737,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(authStore.isAuthenticated)
         XCTAssertNil(tokenStore.read(account: .accessToken))
         XCTAssertEqual(client.acceptConsentAccessTokens, ["real-access-token"])
-        XCTAssertTrue(viewModel.shouldShowNicknameSetup)
+        XCTAssertEqual(viewModel.flowStep, .nickname)
 
         viewModel.nicknameDraft = "소스장인"
         let didCompleteAfterNickname = await viewModel.saveNicknameAndCompleteLogin()
@@ -754,6 +756,7 @@ final class ViewModelTests: XCTestCase {
         let client = TestAPIClient(
             updateMemberError: ApiError(code: ApiErrorCode.duplicateNickname, message: "duplicate", detail: nil),
             consentStatus: Self.missingConsentStatus(),
+            kakaoLoginNextStep: .consentRequired,
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -767,8 +770,10 @@ final class ViewModelTests: XCTestCase {
             kakaoLoginService: TestKakaoLoginService()
         )
 
-        XCTAssertFalse(await viewModel.loginWithKakao())
-        XCTAssertFalse(await viewModel.acceptRequiredConsents())
+        let didCompleteAfterKakao = await viewModel.loginWithKakao()
+        XCTAssertFalse(didCompleteAfterKakao)
+        let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
+        XCTAssertFalse(didCompleteAfterConsent)
 
         viewModel.nicknameDraft = "중복닉"
         let didComplete = await viewModel.saveNicknameAndCompleteLogin()
@@ -777,6 +782,107 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(authStore.isAuthenticated)
         XCTAssertNil(tokenStore.read(account: .accessToken))
         XCTAssertEqual(viewModel.nicknameErrorMessage, "이미 사용 중인 닉네임입니다.")
+    }
+
+    @MainActor
+    func testLoginViewModelCompletesExistingUserWithoutFetchingConsentStatus() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(),
+            kakaoLoginNextStep: .done,
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didComplete = await viewModel.loginWithKakao()
+
+        XCTAssertTrue(didComplete)
+        XCTAssertTrue(authStore.isAuthenticated)
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "real-access-token")
+        XCTAssertEqual(client.fetchConsentStatusAccessTokens, [])
+        XCTAssertNil(viewModel.pendingConsentStatus)
+    }
+
+    @MainActor
+    func testLoginViewModelShowsNicknameForProfileRequiredWithoutFetchingConsentStatus() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(),
+            kakaoLoginNextStep: .profileRequired,
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didComplete = await viewModel.loginWithKakao()
+
+        XCTAssertFalse(didComplete)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertEqual(client.fetchConsentStatusAccessTokens, [])
+        XCTAssertEqual(viewModel.flowStep, .nickname)
+        XCTAssertEqual(viewModel.nicknameDraft, "")
+        XCTAssertNil(viewModel.pendingConsentStatus)
+    }
+
+    @MainActor
+    func testLoginViewModelUsesConsentSpecificMessageWhenConsentStatusEndpointIsMissing() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            fetchConsentStatusError: ApiError(code: ApiErrorCode.resourceNotFound, message: "not found", detail: nil),
+            kakaoLoginNextStep: .consentRequired,
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didComplete = await viewModel.loginWithKakao()
+
+        XCTAssertFalse(didComplete)
+        XCTAssertEqual(viewModel.errorMessage, "필수 약관 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
+        XCTAssertFalse(viewModel.errorMessage?.contains("요청한 정보를 찾을 수") == true)
+        XCTAssertNil(viewModel.pendingConsentStatus)
+        XCTAssertEqual(viewModel.flowStep, .consent)
+        XCTAssertFalse(authStore.isAuthenticated)
+    }
+
+    func testConsentPolicyCopyProvidesInAppDetailsForRequiredPolicies() {
+        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "terms_of_service").isEmpty)
+        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "privacy_policy").isEmpty)
+        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "content_policy").isEmpty)
+        XCTAssertTrue(ConsentPolicyCopy.paragraphs(for: "privacy_policy").joined().contains("개인정보"))
+        XCTAssertTrue(ConsentPolicyCopy.paragraphs(for: "content_policy").joined().contains("사진"))
+        XCTAssertEqual(ConsentPolicyCopy.policies(from: Self.missingConsentStatus()).map(\.policyType), [
+            "terms_of_service"
+        ])
     }
 
     func testKeychainTokenStoreSavesUpdatesReadsAndDeletesWithIsolatedService() {
@@ -837,6 +943,16 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(message, "카카오 계정의 인증된 이메일 제공 동의가 필요해요.")
         XCTAssertFalse(message.contains(ApiErrorCode.kakaoVerifiedEmailRequired))
         XCTAssertFalse(message.contains("Kakao Developers"))
+    }
+
+    func testKakaoConsentRequiredMessageDoesNotLookLikeKakaoSDKFailure() {
+        let error = ApiError(code: ApiErrorCode.consentRequired, message: "required policy versions are not configured", detail: nil)
+
+        let message = KakaoLoginErrorMessage.message(for: error)
+
+        XCTAssertEqual(message, "로그인을 완료하기 위한 약관 정보를 확인하지 못했어요. 잠시 후 다시 시도해주세요.")
+        XCTAssertFalse(message.contains(ApiErrorCode.consentRequired))
+        XCTAssertFalse(message.contains("카카오 로그인에 실패"))
     }
 
     func testKakaoUnknownApiErrorDoesNotExposeServerMessageOrCode() {
@@ -1285,7 +1401,7 @@ final class ViewModelTests: XCTestCase {
             policyType: "terms_of_service",
             version: "2026-05-01",
             title: "서비스 이용약관",
-            url: "https://nugusauce.jaehyuns.com/legal/terms",
+            url: "nugusauce://legal/terms",
             required: true,
             accepted: false,
             activeFrom: "2026-05-01T00:00:00Z"
@@ -1313,6 +1429,8 @@ private final class TestAPIClient: APIClientProtocol {
     private let favoriteDeleteError: Error?
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
+    private let fetchConsentStatusError: Error?
+    private let kakaoLoginNextStep: KakaoLoginNextStepDTO
     private var consentStatus: ConsentStatusDTO
     private var didStartFavoriteAdd = false
     private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
@@ -1351,7 +1469,9 @@ private final class TestAPIClient: APIClientProtocol {
         favoriteDeleteError: Error? = nil,
         suspendFavoriteAdd: Bool = false,
         updateMemberError: Error? = nil,
+        fetchConsentStatusError: Error? = nil,
         consentStatus: ConsentStatusDTO = ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true),
+        kakaoLoginNextStep: KakaoLoginNextStepDTO = .done,
         memberProfile: MemberProfileDTO = MemberProfileDTO(
             id: 1,
             nickname: "테스터",
@@ -1373,6 +1493,8 @@ private final class TestAPIClient: APIClientProtocol {
         self.favoriteDeleteError = favoriteDeleteError
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
+        self.fetchConsentStatusError = fetchConsentStatusError
+        self.kakaoLoginNextStep = kakaoLoginNextStep
         self.consentStatus = consentStatus
         self.memberProfile = memberProfile
     }
@@ -1545,12 +1667,20 @@ private final class TestAPIClient: APIClientProtocol {
         return try await updateMyMember(nickname: nickname, profileImageId: profileImageId)
     }
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
-        KakaoLoginResponseDTO(accessToken: "real-access-token", refreshToken: "real-refresh-token", member: memberProfile)
+        KakaoLoginResponseDTO(
+            accessToken: "real-access-token",
+            refreshToken: "real-refresh-token",
+            member: memberProfile,
+            nextStep: kakaoLoginNextStep
+        )
     }
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         TokenResponseDTO(accessToken: "reissued-access-token", refreshToken: refreshToken)
     }
     func fetchConsentStatus() async throws -> ConsentStatusDTO {
+        if let fetchConsentStatusError {
+            throw fetchConsentStatusError
+        }
         fetchConsentStatusCallCount += 1
         return consentStatus
     }
@@ -1612,7 +1742,7 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
         guard isAuthenticated else {
             return nil
         }
-        currentSession?.accessToken
+        return currentSession?.accessToken
     }
 
     func restore() {}

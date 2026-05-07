@@ -234,7 +234,7 @@ private final class CachingTestAuthStore: AuthSessionStoreProtocol {
         guard isAuthenticated else {
             return nil
         }
-        currentSession?.accessToken
+        return currentSession?.accessToken
     }
 
     func restore() {}

@@ -1,5 +1,7 @@
 package com.nugusauce.application.auth
 
+import com.nugusauce.application.consent.ConsentResult
+import com.nugusauce.application.consent.ConsentService
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageStoragePort
@@ -30,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.Mockito
+import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
@@ -52,6 +55,9 @@ class KakaoLoginServiceTest {
     private lateinit var memberRepository: MemberRepository
 
     @Mock
+    private lateinit var consentService: ConsentService
+
+    @Mock
     private lateinit var tokenProvider: TokenProvider
 
     @Mock
@@ -69,6 +75,7 @@ class KakaoLoginServiceTest {
             nonceRepository,
             externalIdentityRepository,
             memberRepository,
+            consentService,
             tokenProvider,
             refreshTokenRepository,
             ImageUrlResolver(TestImageStoragePort),
@@ -94,6 +101,7 @@ class KakaoLoginServiceTest {
         `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims)
         `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
             .thenReturn(ExternalIdentity(1L, member, AuthProvider.KAKAO, "kakao-sub", "user@example.com"))
+        `when`(consentService.status(1L)).thenReturn(consentStatus(accepted = true))
         `when`(tokenProvider.generateToken(1L, "ROLE_USER"))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
@@ -106,13 +114,16 @@ class KakaoLoginServiceTest {
         assertEquals("사용자 1", result.member.displayName)
         assertEquals("https://cdn.example.test/nugusauce/images/1/profile", result.member.profileImageUrl)
         assertTrue(result.member.profileSetupRequired)
+        assertEquals(AuthResult.LoginNextStep.PROFILE_REQUIRED, result.nextStep)
         assertEquals("nonce", nonceRepository.lastNonce)
         verify(refreshTokenRepository).save(1L, "refresh-token", 120L)
     }
 
     @Test
     fun `login links existing member by verified email`() {
-        val member = Member(2L, "user@example.com", "hashed-password", "ROLE_USER")
+        val member = Member(2L, "user@example.com", "hashed-password", "ROLE_USER").apply {
+            nickname = "소스장인"
+        }
         val claims = claims()
 
         `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims)
@@ -121,17 +132,19 @@ class KakaoLoginServiceTest {
         `when`(memberRepository.findByEmail("user@example.com")).thenReturn(member)
         `when`(externalIdentityRepository.save(Mockito.any(ExternalIdentity::class.java)))
             .thenAnswer { it.getArgument(0) }
+        `when`(consentService.status(2L)).thenReturn(consentStatus(accepted = true))
         `when`(tokenProvider.generateToken(2L, "ROLE_USER"))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+        val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         val identityCaptor = ArgumentCaptor.forClass(ExternalIdentity::class.java)
         verify(externalIdentityRepository).save(identityCaptor.capture())
         assertEquals(member, identityCaptor.value.member)
         assertEquals(AuthProvider.KAKAO, identityCaptor.value.provider)
         assertEquals("kakao-sub", identityCaptor.value.providerSubject)
+        assertEquals(AuthResult.LoginNextStep.DONE, result.nextStep)
     }
 
     @Test
@@ -145,16 +158,18 @@ class KakaoLoginServiceTest {
         `when`(memberRepository.save(Mockito.any(Member::class.java))).thenReturn(savedMember)
         `when`(externalIdentityRepository.save(Mockito.any(ExternalIdentity::class.java)))
             .thenAnswer { it.getArgument(0) }
+        `when`(consentService.status(3L)).thenReturn(consentStatus(accepted = false))
         `when`(tokenProvider.generateToken(3L, "ROLE_USER"))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
 
-        service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+        val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
 
         val memberCaptor = ArgumentCaptor.forClass(Member::class.java)
         verify(memberRepository).save(memberCaptor.capture())
         assertEquals("new@example.com", memberCaptor.value.email)
         assertNull(memberCaptor.value.passwordHash)
+        assertEquals(AuthResult.LoginNextStep.CONSENT_REQUIRED, result.nextStep)
     }
 
     @Test
@@ -185,6 +200,7 @@ class KakaoLoginServiceTest {
         `when`(memberRepository.save(Mockito.any(Member::class.java))).thenReturn(savedMember)
         `when`(externalIdentityRepository.save(Mockito.any(ExternalIdentity::class.java)))
             .thenAnswer { it.getArgument(0) }
+        `when`(consentService.status(4L)).thenReturn(consentStatus(accepted = true))
         `when`(tokenProvider.generateToken(4L, "ROLE_USER"))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
@@ -233,6 +249,7 @@ class KakaoLoginServiceTest {
         )
         `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
             .thenReturn(ExternalIdentity(1L, member, AuthProvider.KAKAO, "kakao-sub", "user@example.com"))
+        `when`(consentService.status(1L)).thenReturn(consentStatus(accepted = true))
         `when`(tokenProvider.generateToken(1L, "ROLE_USER"))
             .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
         `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
@@ -242,6 +259,25 @@ class KakaoLoginServiceTest {
         val ttl = nonceRepository.lastTtl ?: error("nonce TTL was not recorded")
         assertTrue(ttl > Duration.ZERO)
         assertTrue(ttl <= Duration.ofSeconds(60))
+    }
+
+    @Test
+    fun `login does not issue tokens when consent status cannot be computed`() {
+        val member = Member(1L, "user@example.com", null, "ROLE_USER")
+
+        `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims())
+        `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
+            .thenReturn(ExternalIdentity(1L, member, AuthProvider.KAKAO, "kakao-sub", "user@example.com"))
+        `when`(consentService.status(1L))
+            .thenThrow(object : BusinessException(ErrorCode.CONSENT_REQUIRED) {})
+
+        val exception = assertThrows(BusinessException::class.java) {
+            service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+        }
+
+        assertEquals(ErrorCode.CONSENT_REQUIRED, exception.errorCode)
+        verify(tokenProvider, never()).generateToken(Mockito.anyLong(), Mockito.anyString())
+        verify(refreshTokenRepository, never()).save(Mockito.anyLong(), Mockito.anyString(), Mockito.anyLong())
     }
 
     private fun claims(
@@ -255,6 +291,26 @@ class KakaoLoginServiceTest {
             emailVerified = emailVerified,
             nonce = "nonce",
             expiresAt = expiresAt
+        )
+    }
+
+    private fun consentStatus(accepted: Boolean): ConsentResult.Status {
+        return ConsentResult.Status(
+            policies = emptyList(),
+            missingPolicies = if (accepted) emptyList() else listOf(missingPolicy()),
+            requiredConsentsAccepted = accepted
+        )
+    }
+
+    private fun missingPolicy(): ConsentResult.PolicyStatus {
+        return ConsentResult.PolicyStatus(
+            policyType = "terms_of_service",
+            version = "2026-05-01",
+            title = "서비스 이용약관",
+            url = "nugusauce://legal/terms",
+            required = true,
+            accepted = false,
+            activeFrom = Instant.parse("2026-05-01T00:00:00Z")
         )
     }
 

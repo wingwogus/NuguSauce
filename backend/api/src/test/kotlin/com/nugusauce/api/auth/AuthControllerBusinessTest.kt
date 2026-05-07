@@ -104,7 +104,8 @@ class AuthControllerBusinessTest(
                         displayName = "사용자 1",
                         profileImageUrl = null,
                         profileSetupRequired = true
-                    )
+                    ),
+                    nextStep = AuthResult.LoginNextStep.PROFILE_REQUIRED
                 )
             )
 
@@ -120,6 +121,7 @@ class AuthControllerBusinessTest(
             .andExpect(jsonPath("$.data.member.id", equalTo(1)))
             .andExpect(jsonPath("$.data.member.displayName", equalTo("사용자 1")))
             .andExpect(jsonPath("$.data.member.profileSetupRequired", equalTo(true)))
+            .andExpect(jsonPath("$.data.nextStep", equalTo("profile_required")))
     }
 
     @Test

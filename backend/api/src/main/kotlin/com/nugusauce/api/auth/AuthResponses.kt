@@ -21,14 +21,16 @@ object AuthResponses {
     data class KakaoLoginResponse(
         val accessToken: String,
         val refreshToken: String,
-        val member: MemberResponses.MeResponse
+        val member: MemberResponses.MeResponse,
+        val nextStep: String
     ) {
         companion object {
             fun from(result: AuthResult.KakaoLogin): KakaoLoginResponse {
                 return KakaoLoginResponse(
                     accessToken = result.accessToken,
                     refreshToken = result.refreshToken,
-                    member = MemberResponses.MeResponse.from(result.member)
+                    member = MemberResponses.MeResponse.from(result.member),
+                    nextStep = result.nextStep.wireValue
                 )
             }
         }

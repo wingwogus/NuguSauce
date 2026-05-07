@@ -140,7 +140,7 @@ class ConsentServiceTest {
             policyType = type,
             version = "2026-05-01",
             title = title,
-            url = "https://nugusauce.jaehyuns.com/legal/${type.wireValue}",
+            url = "nugusauce://legal/${type.wireValue}",
             activeFrom = Instant.parse("2026-05-01T00:00:00Z"),
             createdAt = Instant.parse("2026-05-01T00:00:00Z")
         )

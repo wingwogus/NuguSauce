@@ -1,5 +1,8 @@
 package com.nugusauce.application.bootstrap
 
+import com.nugusauce.domain.consent.PolicyType
+import com.nugusauce.domain.consent.PolicyVersion
+import com.nugusauce.domain.consent.PolicyVersionRepository
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
@@ -24,12 +27,14 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Instant
 
 @Component
 @Profile("local")
 @ConditionalOnProperty(name = ["nugusauce.seed.enabled"], havingValue = "true")
 class LocalSeedService(
     private val memberRepository: MemberRepository,
+    private val policyVersionRepository: PolicyVersionRepository,
     private val ingredientRepository: IngredientRepository,
     private val recipeTagRepository: RecipeTagRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
@@ -42,6 +47,8 @@ class LocalSeedService(
 
     @Transactional
     override fun run(args: ApplicationArguments) {
+        seedPolicyVersions()
+
         if (memberRepository.findByEmail(SEED_NORMAL_EMAIL) != null) {
             backfillSeedNicknames()
             logger.info("NuguSauce local seed skipped; seed user already exists")
@@ -61,6 +68,30 @@ class LocalSeedService(
             users.size,
             recipes.size
         )
+    }
+
+    private fun seedPolicyVersions() {
+        val existingPolicyKeys = policyVersionRepository.findAll()
+            .map { it.policyType to it.version }
+            .toSet()
+        val missingPolicies = POLICY_VERSION_SEEDS
+            .filterNot { it.policyType to it.version in existingPolicyKeys }
+            .map { seed ->
+                PolicyVersion(
+                    policyType = seed.policyType,
+                    version = seed.version,
+                    title = seed.title,
+                    url = seed.url,
+                    required = true,
+                    activeFrom = POLICY_ACTIVE_FROM,
+                    createdAt = POLICY_ACTIVE_FROM
+                )
+            }
+
+        if (missingPolicies.isNotEmpty()) {
+            policyVersionRepository.saveAll(missingPolicies)
+            logger.info("NuguSauce local policy seed created. policies={}", missingPolicies.size)
+        }
     }
 
     private fun seedMembers(): Map<String, Member> {
@@ -225,8 +256,37 @@ class LocalSeedService(
         val role: String = "ROLE_USER"
     )
 
+    private data class PolicyVersionSeed(
+        val policyType: PolicyType,
+        val version: String,
+        val title: String,
+        val url: String
+    )
+
     companion object {
         private const val SEED_NORMAL_EMAIL = "normal.user@example.test"
+        private val POLICY_ACTIVE_FROM: Instant = Instant.parse("2026-05-01T00:00:00Z")
+
+        private val POLICY_VERSION_SEEDS = listOf(
+            PolicyVersionSeed(
+                PolicyType.TERMS_OF_SERVICE,
+                "2026-05-01",
+                "서비스 이용약관",
+                "nugusauce://legal/terms"
+            ),
+            PolicyVersionSeed(
+                PolicyType.PRIVACY_POLICY,
+                "2026-05-01",
+                "개인정보 처리방침",
+                "nugusauce://legal/privacy"
+            ),
+            PolicyVersionSeed(
+                PolicyType.CONTENT_POLICY,
+                "2026-05-01",
+                "콘텐츠/사진 권리 정책",
+                "nugusauce://legal/content-policy"
+            )
+        )
 
         private val MEMBER_SEEDS = listOf(
             MemberSeed(SEED_NORMAL_EMAIL, "소스장인"),

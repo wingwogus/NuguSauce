@@ -70,6 +70,8 @@ enum KakaoLoginErrorMessage {
             return "로그인 요청이 만료되었어요. 다시 시도해주세요."
         case ApiErrorCode.kakaoVerifiedEmailRequired:
             return "카카오 계정의 인증된 이메일 제공 동의가 필요해요."
+        case ApiErrorCode.consentRequired:
+            return "로그인을 완료하기 위한 약관 정보를 확인하지 못했어요. 잠시 후 다시 시도해주세요."
         default:
             return "카카오 로그인에 실패했어요. 다시 시도해주세요."
         }

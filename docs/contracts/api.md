@@ -126,7 +126,8 @@ Success data:
     "displayName": "사용자 1",
     "profileImageUrl": null,
     "profileSetupRequired": true
-  }
+  },
+  "nextStep": "consent_required"
 }
 ```
 
@@ -136,6 +137,21 @@ login only; the public NuguSauce nickname is a service profile field.
 iOS must treat the returned token pair as pending login state until required
 policy acceptance and required profile setup are complete. The token pair must
 not be persisted as an authenticated app session before those gates pass.
+
+`nextStep` is a routing hint derived by the backend from the current required
+policy versions and member profile state:
+
+- `done`: required consents and profile setup are complete; iOS may persist the
+  returned token pair as the app session.
+- `consent_required`: iOS must keep the token pair in pending memory, call
+  `GET /api/v1/consents/status` with the pending access token, collect the
+  missing required policy acceptances, and then continue profile setup if needed.
+- `profile_required`: required consents are complete, but iOS must collect the
+  service nickname before persisting the session.
+
+The login response intentionally does not include the full consent-status
+payload. Clients fetch that detail only when `nextStep` is `consent_required`
+or when a protected write fails with `CONSENT_001`.
 
 ### `POST /api/v1/auth/reissue`
 
@@ -198,7 +214,7 @@ Success data:
       "policyType": "terms_of_service",
       "version": "2026-05-01",
       "title": "서비스 이용약관",
-      "url": "https://nugusauce.jaehyuns.com/legal/terms",
+      "url": "nugusauce://legal/terms",
       "required": true,
       "accepted": false,
       "activeFrom": "2026-05-01T00:00:00Z"
@@ -209,7 +225,7 @@ Success data:
       "policyType": "terms_of_service",
       "version": "2026-05-01",
       "title": "서비스 이용약관",
-      "url": "https://nugusauce.jaehyuns.com/legal/terms",
+      "url": "nugusauce://legal/terms",
       "required": true,
       "accepted": false,
       "activeFrom": "2026-05-01T00:00:00Z"
@@ -218,6 +234,10 @@ Success data:
   "requiredConsentsAccepted": false
 }
 ```
+
+`url` is an app-internal policy document reference, not a public backend web
+page. iOS renders the policy body in-app from `policyType` and `version`; it
+must not open `/legal/...` backend routes for consent.
 
 ### `POST /api/v1/consents/accept`
 
