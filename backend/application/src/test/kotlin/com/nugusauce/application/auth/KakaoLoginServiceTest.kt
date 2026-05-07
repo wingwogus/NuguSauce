@@ -114,7 +114,11 @@ class KakaoLoginServiceTest {
         assertEquals("사용자 1", result.member.displayName)
         assertEquals("https://cdn.example.test/nugusauce/images/1/profile", result.member.profileImageUrl)
         assertTrue(result.member.profileSetupRequired)
-        assertEquals(AuthResult.LoginNextStep.PROFILE_REQUIRED, result.nextStep)
+        assertEquals(AuthResult.OnboardingStatus.REQUIRED, result.onboarding.status)
+        assertEquals(
+            listOf(AuthResult.OnboardingRequiredAction.SETUP_PROFILE),
+            result.onboarding.requiredActions
+        )
         assertEquals("nonce", nonceRepository.lastNonce)
         verify(refreshTokenRepository).save(1L, "refresh-token", 120L)
     }
@@ -144,11 +148,12 @@ class KakaoLoginServiceTest {
         assertEquals(member, identityCaptor.value.member)
         assertEquals(AuthProvider.KAKAO, identityCaptor.value.provider)
         assertEquals("kakao-sub", identityCaptor.value.providerSubject)
-        assertEquals(AuthResult.LoginNextStep.DONE, result.nextStep)
+        assertEquals(AuthResult.OnboardingStatus.COMPLETE, result.onboarding.status)
+        assertEquals(emptyList<AuthResult.OnboardingRequiredAction>(), result.onboarding.requiredActions)
     }
 
     @Test
-    fun `login creates new member with null password hash`() {
+    fun `login creates new member with null password hash and both onboarding actions`() {
         val savedMember = Member(3L, "new@example.com", null, "ROLE_USER")
 
         `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims(email = "new@example.com"))
@@ -169,7 +174,37 @@ class KakaoLoginServiceTest {
         verify(memberRepository).save(memberCaptor.capture())
         assertEquals("new@example.com", memberCaptor.value.email)
         assertNull(memberCaptor.value.passwordHash)
-        assertEquals(AuthResult.LoginNextStep.CONSENT_REQUIRED, result.nextStep)
+        assertEquals(AuthResult.OnboardingStatus.REQUIRED, result.onboarding.status)
+        assertEquals(
+            listOf(
+                AuthResult.OnboardingRequiredAction.ACCEPT_REQUIRED_POLICIES,
+                AuthResult.OnboardingRequiredAction.SETUP_PROFILE
+            ),
+            result.onboarding.requiredActions
+        )
+    }
+
+    @Test
+    fun `login returns consent action for member with profile setup complete`() {
+        val member = Member(5L, "consent@example.com", null, "ROLE_USER").apply {
+            nickname = "소스장인"
+        }
+
+        `when`(kakaoOidcTokenVerifier.verify("id-token", "nonce")).thenReturn(claims(email = "consent@example.com"))
+        `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.KAKAO, "kakao-sub"))
+            .thenReturn(ExternalIdentity(1L, member, AuthProvider.KAKAO, "kakao-sub", "consent@example.com"))
+        `when`(consentService.status(5L)).thenReturn(consentStatus(accepted = false))
+        `when`(tokenProvider.generateToken(5L, "ROLE_USER"))
+            .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
+        `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
+
+        val result = service.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token"))
+
+        assertEquals(AuthResult.OnboardingStatus.REQUIRED, result.onboarding.status)
+        assertEquals(
+            listOf(AuthResult.OnboardingRequiredAction.ACCEPT_REQUIRED_POLICIES),
+            result.onboarding.requiredActions
+        )
     }
 
     @Test

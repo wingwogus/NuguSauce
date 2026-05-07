@@ -22,7 +22,7 @@ object AuthResponses {
         val accessToken: String,
         val refreshToken: String,
         val member: MemberResponses.MeResponse,
-        val nextStep: String
+        val onboarding: OnboardingResponse
     ) {
         companion object {
             fun from(result: AuthResult.KakaoLogin): KakaoLoginResponse {
@@ -30,7 +30,21 @@ object AuthResponses {
                     accessToken = result.accessToken,
                     refreshToken = result.refreshToken,
                     member = MemberResponses.MeResponse.from(result.member),
-                    nextStep = result.nextStep.wireValue
+                    onboarding = OnboardingResponse.from(result.onboarding)
+                )
+            }
+        }
+    }
+
+    data class OnboardingResponse(
+        val status: String,
+        val requiredActions: List<String>
+    ) {
+        companion object {
+            fun from(result: AuthResult.Onboarding): OnboardingResponse {
+                return OnboardingResponse(
+                    status = result.status.wireValue,
+                    requiredActions = result.requiredActions.map { it.wireValue }
                 )
             }
         }

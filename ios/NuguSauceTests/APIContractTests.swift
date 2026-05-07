@@ -197,7 +197,13 @@ final class APIContractTests: XCTestCase {
             "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
             "profileSetupRequired": true
           },
-          "nextStep": "profile_required"
+          "onboarding": {
+            "status": "required",
+            "requiredActions": [
+              "accept_required_policies",
+              "setup_profile"
+            ]
+          }
         }
         """.data(using: .utf8)!
 
@@ -208,10 +214,11 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(response.member.displayName, "사용자 1")
         XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
-        XCTAssertEqual(response.nextStep, .profileRequired)
+        XCTAssertEqual(response.onboarding.status, .required)
+        XCTAssertEqual(response.onboarding.requiredActions, [.acceptRequiredPolicies, .setupProfile])
     }
 
-    func testKakaoLoginResponseWithoutNextStepDefaultsToConsentRequired() throws {
+    func testKakaoLoginResponseWithoutOnboardingFailsDecoding() throws {
         let json = """
         {
           "accessToken": "access-token",
@@ -226,9 +233,51 @@ final class APIContractTests: XCTestCase {
         }
         """.data(using: .utf8)!
 
-        let response = try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json)
+        XCTAssertThrowsError(try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json))
+    }
 
-        XCTAssertEqual(response.nextStep, .consentRequired)
+    func testKakaoLoginResponseWithUnknownOnboardingStatusFailsDecoding() throws {
+        let json = """
+        {
+          "accessToken": "access-token",
+          "refreshToken": "refresh-token",
+          "member": {
+            "id": 1,
+            "nickname": "소스장인",
+            "displayName": "소스장인",
+            "profileImageUrl": null,
+            "profileSetupRequired": false
+          },
+          "onboarding": {
+            "status": "unknown",
+            "requiredActions": []
+          }
+        }
+        """.data(using: .utf8)!
+
+        XCTAssertThrowsError(try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json))
+    }
+
+    func testKakaoLoginResponseWithUnknownOnboardingActionFailsDecoding() throws {
+        let json = """
+        {
+          "accessToken": "access-token",
+          "refreshToken": "refresh-token",
+          "member": {
+            "id": 1,
+            "nickname": "소스장인",
+            "displayName": "소스장인",
+            "profileImageUrl": null,
+            "profileSetupRequired": false
+          },
+          "onboarding": {
+            "status": "required",
+            "requiredActions": ["unknown_action"]
+          }
+        }
+        """.data(using: .utf8)!
+
+        XCTAssertThrowsError(try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json))
     }
 
     func testBackendClientBuildsRecipeListRequest() async throws {
@@ -297,7 +346,12 @@ final class APIContractTests: XCTestCase {
               "profileImageUrl": "https://cdn.example.test/profile/1.jpg",
               "profileSetupRequired": true
             },
-            "nextStep": "profile_required"
+            "onboarding": {
+              "status": "required",
+              "requiredActions": [
+                "setup_profile"
+              ]
+            }
           },
           "error": null
         }
@@ -318,7 +372,8 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(response.member.displayName, "사용자 1")
         XCTAssertEqual(response.member.profileImageUrl, "https://cdn.example.test/profile/1.jpg")
         XCTAssertEqual(response.member.profileSetupRequired, true)
-        XCTAssertEqual(response.nextStep, .profileRequired)
+        XCTAssertEqual(response.onboarding.status, .required)
+        XCTAssertEqual(response.onboarding.requiredActions, [.setupProfile])
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
         XCTAssertEqual(request.url?.path, "/api/v1/auth/kakao/login")
         XCTAssertEqual(request.httpMethod, "POST")

@@ -192,20 +192,13 @@ final class LoginViewModel: ObservableObject {
             let login = PendingLoginSession(
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
-                member: tokens.member
+                member: tokens.member,
+                requiredActions: tokens.onboarding.requiredActions
             )
             pendingLogin = login
             nicknameDraft = tokens.member.nickname ?? ""
 
-            switch tokens.nextStep {
-            case .done:
-                return completeLogin(using: login, member: login.member)
-            case .profileRequired:
-                return showNicknameSetup(using: login)
-            case .consentRequired:
-                flowStep = .consent
-                return await loadPendingConsentStatus(using: login)
-            }
+            return await routePendingLogin(using: login)
         } catch {
             resetPendingLogin()
             errorMessage = KakaoLoginErrorMessage.message(for: error)
@@ -232,7 +225,7 @@ final class LoginViewModel: ObservableObject {
         do {
             let consentStatus = try await apiClient.fetchConsentStatus(accessToken: login.accessToken)
             if consentStatus.requiredConsentsAccepted {
-                return proceedAfterRequiredConsents(using: login)
+                return await routePendingLogin(using: login.removing(.acceptRequiredPolicies))
             }
 
             pendingConsentStatus = consentStatus
@@ -270,7 +263,7 @@ final class LoginViewModel: ObservableObject {
         do {
             let updatedStatus = try await apiClient.acceptConsents(request, accessToken: pendingLogin.accessToken)
             if updatedStatus.requiredConsentsAccepted {
-                return proceedAfterRequiredConsents(using: pendingLogin)
+                return await routePendingLogin(using: pendingLogin.removing(.acceptRequiredPolicies))
             } else {
                 self.pendingConsentStatus = updatedStatus
                 errorMessage = "필수 동의를 완료해주세요."
@@ -311,7 +304,7 @@ final class LoginViewModel: ObservableObject {
                 profileImageId: nil,
                 accessToken: pendingLogin.accessToken
             )
-            return completeLogin(using: pendingLogin, member: updatedMember)
+            return await routePendingLogin(using: pendingLogin.updating(member: updatedMember).removing(.setupProfile))
         } catch let error as ApiError {
             nicknameErrorMessage = nicknameMessage(for: error)
             return false
@@ -322,19 +315,25 @@ final class LoginViewModel: ObservableObject {
     }
 
     @MainActor
-    private func proceedAfterRequiredConsents(using login: PendingLoginSession) -> Bool {
+    private func routePendingLogin(using login: PendingLoginSession) async -> Bool {
+        pendingLogin = login
         pendingConsentStatus = nil
         errorMessage = nil
 
-        guard requiresNicknameSetup(for: login.member) else {
-            return completeLogin(using: login, member: login.member)
+        if login.requires(.acceptRequiredPolicies) {
+            return await loadPendingConsentStatus(using: login)
         }
 
-        return showNicknameSetup(using: login)
+        if login.requires(.setupProfile) {
+            return showNicknameSetup(using: login)
+        }
+
+        return completeLogin(using: login, member: login.member)
     }
 
     @MainActor
     private func showNicknameSetup(using login: PendingLoginSession) -> Bool {
+        pendingLogin = login
         nicknameDraft = login.member.nickname ?? ""
         nicknameErrorMessage = nil
         flowStep = .nickname
@@ -364,10 +363,6 @@ final class LoginViewModel: ObservableObject {
         isLoadingConsentStatus = false
     }
 
-    private func requiresNicknameSetup(for member: MemberProfileDTO) -> Bool {
-        member.profileSetupRequired ?? ((member.nickname ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-    }
-
     private func nicknameMessage(for error: ApiError) -> String {
         switch error.code {
         case ApiErrorCode.invalidNickname:
@@ -394,7 +389,24 @@ final class LoginViewModel: ObservableObject {
 private struct PendingLoginSession {
     let accessToken: String
     let refreshToken: String?
-    let member: MemberProfileDTO
+    var member: MemberProfileDTO
+    var requiredActions: [KakaoOnboardingRequiredActionDTO]
+
+    func requires(_ action: KakaoOnboardingRequiredActionDTO) -> Bool {
+        requiredActions.contains(action)
+    }
+
+    func removing(_ action: KakaoOnboardingRequiredActionDTO) -> PendingLoginSession {
+        var copy = self
+        copy.requiredActions.removeAll { $0 == action }
+        return copy
+    }
+
+    func updating(member: MemberProfileDTO) -> PendingLoginSession {
+        var copy = self
+        copy.member = member
+        return copy
+    }
 }
 
 struct LoginFlowNotice: View {

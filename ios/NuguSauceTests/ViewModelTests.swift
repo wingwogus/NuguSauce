@@ -708,7 +708,10 @@ final class ViewModelTests: XCTestCase {
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
         let client = TestAPIClient(
             consentStatus: Self.missingConsentStatus(),
-            kakaoLoginNextStep: .consentRequired,
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies, .setupProfile]
+            ),
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -756,7 +759,10 @@ final class ViewModelTests: XCTestCase {
         let client = TestAPIClient(
             updateMemberError: ApiError(code: ApiErrorCode.duplicateNickname, message: "duplicate", detail: nil),
             consentStatus: Self.missingConsentStatus(),
-            kakaoLoginNextStep: .consentRequired,
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies, .setupProfile]
+            ),
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -790,7 +796,7 @@ final class ViewModelTests: XCTestCase {
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
         let client = TestAPIClient(
             consentStatus: Self.missingConsentStatus(),
-            kakaoLoginNextStep: .done,
+            kakaoLoginOnboarding: .complete,
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: "소스장인",
@@ -814,12 +820,51 @@ final class ViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testLoginViewModelCompletesAfterConsentOnlyOnboarding() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(),
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies]
+            ),
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didCompleteAfterKakao = await viewModel.loginWithKakao()
+        XCTAssertFalse(didCompleteAfterKakao)
+        XCTAssertEqual(viewModel.flowStep, .consent)
+        XCTAssertFalse(authStore.isAuthenticated)
+
+        let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
+
+        XCTAssertTrue(didCompleteAfterConsent)
+        XCTAssertTrue(authStore.isAuthenticated)
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "real-access-token")
+        XCTAssertEqual(client.updateMemberAccessTokens, [])
+    }
+
+    @MainActor
     func testLoginViewModelShowsNicknameForProfileRequiredWithoutFetchingConsentStatus() async {
         let tokenStore = MemoryAuthTokenStore()
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
         let client = TestAPIClient(
             consentStatus: Self.missingConsentStatus(),
-            kakaoLoginNextStep: .profileRequired,
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.setupProfile]
+            ),
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -850,7 +895,10 @@ final class ViewModelTests: XCTestCase {
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
         let client = TestAPIClient(
             fetchConsentStatusError: ApiError(code: ApiErrorCode.resourceNotFound, message: "not found", detail: nil),
-            kakaoLoginNextStep: .consentRequired,
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies, .setupProfile]
+            ),
             memberProfile: MemberProfileDTO(
                 id: 7,
                 nickname: nil,
@@ -1430,7 +1478,7 @@ private final class TestAPIClient: APIClientProtocol {
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
     private let fetchConsentStatusError: Error?
-    private let kakaoLoginNextStep: KakaoLoginNextStepDTO
+    private let kakaoLoginOnboarding: KakaoLoginOnboardingDTO
     private var consentStatus: ConsentStatusDTO
     private var didStartFavoriteAdd = false
     private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
@@ -1471,7 +1519,7 @@ private final class TestAPIClient: APIClientProtocol {
         updateMemberError: Error? = nil,
         fetchConsentStatusError: Error? = nil,
         consentStatus: ConsentStatusDTO = ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true),
-        kakaoLoginNextStep: KakaoLoginNextStepDTO = .done,
+        kakaoLoginOnboarding: KakaoLoginOnboardingDTO = .complete,
         memberProfile: MemberProfileDTO = MemberProfileDTO(
             id: 1,
             nickname: "테스터",
@@ -1494,7 +1542,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
         self.fetchConsentStatusError = fetchConsentStatusError
-        self.kakaoLoginNextStep = kakaoLoginNextStep
+        self.kakaoLoginOnboarding = kakaoLoginOnboarding
         self.consentStatus = consentStatus
         self.memberProfile = memberProfile
     }
@@ -1671,7 +1719,7 @@ private final class TestAPIClient: APIClientProtocol {
             accessToken: "real-access-token",
             refreshToken: "real-refresh-token",
             member: memberProfile,
-            nextStep: kakaoLoginNextStep
+            onboarding: kakaoLoginOnboarding
         )
     }
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {

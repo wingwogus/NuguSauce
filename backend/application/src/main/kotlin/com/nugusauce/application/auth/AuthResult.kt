@@ -3,10 +3,14 @@ package com.nugusauce.application.auth
 import com.nugusauce.application.member.MemberResult
 
 object AuthResult {
-    enum class LoginNextStep(val wireValue: String) {
-        DONE("done"),
-        CONSENT_REQUIRED("consent_required"),
-        PROFILE_REQUIRED("profile_required")
+    enum class OnboardingStatus(val wireValue: String) {
+        COMPLETE("complete"),
+        REQUIRED("required")
+    }
+
+    enum class OnboardingRequiredAction(val wireValue: String) {
+        ACCEPT_REQUIRED_POLICIES("accept_required_policies"),
+        SETUP_PROFILE("setup_profile")
     }
 
     data class TokenPair(
@@ -14,10 +18,15 @@ object AuthResult {
         val refreshToken: String
     )
 
+    data class Onboarding(
+        val status: OnboardingStatus,
+        val requiredActions: List<OnboardingRequiredAction>
+    )
+
     data class KakaoLogin(
         val accessToken: String,
         val refreshToken: String,
         val member: MemberResult.Me,
-        val nextStep: LoginNextStep
+        val onboarding: Onboarding
     )
 }

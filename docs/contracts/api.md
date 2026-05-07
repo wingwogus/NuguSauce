@@ -127,7 +127,13 @@ Success data:
     "profileImageUrl": null,
     "profileSetupRequired": true
   },
-  "nextStep": "consent_required"
+  "onboarding": {
+    "status": "required",
+    "requiredActions": [
+      "accept_required_policies",
+      "setup_profile"
+    ]
+  }
 }
 ```
 
@@ -138,20 +144,32 @@ iOS must treat the returned token pair as pending login state until required
 policy acceptance and required profile setup are complete. The token pair must
 not be persisted as an authenticated app session before those gates pass.
 
-`nextStep` is a routing hint derived by the backend from the current required
-policy versions and member profile state:
+`onboarding` describes the NuguSauce service onboarding state derived by the
+backend from the current required policy versions and member profile state. It
+is part of the API contract, not a UI route name.
 
-- `done`: required consents and profile setup are complete; iOS may persist the
-  returned token pair as the app session.
-- `consent_required`: iOS must keep the token pair in pending memory, call
-  `GET /api/v1/consents/status` with the pending access token, collect the
-  missing required policy acceptances, and then continue profile setup if needed.
-- `profile_required`: required consents are complete, but iOS must collect the
-  service nickname before persisting the session.
+- `onboarding.status = complete`: required consents and profile setup are
+  complete; iOS may persist the returned token pair as the app session.
+- `onboarding.status = required`: one or more service onboarding actions must be
+  completed before iOS persists the app session.
+
+Allowed `onboarding.requiredActions` values are:
+
+- `accept_required_policies`: iOS must keep the token pair in pending memory,
+  call `GET /api/v1/consents/status` with the pending access token, collect the
+  missing required policy acceptances, and then continue remaining onboarding
+  actions.
+- `setup_profile`: iOS must collect the service nickname before persisting the
+  session.
+
+When both actions are required, the backend returns them in this order:
+
+1. `accept_required_policies`
+2. `setup_profile`
 
 The login response intentionally does not include the full consent-status
-payload. Clients fetch that detail only when `nextStep` is `consent_required`
-or when a protected write fails with `CONSENT_001`.
+payload. Clients fetch that detail only when `accept_required_policies` is
+present or when a protected write fails with `CONSENT_001`.
 
 ### `POST /api/v1/auth/reissue`
 

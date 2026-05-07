@@ -170,42 +170,40 @@ struct KakaoLoginResponseDTO: Codable, Equatable {
     let accessToken: String
     let refreshToken: String
     let member: MemberProfileDTO
-    let nextStep: KakaoLoginNextStepDTO
-
-    private enum CodingKeys: String, CodingKey {
-        case accessToken
-        case refreshToken
-        case member
-        case nextStep
-    }
+    let onboarding: KakaoLoginOnboardingDTO
 
     init(
         accessToken: String,
         refreshToken: String,
         member: MemberProfileDTO,
-        nextStep: KakaoLoginNextStepDTO = .done
+        onboarding: KakaoLoginOnboardingDTO
     ) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.member = member
-        self.nextStep = nextStep
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        accessToken = try container.decode(String.self, forKey: .accessToken)
-        refreshToken = try container.decode(String.self, forKey: .refreshToken)
-        member = try container.decode(MemberProfileDTO.self, forKey: .member)
-        // During backend/app rollout skew, older login responses may not include nextStep.
-        // Default to the fail-closed path so iOS fetches current consent status before persisting.
-        nextStep = try container.decodeIfPresent(KakaoLoginNextStepDTO.self, forKey: .nextStep) ?? .consentRequired
+        self.onboarding = onboarding
     }
 }
 
-enum KakaoLoginNextStepDTO: String, Codable, Equatable {
-    case done
-    case consentRequired = "consent_required"
-    case profileRequired = "profile_required"
+struct KakaoLoginOnboardingDTO: Codable, Equatable {
+    let status: KakaoOnboardingStatusDTO
+    let requiredActions: [KakaoOnboardingRequiredActionDTO]
+
+    static let complete = KakaoLoginOnboardingDTO(status: .complete, requiredActions: [])
+
+    func requires(_ action: KakaoOnboardingRequiredActionDTO) -> Bool {
+        requiredActions.contains(action)
+    }
+}
+
+enum KakaoOnboardingStatusDTO: String, Codable, Equatable {
+    case complete
+    case required
+}
+
+enum KakaoOnboardingRequiredActionDTO: String, Codable, Equatable {
+    case acceptRequiredPolicies = "accept_required_policies"
+    case setupProfile = "setup_profile"
 }
 
 struct ConsentStatusDTO: Codable, Equatable {

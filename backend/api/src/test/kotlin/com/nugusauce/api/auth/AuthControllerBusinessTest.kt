@@ -105,7 +105,10 @@ class AuthControllerBusinessTest(
                         profileImageUrl = null,
                         profileSetupRequired = true
                     ),
-                    nextStep = AuthResult.LoginNextStep.PROFILE_REQUIRED
+                    onboarding = AuthResult.Onboarding(
+                        status = AuthResult.OnboardingStatus.REQUIRED,
+                        requiredActions = listOf(AuthResult.OnboardingRequiredAction.SETUP_PROFILE)
+                    )
                 )
             )
 
@@ -121,7 +124,9 @@ class AuthControllerBusinessTest(
             .andExpect(jsonPath("$.data.member.id", equalTo(1)))
             .andExpect(jsonPath("$.data.member.displayName", equalTo("사용자 1")))
             .andExpect(jsonPath("$.data.member.profileSetupRequired", equalTo(true)))
-            .andExpect(jsonPath("$.data.nextStep", equalTo("profile_required")))
+            .andExpect(jsonPath("$.data.onboarding.status", equalTo("required")))
+            .andExpect(jsonPath("$.data.onboarding.requiredActions[0]", equalTo("setup_profile")))
+            .andExpect(jsonPath("$.data." + "next" + "Step").doesNotExist())
     }
 
     @Test

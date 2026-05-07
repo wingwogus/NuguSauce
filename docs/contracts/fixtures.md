@@ -67,7 +67,7 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
   `favoriteCount` is the read/ranking optimization.
 - Local backend seed data must include the current required `policy_version`
   records for `TERMS_OF_SERVICE`, `PRIVACY_POLICY`, and `CONTENT_POLICY` so
-  Kakao login can compute `nextStep` without a separate migration step.
+  Kakao login can compute onboarding state without a separate migration step.
 
 ## Sauce Seed Notes
 

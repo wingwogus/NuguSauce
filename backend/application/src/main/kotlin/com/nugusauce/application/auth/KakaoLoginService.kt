@@ -53,9 +53,9 @@ class KakaoLoginService(
 
         val consentStatus = consentService.status(member.id)
         val memberProfile = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
-        val nextStep = nextStep(consentStatus.requiredConsentsAccepted, memberProfile.profileSetupRequired)
+        val onboarding = onboarding(consentStatus.requiredConsentsAccepted, memberProfile.profileSetupRequired)
 
-        return issueAndStoreTokens(member, memberProfile, nextStep)
+        return issueAndStoreTokens(member, memberProfile, onboarding)
     }
 
     private fun reserveNonce(claims: KakaoOidcClaims) {
@@ -113,21 +113,30 @@ class KakaoLoginService(
         return userInfo.email?.takeIf { it.isNotBlank() && userInfo.emailVerified }
     }
 
-    private fun nextStep(
+    private fun onboarding(
         requiredConsentsAccepted: Boolean,
         profileSetupRequired: Boolean
-    ): AuthResult.LoginNextStep {
-        return when {
-            !requiredConsentsAccepted -> AuthResult.LoginNextStep.CONSENT_REQUIRED
-            profileSetupRequired -> AuthResult.LoginNextStep.PROFILE_REQUIRED
-            else -> AuthResult.LoginNextStep.DONE
+    ): AuthResult.Onboarding {
+        val requiredActions = buildList {
+            if (!requiredConsentsAccepted) {
+                add(AuthResult.OnboardingRequiredAction.ACCEPT_REQUIRED_POLICIES)
+            }
+            if (profileSetupRequired) {
+                add(AuthResult.OnboardingRequiredAction.SETUP_PROFILE)
+            }
         }
+        val status = if (requiredActions.isEmpty()) {
+            AuthResult.OnboardingStatus.COMPLETE
+        } else {
+            AuthResult.OnboardingStatus.REQUIRED
+        }
+        return AuthResult.Onboarding(status, requiredActions)
     }
 
     private fun issueAndStoreTokens(
         member: Member,
         memberProfile: MemberResult.Me,
-        nextStep: AuthResult.LoginNextStep
+        onboarding: AuthResult.Onboarding
     ): AuthResult.KakaoLogin {
         val tokenPair = tokenProvider.generateToken(member.id, member.role)
         refreshTokenRepository.save(
@@ -139,7 +148,7 @@ class KakaoLoginService(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
             member = memberProfile,
-            nextStep = nextStep
+            onboarding = onboarding
         )
     }
 }
