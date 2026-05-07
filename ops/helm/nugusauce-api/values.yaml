@@ -2,7 +2,7 @@ replicaCount: 2
 image:
   repository: docker.io/vantagac/nugusauce-api
   pullPolicy: IfNotPresent
-  tag: "6f47b693e96785e44dd0abfb1e8f784f80d6ad9d"
+  tag: "34a0814b9fc4c6e19e7da5f0fb047d5fcd05b171"
 imagePullSecrets:
 - name: regcred
 nameOverride: ""
