@@ -39,8 +39,17 @@ A feature is not done unless at least one requirement is locked by an automated 
 
 ## Commit Convention
 
-- Commit subjects must always use `feat:{변경사항 한국어로}`.
-- Write the text after `feat:` in Korean and summarize the actual committed change.
+- Commit subjects must use `<type>: {변경사항 한국어 단답}`.
+- Allowed types:
+  - `feat`: 새로운 기능 추가
+  - `fix`: 버그 수정
+  - `docs`: 문서 수정
+  - `refactor`: 기능 변경 없는 코드 리팩토링
+  - `test`: 테스트 코드 추가 또는 수정
+  - `chore`: 빌드, 패키지 매니저 설정 등 기타 잡일
+- Choose the type by the actual committed change. Do not force `feat` for fixes, docs, tests, refactors, or chores.
+- Write the text after `<type>:` in Korean and summarize the actual committed change.
+- Keep commit subjects short and noun-phrase-like after `<type>:`; do not use sentence endings such as `~한다`.
 
 ## Boundaries
 
