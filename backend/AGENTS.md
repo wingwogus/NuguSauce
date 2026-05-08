@@ -36,14 +36,14 @@ This file applies to backend work. If Codex was launched from repo root, read th
 ## Commit Convention
 
 - Follow the repository root commit convention for backend changes.
-- Use `<type>: {변경사항 한국어 단답}` and choose the type by the actual backend change:
+- Use `<type>: {변경사항 한국어 동작 구문}` and choose the type by the actual backend change:
   - `feat`: 새로운 기능 추가
   - `fix`: 버그 수정
   - `docs`: 문서 수정
   - `refactor`: 기능 변경 없는 코드 리팩토링
   - `test`: 테스트 코드 추가 또는 수정
   - `chore`: 빌드, 패키지 매니저 설정 등 기타 잡일
-- Keep the Korean subject after `<type>:` short and noun-phrase-like; do not use sentence endings such as `~한다`.
+- Keep the Korean subject after `<type>:` short, but include an action word when it makes the change clearer, e.g. `백엔드 커밋 타입 규칙 수정`; do not use sentence endings such as `~한다`.
 
 ## Commands
 

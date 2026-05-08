@@ -31,8 +31,8 @@ This file applies to future iOS work under `ios/`.
 ## Commit Convention
 
 - Follow the repository root commit convention for iOS changes.
-- Use the root `<type>: {변경사항 한국어 단답}` format and choose the type by the actual iOS change.
-- Keep the Korean subject after `<type>:` short and noun-phrase-like; do not use sentence endings such as `~한다`.
+- Use the root `<type>: {변경사항 한국어 동작 구문}` format and choose the type by the actual iOS change.
+- Keep the Korean subject after `<type>:` short, but include an action word when it makes the change clearer; do not use sentence endings such as `~한다`.
 
 ## Auth Boundary
 
