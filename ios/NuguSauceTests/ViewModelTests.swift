@@ -46,14 +46,35 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(firstAsset, secondAsset)
     }
 
-    func testRecipeImageResolvesOnlyRemoteHTTPURLs() {
-        XCTAssertEqual(
-            RecipeImage.remoteURL(from: " https://res.cloudinary.com/demo/image/upload/sample ")?.absoluteString,
-            "https://res.cloudinary.com/demo/image/upload/sample"
+    func testProfileAvatarURLTrimsWhitespace() {
+        let url = ImageDisplayURL.profileAvatarURL(from: " https://cdn.example.test/profile/1.jpg \n")
+
+        XCTAssertEqual(url?.absoluteString, "https://cdn.example.test/profile/1.jpg")
+    }
+
+    func testProfileAvatarURLUpgradesExternalHTTPForAppTransportSecurity() {
+        let url = ImageDisplayURL.profileAvatarURL(from: "http://k.kakaocdn.net/dn/avatar/img_110x110.jpg")
+
+        XCTAssertEqual(url?.absoluteString, "https://k.kakaocdn.net/dn/avatar/img_110x110.jpg")
+    }
+
+    func testProfileAvatarURLKeepsLocalHTTPForDevelopmentBackends() {
+        let url = ImageDisplayURL.profileAvatarURL(from: "http://127.0.0.1:8080/profile/1.jpg")
+
+        XCTAssertEqual(url?.absoluteString, "http://127.0.0.1:8080/profile/1.jpg")
+    }
+
+    func testProfileAvatarURLRejectsRelativePaths() {
+        XCTAssertNil(ImageDisplayURL.profileAvatarURL(from: "/profile/1.jpg"))
+    }
+
+    func testProfileAvatarURLAddsRetryQuery() {
+        let url = ImageDisplayURL.profileAvatarURL(
+            from: "https://cdn.example.test/profile/1.jpg?size=small",
+            retryAttempt: 2
         )
-        XCTAssertNil(RecipeImage.remoteURL(from: nil))
-        XCTAssertNil(RecipeImage.remoteURL(from: ""))
-        XCTAssertNil(RecipeImage.remoteURL(from: "nugusauce/recipes/local-image"))
+
+        XCTAssertEqual(url?.absoluteString, "https://cdn.example.test/profile/1.jpg?size=small&nugusauceAvatarRetry=2")
     }
 
     func testLightSurfaceTokensRemainTonallySeparated() {
@@ -118,13 +139,32 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(tabSelection.selectedTab, .profile)
     }
 
-    func testRootTabSelectionRequestsLoginForProtectedTabsWhenSignedOut() {
+    func testRootTabSelectionRequestsLoginWithoutSelectingProtectedTabWhenSignedOut() {
         let tabSelection = RootTabSelection()
 
         tabSelection.select(.favorites, isAuthenticated: false)
 
-        XCTAssertEqual(tabSelection.selectedTab, .favorites)
+        XCTAssertEqual(tabSelection.selectedTab, .home)
         XCTAssertEqual(tabSelection.loginRequiredTab, .favorites)
+    }
+
+    func testRootTabSelectionKeepsPreviousPublicTabWhenProtectedTabRequiresLogin() {
+        let tabSelection = RootTabSelection()
+        tabSelection.select(.search, isAuthenticated: false)
+
+        tabSelection.select(.profile, isAuthenticated: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .search)
+        XCTAssertEqual(tabSelection.loginRequiredTab, .profile)
+    }
+
+    func testRootTabSelectionAllowsProtectedTabsWhenSignedIn() {
+        let tabSelection = RootTabSelection()
+
+        tabSelection.select(.favorites, isAuthenticated: true)
+
+        XCTAssertEqual(tabSelection.selectedTab, .favorites)
+        XCTAssertNil(tabSelection.loginRequiredTab)
     }
 
     func testRootTabSelectionDoesNotRequestLoginForPublicTabsWhenSignedOut() {
@@ -143,6 +183,17 @@ final class ViewModelTests: XCTestCase {
         tabSelection.authenticationDidChange(isAuthenticated: true)
 
         XCTAssertNil(tabSelection.loginRequiredTab)
+    }
+
+    func testRootTabSelectionCanRequestSameProtectedTabLoginAfterRouteOpens() {
+        let tabSelection = RootTabSelection()
+        tabSelection.select(.favorites, isAuthenticated: false)
+        tabSelection.loginRouteDidOpen(for: .favorites)
+
+        tabSelection.select(.favorites, isAuthenticated: false)
+
+        XCTAssertEqual(tabSelection.selectedTab, .home)
+        XCTAssertEqual(tabSelection.loginRequiredTab, .favorites)
     }
 
     func testHomeLoadUsesClientResults() async {
@@ -666,6 +717,24 @@ final class ViewModelTests: XCTestCase {
         await staleLoad.value
         XCTAssertEqual(viewModel.recipes, [refreshedRecipe])
         XCTAssertFalse(viewModel.isLoading)
+    }
+
+    func testFavoritesRefreshCancellationKeepsCurrentDataWithoutError() async {
+        let favoriteRecipe = Self.recipe(id: 1, title: "기존 찜")
+        let client = TestAPIClient(favoriteRecipes: [favoriteRecipe])
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let viewModel = FavoritesViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        XCTAssertEqual(viewModel.recipes, [favoriteRecipe])
+
+        client.setFavoriteFetchError(CancellationError())
+        await viewModel.refresh()
+
+        XCTAssertEqual(viewModel.recipes, [favoriteRecipe])
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertEqual(client.fetchFavoriteRecipesCallCount, 2)
     }
 
     func testAuthSessionRestoreAndClear() {
@@ -1593,6 +1662,7 @@ private final class TestAPIClient: APIClientProtocol {
     private let createRecipeError: Error?
     private let createReviewError: Error?
     private let imageUploadIntentError: Error?
+    private var favoriteFetchError: Error?
     private let favoriteAddError: Error?
     private let favoriteDeleteError: Error?
     private let suspendFavoriteFetches: Bool
@@ -1636,6 +1706,7 @@ private final class TestAPIClient: APIClientProtocol {
         createRecipeError: Error? = nil,
         createReviewError: Error? = nil,
         imageUploadIntentError: Error? = nil,
+        favoriteFetchError: Error? = nil,
         favoriteAddError: Error? = nil,
         favoriteDeleteError: Error? = nil,
         suspendFavoriteFetches: Bool = false,
@@ -1661,6 +1732,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.createRecipeError = createRecipeError
         self.createReviewError = createReviewError
         self.imageUploadIntentError = imageUploadIntentError
+        self.favoriteFetchError = favoriteFetchError
         self.favoriteAddError = favoriteAddError
         self.favoriteDeleteError = favoriteDeleteError
         self.suspendFavoriteFetches = suspendFavoriteFetches
@@ -1780,6 +1852,9 @@ private final class TestAPIClient: APIClientProtocol {
         fetchFavoriteRecipesCallCount += 1
         let call = fetchFavoriteRecipesCallCount
         notifyFavoriteFetchCountWaiters()
+        if let favoriteFetchError {
+            throw favoriteFetchError
+        }
         if suspendFavoriteFetches {
             return try await withCheckedThrowingContinuation { continuation in
                 favoriteFetchContinuations[call] = continuation
@@ -1787,6 +1862,11 @@ private final class TestAPIClient: APIClientProtocol {
         }
         return favoriteRecipes
     }
+
+    func setFavoriteFetchError(_ error: Error?) {
+        favoriteFetchError = error
+    }
+
     func waitUntilFavoriteFetchCount(_ count: Int) async {
         if fetchFavoriteRecipesCallCount >= count {
             return

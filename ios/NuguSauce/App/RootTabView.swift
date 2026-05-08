@@ -28,10 +28,13 @@ final class RootTabSelection: ObservableObject {
     }
 
     func select(_ tab: RootTab, isAuthenticated: Bool = true) {
-        selectedTab = tab
         if tab.requiresAuthentication && !isAuthenticated {
             loginRequiredTab = tab
-        } else if loginRequiredTab == tab {
+            return
+        }
+
+        selectedTab = tab
+        if loginRequiredTab == tab {
             loginRequiredTab = nil
         }
     }
@@ -65,6 +68,14 @@ final class RootTabSelection: ObservableObject {
     }
 }
 
+private struct RootLoginPresentation: Identifiable {
+    let requestedTab: RootTab
+
+    var id: RootTab {
+        requestedTab
+    }
+}
+
 struct RootTabView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
@@ -72,6 +83,7 @@ struct RootTabView: View {
     @State private var favoritesNavigationPath: [AppRoute] = []
     @State private var createNavigationPath: [AppRoute] = []
     @State private var profileNavigationPath: [AppRoute] = []
+    @State private var rootLoginPresentation: RootLoginPresentation?
 
     var body: some View {
         TabView(selection: selectedTabBinding) {
@@ -144,6 +156,20 @@ struct RootTabView: View {
             ProfileSetupGateView(apiClient: apiClient, authStore: authStore)
                 .interactiveDismissDisabled(true)
         }
+        .sheet(item: $rootLoginPresentation) { _ in
+            NavigationStack {
+                LoginView(apiClient: apiClient, authStore: authStore)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("닫기") {
+                                rootLoginPresentation = nil
+                            }
+                            .accessibilityIdentifier("login-dismiss-button")
+                        }
+                    }
+            }
+            .presentationDragIndicator(.visible)
+        }
         .onAppear {
             tabSelection.authenticationDidChange(isAuthenticated: authStore.isAuthenticated)
             if let loginRequiredTab = tabSelection.loginRequiredTab {
@@ -159,6 +185,7 @@ struct RootTabView: View {
         .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in
             tabSelection.authenticationDidChange(isAuthenticated: isAuthenticated)
             if isAuthenticated {
+                rootLoginPresentation = nil
                 removeLoginRoutes()
             } else if let loginRequiredTab = tabSelection.loginRequiredTab {
                 routeToLogin(for: loginRequiredTab)
@@ -204,22 +231,7 @@ struct RootTabView: View {
     }
 
     private func routeToLogin(for tab: RootTab) {
-        switch tab {
-        case .favorites:
-            if !favoritesNavigationPath.contains(.login) {
-                favoritesNavigationPath.append(.login)
-            }
-        case .create:
-            if !createNavigationPath.contains(.login) {
-                createNavigationPath.append(.login)
-            }
-        case .profile:
-            if !profileNavigationPath.contains(.login) {
-                profileNavigationPath.append(.login)
-            }
-        case .home, .search:
-            break
-        }
+        rootLoginPresentation = RootLoginPresentation(requestedTab: tab)
         tabSelection.loginRouteDidOpen(for: tab)
     }
 

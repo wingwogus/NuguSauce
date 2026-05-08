@@ -172,7 +172,7 @@ struct HomeView: View {
                 NuguMascotImage(asset: .yellow)
                     .frame(width: 28, height: 28)
                     .accessibilityHidden(true)
-                Text("인기 TOP 5")
+                Text("요즘 인기 많은 소스")
                     .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
             }
@@ -213,7 +213,7 @@ struct HomeView: View {
                 NuguMascotImage(asset: .green)
                     .frame(width: 28, height: 28)
                     .accessibilityHidden(true)
-                Text("최신 소스 조합")
+                Text("방금 만들어진 소스")
                     .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
             }

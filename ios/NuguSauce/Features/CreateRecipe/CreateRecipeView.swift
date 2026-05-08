@@ -41,7 +41,7 @@ struct CreateRecipeView: View {
             .padding(.bottom, 42)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-            .task {
+        .task {
             await viewModel.load()
         }
         .onChange(of: selectedPhotoItem) { _, newItem in
@@ -88,6 +88,7 @@ struct CreateRecipeView: View {
                 }
             }
             Button {
+                commitFocusedRatioInput()
                 Task {
                     if let recipeID = await viewModel.submit() {
                         onCreatedRecipe(recipeID)
@@ -301,7 +302,6 @@ struct CreateRecipeView: View {
             },
             set: { newValue in
                 ratioInputDrafts[ingredient.id] = newValue
-                _ = viewModel.updateRatio(for: ingredient, inputText: newValue)
             }
         )
     }

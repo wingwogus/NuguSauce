@@ -58,7 +58,11 @@ final class FavoritesViewModel: ObservableObject {
             guard isCurrentGeneration(currentGeneration), authStore.isAuthenticated else {
                 return
             }
-            errorMessage = "찜한 소스를 불러오지 못했어요."
+            if error.isCancellation {
+                errorMessage = nil
+            } else {
+                errorMessage = "찜한 소스를 불러오지 못했어요."
+            }
         }
 
         if isCurrentGeneration(currentGeneration) {
@@ -68,5 +72,16 @@ final class FavoritesViewModel: ObservableObject {
 
     private func isCurrentGeneration(_ generation: Int) -> Bool {
         generation == requestGeneration
+    }
+}
+
+private extension Error {
+    var isCancellation: Bool {
+        if self is CancellationError {
+            return true
+        }
+
+        let nsError = self as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
     }
 }

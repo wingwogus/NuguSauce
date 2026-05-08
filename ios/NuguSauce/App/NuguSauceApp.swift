@@ -10,6 +10,9 @@ struct NuguSauceApp: App {
 
     init() {
         let authStore = AuthSessionStore()
+        if ProcessInfo.processInfo.environment["NUGUSAUCE_RESET_AUTH_ON_LAUNCH"] == "1" {
+            authStore.clear()
+        }
         _authStore = StateObject(wrappedValue: authStore)
         let backendAPIClient = BackendAPIClient(authStore: authStore)
         apiClient = CachingAPIClient(upstream: backendAPIClient, authStore: authStore)
@@ -25,6 +28,8 @@ struct NuguSauceApp: App {
             }
             .tint(SauceColor.primaryContainer)
             .preferredColorScheme(themePreference.colorScheme)
+            .scrollDismissesKeyboard(.interactively)
+            .dismissKeyboardOnOutsideTap()
             .onOpenURL { url in
                 if AuthApi.isKakaoTalkLoginUrl(url) {
                     _ = AuthController.handleOpenUrl(url: url)

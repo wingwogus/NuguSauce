@@ -207,6 +207,12 @@ enum NuguMascotAsset: String, CaseIterable {
 
     static let profilePlaceholders: [NuguMascotAsset] = [.red, .green, .black, .yellow]
 
+    static func placeholder(for recipeID: Int) -> NuguMascotAsset {
+        let assets = Self.allCases
+        let index = abs(recipeID % assets.count)
+        return assets[index]
+    }
+
     static func profilePlaceholder(identityName: String?, seed: String? = nil) -> NuguMascotAsset {
         if isOfficialNuguSauceIdentity(identityName) {
             return .red
@@ -304,6 +310,52 @@ struct LoginGatePlaceholder: View {
     }
 }
 
+enum ImageDisplayURL {
+    static func profileAvatarURL(from imageURL: String?, retryAttempt: Int = 0) -> URL? {
+        remoteURL(
+            from: imageURL,
+            retryQueryName: "nugusauceAvatarRetry",
+            retryAttempt: retryAttempt
+        )
+    }
+
+    private static func remoteURL(
+        from imageURL: String?,
+        retryQueryName: String?,
+        retryAttempt: Int
+    ) -> URL? {
+        let trimmedURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmedURL.isEmpty,
+              var components = URLComponents(string: trimmedURL),
+              let scheme = components.scheme?.lowercased(),
+              (scheme == "http" || scheme == "https"),
+              let host = components.host,
+              !host.isEmpty else {
+            return nil
+        }
+
+        if scheme == "http" && !isLocalHost(host) {
+            components.scheme = "https"
+        }
+
+        if retryAttempt > 0, let retryQueryName {
+            var queryItems = components.queryItems ?? []
+            queryItems.append(URLQueryItem(name: retryQueryName, value: "\(retryAttempt)"))
+            components.queryItems = queryItems
+        }
+
+        return components.url
+    }
+
+    private static func isLocalHost(_ host: String) -> Bool {
+        let normalizedHost = host.lowercased()
+        return normalizedHost == "localhost" ||
+            normalizedHost == "127.0.0.1" ||
+            normalizedHost == "::1" ||
+            normalizedHost.hasSuffix(".local")
+    }
+}
+
 struct ProfileAvatar: View {
     let imageURL: String?
     var size: CGFloat = 56
@@ -383,15 +435,7 @@ struct ProfileAvatar: View {
     }
 
     private func remoteURL(for imageURL: String) -> URL? {
-        guard var components = URLComponents(string: imageURL) else {
-            return nil
-        }
-        if retryAttempt > 0 {
-            var queryItems = components.queryItems ?? []
-            queryItems.append(URLQueryItem(name: "nugusauceAvatarRetry", value: "\(retryAttempt)"))
-            components.queryItems = queryItems
-        }
-        return components.url
+        ImageDisplayURL.profileAvatarURL(from: imageURL, retryAttempt: retryAttempt)
     }
 
     private func scheduleRetry(for imageURL: String) {
@@ -509,21 +553,9 @@ struct SauceArtwork: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    SauceColor.surfaceContainerLow,
-                    SauceColor.surfaceLowest
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Image(systemName: "photo")
-                .font(SauceTypography.iconLarge(.bold))
-                .foregroundStyle(SauceColor.muted)
-                .frame(width: min(height * 0.34, 72), height: min(height * 0.34, 72))
-                .background(SauceColor.surfaceLowest.opacity(0.9))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            SauceColor.surfaceContainerLow
+            NuguMascotImage(asset: NuguMascotAsset.placeholder(for: recipeID))
+                .padding(height * 0.14)
                 .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
@@ -540,7 +572,7 @@ struct RecipeImage: View {
     var body: some View {
         GeometryReader { proxy in
             Group {
-                if let url = Self.remoteURL(from: imageURL) {
+                if let imageURL, let url = URL(string: imageURL) {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
@@ -567,18 +599,6 @@ struct RecipeImage: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipped()
-    }
-
-    static func remoteURL(from imageURL: String?) -> URL? {
-        let trimmedURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !trimmedURL.isEmpty,
-              let url = URL(string: trimmedURL),
-              let scheme = url.scheme?.lowercased(),
-              (scheme == "http" || scheme == "https"),
-              url.host != nil else {
-            return nil
-        }
-        return url
     }
 }
 

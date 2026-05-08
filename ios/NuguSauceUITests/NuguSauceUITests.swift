@@ -64,19 +64,66 @@ final class NuguSauceUITests: XCTestCase {
     }
 
     func testProfileTabRoutesSignedOutUserToLoginScreen() {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchFreshAppAtHome()
 
         app.tabBars.buttons["프로필"].tap()
 
-        XCTAssertTrue(app.staticTexts["로그인하고 소스 조합을 저장해보세요"].waitForExistence(timeout: 5))
+        assertCommonLoginScreen(app)
+        dismissLoginScreen(app)
+        XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["내 프로필은 로그인 후 볼 수 있어요."].exists)
         XCTAssertFalse(app.staticTexts["로그인이 필요한 기능입니다."].exists)
+    }
+
+    func testFavoritesTabLoginBackReturnsToPreviousPublicTabWhenSignedOut() {
+        let app = launchFreshAppAtHome()
+
+        app.tabBars.buttons["찜"].tap()
+
+        assertCommonLoginScreen(app)
+        dismissLoginScreen(app)
+        XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["찜한 소스는 로그인 후 볼 수 있어요."].exists)
+    }
+
+    func testFavoritesTabLoginSheetCanReopenAfterReturningHome() {
+        let app = launchFreshAppAtHome()
+
+        app.tabBars.buttons["찜"].tap()
+        assertCommonLoginScreen(app)
+        dismissLoginScreen(app)
+
+        app.tabBars.buttons["홈"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["찜"].tap()
+        assertCommonLoginScreen(app)
     }
 
     private func existsAny(_ app: XCUIApplication, identifiers: [String]) -> Bool {
         identifiers.contains { identifier in
             app.descendants(matching: .any)[identifier].waitForExistence(timeout: 5)
         }
+    }
+
+    private func launchFreshAppAtHome() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.terminate()
+        app.launchEnvironment["NUGUSAUCE_RESET_AUTH_ON_LAUNCH"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assertCommonLoginScreen(_ app: XCUIApplication) {
+        XCTAssertTrue(app.staticTexts["로그인하고 소스 조합을 저장해보세요"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["login-dismiss-button"].waitForExistence(timeout: 5))
+    }
+
+    private func dismissLoginScreen(_ app: XCUIApplication) {
+        let closeButton = app.buttons["login-dismiss-button"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
     }
 
     private func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
