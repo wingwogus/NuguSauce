@@ -141,10 +141,10 @@ struct CreateRecipeView: View {
                     } else {
                         VStack(spacing: 10) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 42, weight: .bold))
+                                .font(SauceTypography.iconLarge(.bold))
                                 .foregroundStyle(SauceColor.onSurfaceVariant)
                             Text("소스 사진 추가")
-                                .font(.headline.weight(.bold))
+                                .font(SauceTypography.body(.bold))
                                 .foregroundStyle(SauceColor.onSurfaceVariant)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -152,9 +152,9 @@ struct CreateRecipeView: View {
 
                     HStack(spacing: 10) {
                         Image(systemName: viewModel.hasSelectedPhoto ? "photo.fill" : "plus.circle.fill")
-                            .font(.subheadline.weight(.bold))
+                            .font(SauceTypography.body(.bold))
                         Text(viewModel.hasSelectedPhoto ? "사진 변경" : "사진 선택")
-                            .font(.subheadline.weight(.bold))
+                            .font(SauceTypography.body(.bold))
                     }
                     .foregroundStyle(SauceColor.onPrimary)
                     .padding(.horizontal, 14)
@@ -180,7 +180,7 @@ struct CreateRecipeView: View {
 
             if viewModel.hasSelectedPhoto {
                 Toggle("직접 촬영했거나 사용할 권리가 있는 사진입니다.", isOn: $viewModel.photoRightsAccepted)
-                    .font(.footnote.weight(.bold))
+                    .font(SauceTypography.supporting(.bold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .tint(SauceColor.primaryContainer)
             }
@@ -190,10 +190,10 @@ struct CreateRecipeView: View {
     private var titleFields: some View {
         VStack(alignment: .leading, spacing: 14) {
             TextField("소스 이름을 입력하세요...", text: $viewModel.title)
-                .font(.system(size: 34, weight: .black))
+                .font(SauceTypography.heroTitle())
                 .foregroundStyle(SauceColor.onSurface)
             TextField("이 소스의 맛과 어울리는 재료를 설명해주세요...", text: $viewModel.description, axis: .vertical)
-                .font(.subheadline)
+                .font(SauceTypography.body())
                 .foregroundStyle(SauceColor.onSurfaceVariant)
         }
         .padding(.leading, 14)
@@ -208,7 +208,7 @@ struct CreateRecipeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("재료 배합하기")
-                    .font(.title2.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                 Spacer()
             }
 
@@ -232,9 +232,9 @@ struct CreateRecipeView: View {
                 )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(ingredient.ingredient.name)
-                        .font(.headline.weight(.bold))
+                        .font(SauceTypography.body(.bold))
                     Text(viewModel.categoryTitle(for: ingredient.ingredient))
-                        .font(.caption)
+                        .font(SauceTypography.metric(.regular))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
                 Spacer()
@@ -244,7 +244,7 @@ struct CreateRecipeView: View {
                     viewModel.removeIngredient(ingredient)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .frame(width: 30, height: 30)
                         .background(SauceColor.surfaceContainerLow)
@@ -274,7 +274,7 @@ struct CreateRecipeView: View {
             TextField("1.0", text: ratioInputBinding(for: ingredient))
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .font(.title3.weight(.black))
+                .font(SauceTypography.body(.black))
                 .foregroundStyle(SauceColor.primaryContainer)
                 .frame(width: 58)
                 .padding(.horizontal, 10)
@@ -289,7 +289,7 @@ struct CreateRecipeView: View {
                 }
 
             Text("비율")
-                .font(.caption)
+                .font(SauceTypography.metric(.regular))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
         }
     }
@@ -332,11 +332,11 @@ struct CreateRecipeView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text("빠른 추가")
-                    .font(.headline.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
                 Spacer()
                 Text("\(viewModel.quickAddVisibleIngredientCount)개")
-                    .font(.caption.weight(.bold))
+                    .font(SauceTypography.badge(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -345,7 +345,7 @@ struct CreateRecipeView: View {
             }
 
             Text("재료를 검색하거나 카테고리를 펼쳐 배합에 추가하세요.")
-                .font(.caption)
+                .font(SauceTypography.metric(.regular))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
             ingredientSearchField
@@ -370,11 +370,11 @@ struct CreateRecipeView: View {
     private var ingredientSearchField: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.subheadline.weight(.bold))
+                .font(SauceTypography.body(.bold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
             TextField("재료 검색", text: $viewModel.ingredientSearchText)
-                .font(.subheadline.weight(.semibold))
+                .font(SauceTypography.body(.semibold))
                 .foregroundStyle(SauceColor.onSurface)
                 .autocorrectionDisabled()
 
@@ -383,7 +383,7 @@ struct CreateRecipeView: View {
                     viewModel.clearIngredientSearch()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.subheadline.weight(.bold))
+                        .font(SauceTypography.body(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
                 .buttonStyle(.plain)
@@ -410,10 +410,10 @@ struct CreateRecipeView: View {
             } label: {
                 HStack(spacing: 10) {
                     Text(section.title)
-                        .font(.subheadline.weight(.black))
+                        .font(SauceTypography.body(.black))
                         .foregroundStyle(SauceColor.onSurface)
                     Text("\(section.ingredients.count)")
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .foregroundStyle(SauceColor.primaryContainer)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -421,7 +421,7 @@ struct CreateRecipeView: View {
                         .clipShape(Capsule())
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .font(.caption.weight(.black))
+                        .font(SauceTypography.badge(.black))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
@@ -467,33 +467,33 @@ struct CreateRecipeView: View {
         let isSelected = viewModel.isIngredientSelected(ingredient)
 
         return Button {
-            viewModel.addIngredient(ingredient)
+            viewModel.toggleIngredient(ingredient)
         } label: {
             HStack(spacing: 9) {
                 quickAddIngredientArtwork(ingredient, isSelected: isSelected)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ingredient.name)
-                        .font(.subheadline.weight(.bold))
+                        .font(SauceTypography.body(.bold))
                         .foregroundStyle(SauceColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
 
                     Text(viewModel.categoryTitle(for: ingredient))
-                        .font(.caption2.weight(.semibold))
+                        .font(SauceTypography.badge(.semibold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(isSelected ? SauceColor.redTint : SauceColor.surfaceLowest)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("quick-add-ingredient-\(ingredient.id)")
-        .accessibilityLabel("\(ingredient.name) 재료 추가")
+        .accessibilityLabel(isSelected ? "\(ingredient.name) 재료 선택 해제" : "\(ingredient.name) 재료 추가")
         .accessibilityValue(isSelected ? "선택됨" : viewModel.categoryTitle(for: ingredient))
     }
 
@@ -502,12 +502,12 @@ struct CreateRecipeView: View {
             IngredientArtwork(name: ingredient.name, category: ingredient.category, size: 42)
 
             Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle.fill")
-                .font(.caption2.weight(.black))
+                .font(SauceTypography.badge(.black))
                 .foregroundStyle(isSelected ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
                 .background(SauceColor.surfaceLowest)
                 .clipShape(Circle())
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 42, height: 42)
     }
 
     @MainActor

@@ -289,6 +289,20 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.makeRequest().ingredients.isEmpty)
     }
 
+    func testCreateRecipeQuickAddToggleRemovesSelectedIngredient() {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let viewModel = CreateRecipeViewModel(apiClient: TestAPIClient(ingredients: [ingredient]), authStore: authStore)
+
+        viewModel.toggleIngredient(ingredient)
+        XCTAssertEqual(viewModel.ingredients.map(\.ingredient.id), [1])
+        XCTAssertTrue(viewModel.isIngredientSelected(ingredient))
+
+        viewModel.toggleIngredient(ingredient)
+        XCTAssertTrue(viewModel.ingredients.isEmpty)
+        XCTAssertFalse(viewModel.isIngredientSelected(ingredient))
+    }
+
     func testCreateRecipeSubmitReturnsCreatedRecipeID() async {
         let authStore = TestAuthSessionStore(accessToken: "real-access-token")
         let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")

@@ -117,6 +117,16 @@ final class CreateRecipeViewModel: ObservableObject {
         ingredients.append(EditableIngredient(ingredient: ingredient, amount: 1.0, unit: "비율", ratio: 1.0))
     }
 
+    func toggleIngredient(_ ingredient: IngredientDTO) {
+        errorMessage = nil
+        if let selectedIngredient = ingredients.first(where: { $0.ingredient.id == ingredient.id }) {
+            removeIngredient(selectedIngredient)
+            return
+        }
+
+        addIngredient(ingredient)
+    }
+
     func clearIngredientSearch() {
         ingredientSearchText = ""
     }
