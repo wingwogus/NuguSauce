@@ -601,6 +601,34 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.recipes.isEmpty)
     }
 
+    func testFavoritesRefreshIgnoresStaleInFlightLoad() async {
+        let staleRecipe = Self.recipe(id: 1, title: "이전 찜")
+        let refreshedRecipe = Self.recipe(id: 2, title: "새 찜")
+        let client = TestAPIClient(suspendFavoriteFetches: true)
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let viewModel = FavoritesViewModel(apiClient: client, authStore: authStore)
+
+        let staleLoad = Task {
+            await viewModel.load()
+        }
+        await client.waitUntilFavoriteFetchCount(1)
+
+        let refresh = Task {
+            await viewModel.refresh()
+        }
+        await client.waitUntilFavoriteFetchCount(2)
+
+        client.completeFavoriteFetch(call: 2, with: [refreshedRecipe])
+        await refresh.value
+        XCTAssertEqual(viewModel.recipes, [refreshedRecipe])
+        XCTAssertFalse(viewModel.isLoading)
+
+        client.completeFavoriteFetch(call: 1, with: [staleRecipe])
+        await staleLoad.value
+        XCTAssertEqual(viewModel.recipes, [refreshedRecipe])
+        XCTAssertFalse(viewModel.isLoading)
+    }
+
     func testAuthSessionRestoreAndClear() {
         let store = TestAuthSessionStore()
 
@@ -1501,12 +1529,15 @@ private final class TestAPIClient: APIClientProtocol {
     private let imageUploadIntentError: Error?
     private let favoriteAddError: Error?
     private let favoriteDeleteError: Error?
+    private let suspendFavoriteFetches: Bool
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
     private let fetchConsentStatusError: Error?
     private let kakaoLoginOnboarding: KakaoLoginOnboardingDTO
     private var consentStatus: ConsentStatusDTO
     private var didStartFavoriteAdd = false
+    private var favoriteFetchContinuations: [Int: CheckedContinuation<[RecipeSummaryDTO], Error>] = [:]
+    private var favoriteFetchCountWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
     private var favoriteAddStartedContinuation: CheckedContinuation<Void, Never>?
     private var favoriteAddCompletion: CheckedContinuation<Void, Error>?
     private var memberProfile: MemberProfileDTO
@@ -1541,6 +1572,7 @@ private final class TestAPIClient: APIClientProtocol {
         imageUploadIntentError: Error? = nil,
         favoriteAddError: Error? = nil,
         favoriteDeleteError: Error? = nil,
+        suspendFavoriteFetches: Bool = false,
         suspendFavoriteAdd: Bool = false,
         updateMemberError: Error? = nil,
         fetchConsentStatusError: Error? = nil,
@@ -1565,6 +1597,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.imageUploadIntentError = imageUploadIntentError
         self.favoriteAddError = favoriteAddError
         self.favoriteDeleteError = favoriteDeleteError
+        self.suspendFavoriteFetches = suspendFavoriteFetches
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
         self.fetchConsentStatusError = fetchConsentStatusError
@@ -1679,8 +1712,41 @@ private final class TestAPIClient: APIClientProtocol {
     func fetchMyRecipes() async throws -> [RecipeSummaryDTO] { recipes }
     func fetchFavoriteRecipes() async throws -> [RecipeSummaryDTO] {
         fetchFavoriteRecipesCallCount += 1
+        let call = fetchFavoriteRecipesCallCount
+        notifyFavoriteFetchCountWaiters()
+        if suspendFavoriteFetches {
+            return try await withCheckedThrowingContinuation { continuation in
+                favoriteFetchContinuations[call] = continuation
+            }
+        }
         return favoriteRecipes
     }
+    func waitUntilFavoriteFetchCount(_ count: Int) async {
+        if fetchFavoriteRecipesCallCount >= count {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            favoriteFetchCountWaiters.append((count, continuation))
+        }
+    }
+
+    func completeFavoriteFetch(call: Int, with recipes: [RecipeSummaryDTO]) {
+        favoriteFetchContinuations.removeValue(forKey: call)?.resume(returning: recipes)
+    }
+
+    private func notifyFavoriteFetchCountWaiters() {
+        var remainingWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
+        for (targetCount, continuation) in favoriteFetchCountWaiters {
+            if fetchFavoriteRecipesCallCount >= targetCount {
+                continuation.resume()
+            } else {
+                remainingWaiters.append((targetCount, continuation))
+            }
+        }
+        favoriteFetchCountWaiters = remainingWaiters
+    }
+
     func waitUntilFavoriteAddStarts() async {
         if didStartFavoriteAdd {
             return

@@ -8,6 +8,7 @@ final class FavoritesViewModel: ObservableObject {
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
+    private var requestGeneration = 0
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
         self.apiClient = apiClient
@@ -15,40 +16,57 @@ final class FavoritesViewModel: ObservableObject {
     }
 
     func load() async {
-        guard authStore.isAuthenticated else {
-            clearData()
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-        defer {
-            isLoading = false
-        }
-
-        do {
-            recipes = try await apiClient.fetchFavoriteRecipes()
-        } catch {
-            errorMessage = "찜한 소스를 불러오지 못했어요."
-        }
+        await loadFavorites(invalidateCache: false)
     }
 
     func refresh() async {
+        await loadFavorites(invalidateCache: true)
+    }
+
+    func clearData() {
+        requestGeneration += 1
+        recipes = []
+        isLoading = false
+        errorMessage = nil
+    }
+
+    private func loadFavorites(invalidateCache: Bool) async {
         guard authStore.isAuthenticated else {
             clearData()
             return
         }
 
-        if let cacheControl = apiClient as? CacheControllingAPIClient {
+        requestGeneration += 1
+        let currentGeneration = requestGeneration
+        isLoading = true
+        errorMessage = nil
+
+        if invalidateCache, let cacheControl = apiClient as? CacheControllingAPIClient {
             await cacheControl.invalidate(scope: .favorites)
+            guard isCurrentGeneration(currentGeneration), authStore.isAuthenticated else {
+                return
+            }
         }
 
-        await load()
+        do {
+            let loadedRecipes = try await apiClient.fetchFavoriteRecipes()
+            guard isCurrentGeneration(currentGeneration), authStore.isAuthenticated else {
+                return
+            }
+            recipes = loadedRecipes
+        } catch {
+            guard isCurrentGeneration(currentGeneration), authStore.isAuthenticated else {
+                return
+            }
+            errorMessage = "찜한 소스를 불러오지 못했어요."
+        }
+
+        if isCurrentGeneration(currentGeneration) {
+            isLoading = false
+        }
     }
 
-    func clearData() {
-        recipes = []
-        isLoading = false
-        errorMessage = nil
+    private func isCurrentGeneration(_ generation: Int) -> Bool {
+        generation == requestGeneration
     }
 }
