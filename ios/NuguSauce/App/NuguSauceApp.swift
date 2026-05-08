@@ -20,14 +20,16 @@ struct NuguSauceApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView(apiClient: apiClient, authStore: authStore)
-                .tint(SauceColor.primaryContainer)
-                .preferredColorScheme(themePreference.colorScheme)
-                .onOpenURL { url in
-                    if AuthApi.isKakaoTalkLoginUrl(url) {
-                        _ = AuthController.handleOpenUrl(url: url)
-                    }
+            StartupSplashContainer {
+                RootTabView(apiClient: apiClient, authStore: authStore)
+            }
+            .tint(SauceColor.primaryContainer)
+            .preferredColorScheme(themePreference.colorScheme)
+            .onOpenURL { url in
+                if AuthApi.isKakaoTalkLoginUrl(url) {
+                    _ = AuthController.handleOpenUrl(url: url)
                 }
+            }
         }
     }
 

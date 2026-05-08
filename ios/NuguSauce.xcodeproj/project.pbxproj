@@ -10,6 +10,7 @@
 		F00000000000000000000101 /* App/AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000101 /* App/AppRoute.swift */; };
 		F00000000000000000000102 /* App/NuguSauceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000102 /* App/NuguSauceApp.swift */; };
 		F00000000000000000000103 /* App/RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000103 /* App/RootTabView.swift */; };
+		F00000000000000000000128 /* App/StartupSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000128 /* App/StartupSplashView.swift */; };
 		F00000000000000000000104 /* Core/API/APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000104 /* Core/API/APIModels.swift */; };
 		F00000000000000000000105 /* Core/API/BackendAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000105 /* Core/API/BackendAPIClient.swift */; };
 		F00000000000000000000106 /* Core/Auth/AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000106 /* Core/Auth/AuthSession.swift */; };
@@ -63,6 +64,7 @@
 		A00000000000000000000101 /* App/AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/AppRoute.swift; sourceTree = "<group>"; };
 		A00000000000000000000102 /* App/NuguSauceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/NuguSauceApp.swift; sourceTree = "<group>"; };
 		A00000000000000000000103 /* App/RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/RootTabView.swift; sourceTree = "<group>"; };
+		A00000000000000000000128 /* App/StartupSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/StartupSplashView.swift; sourceTree = "<group>"; };
 		A00000000000000000000104 /* Core/API/APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/API/APIModels.swift; sourceTree = "<group>"; };
 		A00000000000000000000105 /* Core/API/BackendAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/API/BackendAPIClient.swift; sourceTree = "<group>"; };
 		A00000000000000000000106 /* Core/Auth/AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/Auth/AuthSession.swift; sourceTree = "<group>"; };
@@ -140,6 +142,7 @@
 				A00000000000000000000101 /* App/AppRoute.swift */,
 				A00000000000000000000102 /* App/NuguSauceApp.swift */,
 				A00000000000000000000103 /* App/RootTabView.swift */,
+				A00000000000000000000128 /* App/StartupSplashView.swift */,
 				A00000000000000000000104 /* Core/API/APIModels.swift */,
 				A00000000000000000000105 /* Core/API/BackendAPIClient.swift */,
 				A00000000000000000000127 /* Core/API/CachingAPIClient.swift */,
@@ -336,6 +339,7 @@
 				F00000000000000000000101 /* App/AppRoute.swift in Sources */,
 				F00000000000000000000102 /* App/NuguSauceApp.swift in Sources */,
 				F00000000000000000000103 /* App/RootTabView.swift in Sources */,
+				F00000000000000000000128 /* App/StartupSplashView.swift in Sources */,
 				F00000000000000000000104 /* Core/API/APIModels.swift in Sources */,
 				F00000000000000000000105 /* Core/API/BackendAPIClient.swift in Sources */,
 				F00000000000000000000127 /* Core/API/CachingAPIClient.swift in Sources */,
