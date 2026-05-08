@@ -46,6 +46,16 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(firstAsset, secondAsset)
     }
 
+    func testRecipeImageResolvesOnlyRemoteHTTPURLs() {
+        XCTAssertEqual(
+            RecipeImage.remoteURL(from: " https://res.cloudinary.com/demo/image/upload/sample ")?.absoluteString,
+            "https://res.cloudinary.com/demo/image/upload/sample"
+        )
+        XCTAssertNil(RecipeImage.remoteURL(from: nil))
+        XCTAssertNil(RecipeImage.remoteURL(from: ""))
+        XCTAssertNil(RecipeImage.remoteURL(from: "nugusauce/recipes/local-image"))
+    }
+
     func testLightSurfaceTokensRemainTonallySeparated() {
         let traits = UITraitCollection(userInterfaceStyle: .light)
 

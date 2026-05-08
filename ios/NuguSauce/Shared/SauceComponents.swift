@@ -207,12 +207,6 @@ enum NuguMascotAsset: String, CaseIterable {
 
     static let profilePlaceholders: [NuguMascotAsset] = [.red, .green, .black, .yellow]
 
-    static func placeholder(for recipeID: Int) -> NuguMascotAsset {
-        let assets = Self.allCases
-        let index = abs(recipeID % assets.count)
-        return assets[index]
-    }
-
     static func profilePlaceholder(identityName: String?, seed: String? = nil) -> NuguMascotAsset {
         if isOfficialNuguSauceIdentity(identityName) {
             return .red
@@ -515,9 +509,21 @@ struct SauceArtwork: View {
 
     var body: some View {
         ZStack {
-            SauceColor.surfaceContainerLow
-            NuguMascotImage(asset: NuguMascotAsset.placeholder(for: recipeID))
-                .padding(height * 0.14)
+            LinearGradient(
+                colors: [
+                    SauceColor.surfaceContainerLow,
+                    SauceColor.surfaceLowest
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Image(systemName: "photo")
+                .font(SauceTypography.iconLarge(.bold))
+                .foregroundStyle(SauceColor.muted)
+                .frame(width: min(height * 0.34, 72), height: min(height * 0.34, 72))
+                .background(SauceColor.surfaceLowest.opacity(0.9))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
@@ -534,7 +540,7 @@ struct RecipeImage: View {
     var body: some View {
         GeometryReader { proxy in
             Group {
-                if let imageURL, let url = URL(string: imageURL) {
+                if let url = Self.remoteURL(from: imageURL) {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
@@ -561,6 +567,18 @@ struct RecipeImage: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipped()
+    }
+
+    static func remoteURL(from imageURL: String?) -> URL? {
+        let trimmedURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmedURL.isEmpty,
+              let url = URL(string: trimmedURL),
+              let scheme = url.scheme?.lowercased(),
+              (scheme == "http" || scheme == "https"),
+              url.host != nil else {
+            return nil
+        }
+        return url
     }
 }
 
