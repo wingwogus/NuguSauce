@@ -874,6 +874,33 @@ final class ViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testLoginViewModelPersistsExistingUserProfileImageImmediately() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            kakaoLoginOnboarding: .complete,
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileImageUrl: "https://cdn.example.test/profile/7.jpg",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didComplete = await viewModel.loginWithKakao()
+
+        XCTAssertTrue(didComplete)
+        XCTAssertEqual(authStore.currentSession?.profileImageUrl, "https://cdn.example.test/profile/7.jpg")
+        XCTAssertEqual(authStore.currentSession?.memberId, 7)
+    }
+
+    @MainActor
     func testLoginViewModelCompletesAfterConsentOnlyOnboarding() async {
         let tokenStore = MemoryAuthTokenStore()
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
