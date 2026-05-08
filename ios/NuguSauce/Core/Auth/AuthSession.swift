@@ -34,6 +34,17 @@ struct AuthSession: Equatable {
         }
         return "\(accessToken.prefix(6))...\(accessToken.suffix(4))"
     }
+
+    var profilePlaceholderSeed: String {
+        if let memberId {
+            return "member:\(memberId)"
+        }
+        if let nickname = nickname?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !nickname.isEmpty {
+            return "nickname:\(nickname)"
+        }
+        return "display:\(displayName)"
+    }
 }
 
 protocol AuthSessionStoreProtocol: AnyObject {

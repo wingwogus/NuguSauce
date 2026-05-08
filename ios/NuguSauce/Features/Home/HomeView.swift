@@ -72,7 +72,12 @@ struct HomeView: View {
             Spacer()
 
             Button(action: openProfile) {
-                ProfileAvatar(imageURL: authStore.currentSession?.profileImageUrl, size: 44)
+                ProfileAvatar(
+                    imageURL: authStore.currentSession?.profileImageUrl,
+                    size: 44,
+                    identityName: authStore.currentSession?.displayName,
+                    fallbackSeed: authStore.currentSession?.profilePlaceholderSeed
+                )
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.profileButton")

@@ -23,6 +23,7 @@ struct ProfileView: View {
                     ProfileHeroCard(
                         displayName: viewModel.displayName,
                         profileImageUrl: viewModel.profileImageUrl,
+                        profilePlaceholderSeed: viewModel.profilePlaceholderSeed,
                         stats: [
                             ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 소스"),
                             ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 소스")
@@ -161,6 +162,7 @@ struct PublicProfileView: View {
                     ProfileHeroCard(
                         displayName: member.displayName,
                         profileImageUrl: member.profileImageUrl,
+                        profilePlaceholderSeed: "member:\(member.id)",
                         stats: [
                             ProfileHeroStat(value: "\(viewModel.recipes.count)", label: "내 소스"),
                             ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 소스")
@@ -211,6 +213,7 @@ private struct ProfileHeroStat: Identifiable {
 private struct ProfileHeroCard: View {
     let displayName: String
     let profileImageUrl: String?
+    let profilePlaceholderSeed: String?
     let stats: [ProfileHeroStat]
     let editRoute: AppRoute?
     let actionTitle: String?
@@ -219,7 +222,12 @@ private struct ProfileHeroCard: View {
     var body: some View {
         VStack(spacing: 16) {
             ZStack(alignment: .bottomTrailing) {
-                ProfileAvatar(imageURL: profileImageUrl, size: 98)
+                ProfileAvatar(
+                    imageURL: profileImageUrl,
+                    size: 98,
+                    identityName: displayName,
+                    fallbackSeed: profilePlaceholderSeed
+                )
 
                 if let editRoute {
                     NavigationLink(value: editRoute) {
@@ -402,7 +410,12 @@ struct ProfileEditView: View {
                         .stroke(SauceColor.surface, lineWidth: 4)
                 }
         } else {
-            ProfileAvatar(imageURL: viewModel.profileImageUrl, size: 118)
+            ProfileAvatar(
+                imageURL: viewModel.profileImageUrl,
+                size: 118,
+                identityName: viewModel.displayName,
+                fallbackSeed: viewModel.profilePlaceholderSeed
+            )
         }
     }
 

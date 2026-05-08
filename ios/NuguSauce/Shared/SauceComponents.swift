@@ -205,10 +205,44 @@ enum NuguMascotAsset: String, CaseIterable {
     case green = "NuguMascotGreen"
     case black = "NuguMascotBlack"
 
+    static let profilePlaceholders: [NuguMascotAsset] = [.red, .green, .black, .yellow]
+
     static func placeholder(for recipeID: Int) -> NuguMascotAsset {
         let assets = Self.allCases
         let index = abs(recipeID % assets.count)
         return assets[index]
+    }
+
+    static func profilePlaceholder(identityName: String?, seed: String? = nil) -> NuguMascotAsset {
+        if isOfficialNuguSauceIdentity(identityName) {
+            return .red
+        }
+
+        guard let seed = normalizedSeed(seed) else {
+            return profilePlaceholders.randomElement() ?? .red
+        }
+
+        let index = stableIndex(for: seed, count: profilePlaceholders.count)
+        return profilePlaceholders[index]
+    }
+
+    private static func isOfficialNuguSauceIdentity(_ identityName: String?) -> Bool {
+        normalizedSeed(identityName)?.caseInsensitiveCompare("NuguSauce") == .orderedSame
+    }
+
+    private static func normalizedSeed(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func stableIndex(for seed: String, count: Int) -> Int {
+        guard count > 0 else {
+            return 0
+        }
+        let hash = seed.unicodeScalars.reduce(UInt64(14_695_981_039_346_656_037)) { partial, scalar in
+            (partial ^ UInt64(scalar.value)) &* 1_099_511_628_211
+        }
+        return Int(hash % UInt64(count))
     }
 }
 
@@ -279,8 +313,26 @@ struct LoginGatePlaceholder: View {
 struct ProfileAvatar: View {
     let imageURL: String?
     var size: CGFloat = 56
+    var identityName: String?
+    var fallbackSeed: String?
     @State private var retryAttempt = 0
     @State private var retryScheduledForURL: String?
+    @State private var fallbackAsset: NuguMascotAsset
+
+    init(
+        imageURL: String?,
+        size: CGFloat = 56,
+        identityName: String? = nil,
+        fallbackSeed: String? = nil
+    ) {
+        self.imageURL = imageURL
+        self.size = size
+        self.identityName = identityName
+        self.fallbackSeed = fallbackSeed
+        _fallbackAsset = State(
+            initialValue: NuguMascotAsset.profilePlaceholder(identityName: identityName, seed: fallbackSeed)
+        )
+    }
 
     var body: some View {
         Group {
@@ -321,13 +373,17 @@ struct ProfileAvatar: View {
             retryAttempt = 0
             retryScheduledForURL = nil
         }
+        .onChange(of: identityName) { _, _ in
+            updateFallbackAsset()
+        }
+        .onChange(of: fallbackSeed) { _, _ in
+            updateFallbackAsset()
+        }
     }
 
     private var fallback: some View {
-        Image(systemName: "person.crop.circle.fill")
-            .font(SauceTypography.avatarFallbackIcon(size: size))
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(SauceColor.primaryContainer, SauceColor.redTint)
+        NuguMascotImage(asset: fallbackAsset)
+            .padding(size * 0.12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(SauceColor.surfaceLowest)
     }
@@ -362,6 +418,10 @@ struct ProfileAvatar: View {
                 retryScheduledForURL = nil
             }
         }
+    }
+
+    private func updateFallbackAsset() {
+        fallbackAsset = NuguMascotAsset.profilePlaceholder(identityName: identityName, seed: fallbackSeed)
     }
 
     private static let maxRetryAttempts = 3

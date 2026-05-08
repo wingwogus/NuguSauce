@@ -17,6 +17,35 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(restoredPreference, .system)
     }
 
+    func testProfilePlaceholderUsesRedForNuguSauceIdentity() {
+        XCTAssertEqual(
+            NuguMascotAsset.profilePlaceholder(identityName: "NuguSauce", seed: "member:42"),
+            .red
+        )
+        XCTAssertEqual(
+            NuguMascotAsset.profilePlaceholder(identityName: " NuguSauce ", seed: "member:99"),
+            .red
+        )
+    }
+
+    func testProfilePlaceholderUsesOnlyProfileMascotPool() {
+        let expectedAssets = Set(NuguMascotAsset.profilePlaceholders)
+        let assignedAssets = Set((0..<128).map { index in
+            NuguMascotAsset.profilePlaceholder(identityName: "소스장인 \(index)", seed: "member:\(index)")
+        })
+
+        XCTAssertEqual(expectedAssets, Set([.red, .green, .black, .yellow]))
+        XCTAssertTrue(assignedAssets.isSubset(of: expectedAssets))
+        XCTAssertEqual(assignedAssets.count, expectedAssets.count)
+    }
+
+    func testProfilePlaceholderIsStableForSameSeed() {
+        let firstAsset = NuguMascotAsset.profilePlaceholder(identityName: "소스장인", seed: "member:77")
+        let secondAsset = NuguMascotAsset.profilePlaceholder(identityName: "소스장인", seed: "member:77")
+
+        XCTAssertEqual(firstAsset, secondAsset)
+    }
+
     func testLightSurfaceTokensRemainTonallySeparated() {
         let traits = UITraitCollection(userInterfaceStyle: .light)
 

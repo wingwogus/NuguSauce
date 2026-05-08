@@ -137,7 +137,11 @@ struct RecipeDetailView: View {
     private func recipeAuthorLabel(name: String, detail: RecipeDetailDTO) -> some View {
         if let authorId = detail.authorId {
             NavigationLink(value: AppRoute.publicProfile(authorId)) {
-                authorIdentityLabel(name: name, imageURL: detail.authorProfileImageUrl)
+                authorIdentityLabel(
+                    name: name,
+                    imageURL: detail.authorProfileImageUrl,
+                    fallbackSeed: "member:\(authorId)"
+                )
             }
             .buttonStyle(.plain)
         } else {
@@ -245,6 +249,7 @@ struct RecipeDetailView: View {
                 authorIdentityLabel(
                     name: review.authorName,
                     imageURL: review.authorProfileImageUrl,
+                    fallbackSeed: "member:\(authorId)",
                     iconFont: SauceTypography.iconMedium(.bold),
                     nameFont: SauceTypography.body(.bold)
                 )
@@ -263,11 +268,17 @@ struct RecipeDetailView: View {
     private func authorIdentityLabel(
         name: String,
         imageURL: String?,
+        fallbackSeed: String? = nil,
         iconFont: Font? = nil,
         nameFont: Font? = nil
     ) -> some View {
         HStack(spacing: 8) {
-            ProfileAvatar(imageURL: imageURL, size: iconFont == nil ? 22 : 26)
+            ProfileAvatar(
+                imageURL: imageURL,
+                size: iconFont == nil ? 22 : 26,
+                identityName: name,
+                fallbackSeed: fallbackSeed ?? name
+            )
             Text(name)
                 .font(nameFont)
         }

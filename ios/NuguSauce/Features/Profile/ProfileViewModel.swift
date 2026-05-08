@@ -34,6 +34,10 @@ final class ProfileViewModel: ObservableObject {
         currentSessionForLoadedMember?.profileImageUrl ?? member?.profileImageUrl ?? session?.profileImageUrl
     }
 
+    var profilePlaceholderSeed: String? {
+        currentSessionForLoadedMember?.profilePlaceholderSeed ?? member.map { "member:\($0.id)" } ?? session?.profilePlaceholderSeed
+    }
+
     var profileSetupRequired: Bool {
         currentSessionForLoadedMember?.profileSetupRequired ?? member?.profileSetupRequired ?? session?.profileSetupRequired ?? false
     }
@@ -143,6 +147,14 @@ final class ProfileEditViewModel: ObservableObject {
 
     var profileImageUrl: String? {
         member?.profileImageUrl ?? authStore.currentSession?.profileImageUrl
+    }
+
+    var displayName: String {
+        member?.displayName ?? authStore.currentSession?.displayName ?? "로그인 사용자"
+    }
+
+    var profilePlaceholderSeed: String? {
+        member.map { "member:\($0.id)" } ?? authStore.currentSession?.profilePlaceholderSeed
     }
 
     var hasSelectedPhoto: Bool {
