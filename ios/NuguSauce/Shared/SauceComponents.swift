@@ -9,10 +9,10 @@ struct SauceChip: View {
         HStack(spacing: 6) {
             if let icon {
                 Image(systemName: icon)
-                    .font(.caption.weight(.bold))
+                    .font(SauceTypography.badge(.bold))
             }
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(SauceTypography.badge(.semibold))
         }
         .foregroundStyle(isSelected ? SauceColor.onPrimary : SauceColor.onSurfaceVariant)
         .padding(.horizontal, 14)
@@ -27,7 +27,7 @@ struct RecipeTasteTag: View {
 
     var body: some View {
         Text(title)
-            .font(.caption2.weight(.bold))
+            .font(SauceTypography.badge(.bold))
             .foregroundStyle(SauceColor.onSurface)
             .lineLimit(1)
             .padding(.horizontal, 7)
@@ -57,7 +57,7 @@ struct RecipeMiniTagRow: View {
 struct RecipeCardMetricRow: View {
     let recipe: RecipeSummaryDTO
     var starColor = SauceColor.secondary
-    var bookmarkColor = SauceColor.primaryContainer
+    var favoriteColor = SauceColor.primaryContainer
 
     var body: some View {
         HStack(spacing: 8) {
@@ -68,8 +68,8 @@ struct RecipeCardMetricRow: View {
             }
 
             HStack(spacing: 4) {
-                Image(systemName: "bookmark.fill")
-                    .foregroundStyle(bookmarkColor)
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(favoriteColor)
                 Text("\(recipe.displayFavoriteCount.formatted())")
             }
         }
@@ -85,7 +85,7 @@ struct RatingBadge: View {
             Image(systemName: "star.fill")
                 .foregroundStyle(SauceColor.secondary)
             Text(String(format: "%.1f", rating))
-                .font(.caption.weight(.bold))
+                .font(SauceTypography.badge(.bold))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -103,7 +103,7 @@ struct SauceIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 16, weight: .bold))
+                .font(SauceTypography.iconSmall(.bold))
                 .foregroundStyle(foreground)
                 .frame(width: 42, height: 42)
                 .background(background)
@@ -123,11 +123,9 @@ struct IngredientArtwork: View {
             .renderingMode(.original)
             .resizable()
             .interpolation(.medium)
-            .scaledToFit()
-            .padding(size * 0.08)
+            .scaledToFill()
             .frame(width: size, height: size)
-            .background(SauceColor.chip)
-            .clipShape(Circle())
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
             .accessibilityHidden(true)
     }
 
@@ -201,13 +199,38 @@ struct IngredientArtwork: View {
     ]
 }
 
+enum NuguMascotAsset: String, CaseIterable {
+    case red = "NuguMascotRed"
+    case yellow = "NuguMascotYellow"
+    case green = "NuguMascotGreen"
+    case black = "NuguMascotBlack"
+
+    static func placeholder(for recipeID: Int) -> NuguMascotAsset {
+        let assets = Self.allCases
+        let index = abs(recipeID % assets.count)
+        return assets[index]
+    }
+}
+
+struct NuguMascotImage: View {
+    let asset: NuguMascotAsset
+
+    var body: some View {
+        Image(asset.rawValue)
+            .renderingMode(.original)
+            .resizable()
+            .interpolation(.medium)
+            .scaledToFit()
+    }
+}
+
 struct SauceStatusBanner: View {
     let message: String
     var isError = true
 
     var body: some View {
         Text(message)
-            .font(.subheadline.weight(.semibold))
+            .font(SauceTypography.body(.semibold))
             .foregroundStyle(isError ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -224,7 +247,7 @@ struct LoginGatePlaceholder: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Image(systemName: systemImage)
-                .font(.system(size: 42, weight: .bold))
+                .font(SauceTypography.iconLarge(.bold))
                 .foregroundStyle(SauceColor.primaryContainer)
                 .frame(width: 64, height: 64)
                 .background(SauceColor.redTint)
@@ -232,11 +255,11 @@ struct LoginGatePlaceholder: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
-                    .font(.title3.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(message)
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -302,7 +325,7 @@ struct ProfileAvatar: View {
 
     private var fallback: some View {
         Image(systemName: "person.crop.circle.fill")
-            .font(.system(size: size * 0.82, weight: .semibold))
+            .font(SauceTypography.avatarFallbackIcon(size: size))
             .symbolRenderingMode(.palette)
             .foregroundStyle(SauceColor.primaryContainer, SauceColor.redTint)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -350,7 +373,7 @@ struct SauceScreenTitle: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.largeTitle.weight(.black))
+                .font(SauceTypography.sectionTitle())
                 .foregroundStyle(SauceColor.onSurface)
             Spacer()
         }
@@ -385,13 +408,13 @@ struct SauceSearchBar: View {
 
             if isEditable {
                 TextField(placeholder, text: $text)
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .onSubmit(action)
             } else {
                 Text(placeholder)
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.muted)
             }
 
@@ -399,7 +422,7 @@ struct SauceSearchBar: View {
 
             Button(action: action) {
                 Text("검색")
-                    .font(.caption.weight(.bold))
+                    .font(SauceTypography.badge(.bold))
                     .foregroundStyle(SauceColor.onPrimary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
@@ -431,13 +454,15 @@ struct SauceArtwork: View {
     var height: CGFloat = 220
 
     var body: some View {
-        Image("SaucePlaceholder")
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .background(SauceColor.surfaceContainerLow)
-            .clipped()
+        ZStack {
+            SauceColor.surfaceContainerLow
+            NuguMascotImage(asset: NuguMascotAsset.placeholder(for: recipeID))
+                .padding(height * 0.14)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
     }
 }
 
@@ -481,108 +506,138 @@ struct RecipeImage: View {
 
 struct RecipeCard: View {
     let recipe: RecipeSummaryDTO
-
-    var body: some View {
-        RecipePhotoCard(
-            recipe: recipe,
-            imageHeight: 340,
-            imageCornerRadius: 32,
-            titleFont: .system(size: 28, weight: .black),
-            subtitleFont: .title3.weight(.semibold),
-            ratingFont: .title3.weight(.semibold),
-            spacing: 12,
-            bookmarkSize: 52,
-            imageBookmarkPadding: 16
-        )
-    }
-}
-
-struct RecipeGridCard: View {
-    let recipe: RecipeSummaryDTO
-
-    var body: some View {
-        RecipePhotoCard(
-            recipe: recipe,
-            imageHeight: 164,
-            imageCornerRadius: 22,
-            titleFont: .headline.weight(.black),
-            subtitleFont: .subheadline.weight(.semibold),
-            ratingFont: .subheadline.weight(.semibold),
-            spacing: 6,
-            bookmarkSize: 38,
-            imageBookmarkPadding: 10,
-            showsReviewTags: false
-        )
-    }
-}
-
-struct RecipePhotoCard: View {
-    let recipe: RecipeSummaryDTO
-    var imageHeight: CGFloat
-    var imageCornerRadius: CGFloat
-    var titleFont: Font
-    var subtitleFont: Font
-    var ratingFont: Font
-    var spacing: CGFloat
-    var bookmarkSize: CGFloat
-    var imageBookmarkPadding: CGFloat
-    var showsReviewTags = true
+    var rank: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topTrailing) {
-                RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: imageHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: imageCornerRadius, style: .continuous))
+            ZStack(alignment: .topLeading) {
+                RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: Self.imageHeight)
+                    .frame(width: Self.cardWidth, height: Self.imageHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                RecipeBookmarkOverlay(isFavorited: recipe.isFavorited, size: bookmarkSize)
-                    .padding(imageBookmarkPadding)
-            }
-
-            VStack(alignment: .leading, spacing: spacing) {
-                Text(recipe.title)
-                    .font(titleFont)
-                    .foregroundStyle(SauceColor.onSurface)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
-
-                if showsReviewTags, let reviewTagSubtitle = recipe.reviewTagSubtitle {
-                    Text(reviewTagSubtitle)
-                        .font(subtitleFont)
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                if let rank {
+                    RecipeRankOverlay(rank: rank)
+                        .padding(.leading, 6)
+                        .padding(.top, 4)
                 }
 
-                RecipeCardMetricRow(recipe: recipe)
-                    .font(ratingFont)
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                VStack {
+                    HStack {
+                        Spacer()
+                        RecipeFavoriteStateBadge(
+                            isFavorite: recipe.isFavorited,
+                            size: 28,
+                            foreground: SauceColor.primaryContainer,
+                            inactiveForeground: SauceColor.onPrimary.opacity(0.88)
+                        )
+                        .padding(8)
+                    }
+                    Spacer()
+                }
             }
-            .padding(.top, 16)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(recipe.title)
+                    .font(SauceTypography.cardTitle())
+                    .foregroundStyle(SauceColor.onSurface)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+
+                RecipeCardTagRow(tags: Array(recipe.reviewTags.prefix(3)))
+
+                RecipeCardMetricRow(recipe: recipe)
+                    .font(SauceTypography.metric(.bold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.88)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 10)
+            .frame(height: Self.contentHeight, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: Self.cardWidth, height: Self.cardHeight, alignment: .topLeading)
+        .contentShape(Rectangle())
+    }
+
+    static let cardWidth: CGFloat = 156
+    private static var cardHeight: CGFloat {
+        imageHeight + contentHeight
+    }
+    private static let imageHeight: CGFloat = 142
+    private static let contentHeight: CGFloat = 92
+}
+
+private struct RecipeCardTagRow: View {
+    let tags: [ReviewTagDTO]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(tags) { tag in
+                Text(tag.name)
+                    .font(SauceTypography.micro(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(SauceColor.redTint)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            }
+        }
+        .frame(width: RecipeCard.cardWidth, height: 18, alignment: .leading)
+        .clipped()
     }
 }
 
-private struct RecipeBookmarkOverlay: View {
-    let isFavorited: Bool
-    var size: CGFloat
+private struct RecipeRankOverlay: View {
+    let rank: Int
 
     var body: some View {
-        Image(systemName: isFavorited ? "bookmark.fill" : "bookmark")
-            .font(.system(size: size * 0.58, weight: isFavorited ? .black : .regular))
-            .foregroundStyle(isFavorited ? SauceColor.primaryContainer : SauceColor.onPrimary)
+        ZStack(alignment: .topLeading) {
+            rankText
+                .foregroundStyle(SauceColor.onSurface)
+                .offset(x: -1.4, y: 0)
+            rankText
+                .foregroundStyle(SauceColor.onSurface)
+                .offset(x: 1.4, y: 0)
+            rankText
+                .foregroundStyle(SauceColor.onSurface)
+                .offset(x: 0, y: -1.4)
+            rankText
+                .foregroundStyle(SauceColor.onSurface)
+                .offset(x: 0, y: 1.4)
+            rankText
+                .foregroundStyle(SauceColor.surfaceLowest)
+        }
+        .frame(width: 52, height: 56, alignment: .topLeading)
+        .accessibilityLabel("인기 순위 \(rank)")
+    }
+
+    private var rankText: some View {
+        Text("\(rank)")
+            .font(SauceTypography.rankDisplay())
+            .monospacedDigit()
+    }
+}
+
+struct RecipeFavoriteStateBadge: View {
+    let isFavorite: Bool
+    var size: CGFloat = 30
+    var foreground: Color = SauceColor.primaryContainer
+    var inactiveForeground: Color = SauceColor.onSurfaceVariant
+
+    var body: some View {
+        Image(systemName: isFavorite ? "heart.fill" : "heart")
+            .font(SauceTypography.favoriteIcon(size: size, isActive: isFavorite))
+            .foregroundStyle(isFavorite ? foreground : inactiveForeground)
             .frame(width: size, height: size)
+            .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")
     }
 }
 
 extension RecipeSummaryDTO {
     var reviewTagTitles: [String] {
         reviewTags.prefix(2).map(\.name)
-    }
-
-    var reviewTagSubtitle: String? {
-        let subtitle = reviewTagTitles.joined(separator: " · ")
-        return subtitle.isEmpty ? nil : subtitle
     }
 }
 
@@ -598,11 +653,11 @@ struct CompactRecipeRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(recipe.title)
-                        .font(.headline.weight(.bold))
+                        .font(SauceTypography.cardTitle(.bold))
                         .lineLimit(1)
                     Spacer()
                     RecipeCardMetricRow(recipe: recipe)
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.metric(.bold))
                         .foregroundStyle(SauceColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)

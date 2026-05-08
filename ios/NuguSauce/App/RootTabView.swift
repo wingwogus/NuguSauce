@@ -97,7 +97,7 @@ struct RootTabView: View {
                     }
             }
             .tabItem {
-                Label("찜", systemImage: "bookmark.fill")
+                Label("찜", systemImage: "heart.fill")
             }
             .tag(RootTab.favorites)
 

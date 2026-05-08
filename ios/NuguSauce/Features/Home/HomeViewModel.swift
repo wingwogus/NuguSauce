@@ -23,8 +23,8 @@ final class HomeViewModel: ObservableObject {
         Array(recipes.prefix(5))
     }
 
-    var latestGridRecipes: [RecipeSummaryDTO] {
-        Array(recentRecipes.prefix(4))
+    var latestSourceRecipes: [RecipeSummaryDTO] {
+        recentRecipes
     }
 
     func load() async {

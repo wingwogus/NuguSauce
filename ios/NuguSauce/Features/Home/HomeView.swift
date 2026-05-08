@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     let apiClient: APIClientProtocol
-    let authStore: AuthSessionStore
+    @ObservedObject var authStore: AuthSessionStore
     let openProfile: () -> Void
     @StateObject private var viewModel: HomeViewModel
 
@@ -32,7 +32,7 @@ struct HomeView: View {
                     } else {
                         hotHeroCard
                         popularRankingSection
-                        latestGridSection
+                        latestSourceRailSection
                     }
                 }
             }
@@ -40,7 +40,7 @@ struct HomeView: View {
         }
         .background(SauceColor.surfaceLowest.ignoresSafeArea())
         .navigationBarHidden(true)
-        .task {
+        .task(id: homeContentRefreshID) {
             await viewModel.load()
         }
     }
@@ -48,14 +48,23 @@ struct HomeView: View {
     private var hasContent: Bool {
         viewModel.hotHeroRecipe != nil ||
             !viewModel.popularRankingRecipes.isEmpty ||
-            !viewModel.latestGridRecipes.isEmpty
+            !viewModel.latestSourceRecipes.isEmpty
+    }
+
+    private var homeContentRefreshID: String {
+        guard authStore.isAuthenticated else {
+            return "guest"
+        }
+        return authStore.currentSession?.memberId.map { "member-\($0)" } ?? "authenticated"
     }
 
     private var homeTopBar: some View {
         HStack(alignment: .center) {
-            Image("AppIconMark")
-                .resizable()
-                .scaledToFit()
+            Text("홈")
+                .font(SauceTypography.sectionTitle())
+                .foregroundStyle(SauceColor.onSurface)
+
+            NuguMascotImage(asset: .red)
                 .frame(width: 72, height: 72)
                 .accessibilityLabel("NuguSauce")
                 .accessibilityIdentifier("home.brand")
@@ -90,43 +99,43 @@ struct HomeView: View {
                         endPoint: .bottom
                     )
 
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("🔥 HOT")
-                            .font(.caption.weight(.black))
+                            .font(SauceTypography.badge(.black))
                             .foregroundStyle(SauceColor.onPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(SauceColor.primaryContainer)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         Text(recipe.title)
-                            .font(.system(size: 32, weight: .black))
+                            .font(SauceTypography.heroTitle())
                             .foregroundStyle(SauceColor.onPrimary)
                             .lineLimit(2)
                             .minimumScaleFactor(0.75)
 
                         Text(recipe.description)
-                            .font(.subheadline.weight(.semibold))
+                            .font(SauceTypography.supporting(.semibold))
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
                             .lineLimit(2)
 
                         RecipeCardMetricRow(
                             recipe: recipe,
-                            bookmarkColor: SauceColor.onPrimary.opacity(0.92)
+                            favoriteColor: SauceColor.onPrimary.opacity(0.92)
                         )
-                            .font(.caption.weight(.bold))
+                            .font(SauceTypography.badge(.bold))
                             .foregroundStyle(SauceColor.onPrimary.opacity(0.92))
 
                         tagRow(for: recipe)
                     }
-                    .padding(20)
+                    .padding(18)
                     .padding(.trailing, 58)
 
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
-                            HomeFavoriteStateBadge(
+                            RecipeFavoriteStateBadge(
                                 isFavorite: recipe.isFavorited,
                                 foreground: SauceColor.primaryContainer,
                                 inactiveForeground: SauceColor.onPrimary.opacity(0.86)
@@ -143,7 +152,7 @@ struct HomeView: View {
             .accessibilityIdentifier("home.hero")
         } else {
             Text("핫한 소스를 준비 중이에요.")
-                .font(.subheadline.weight(.semibold))
+                .font(SauceTypography.body(.semibold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .padding(.horizontal, SauceSpacing.screen)
                 .accessibilityIdentifier("home.hero.empty")
@@ -155,75 +164,82 @@ struct HomeView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                Image(systemName: "flame.fill")
-                    .foregroundStyle(SauceColor.secondary)
+                NuguMascotImage(asset: .yellow)
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
                 Text("인기 TOP 5")
-                    .font(.title2.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
             }
+            .padding(.horizontal, SauceSpacing.screen)
 
             if popularRecipes.isEmpty {
                 Text("인기 소스가 아직 없어요.")
-                    .font(.subheadline.weight(.semibold))
+                    .font(SauceTypography.body(.semibold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .background(SauceColor.surfaceContainerLow)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(.horizontal, SauceSpacing.screen)
                     .accessibilityIdentifier("home.popularRanking.empty")
             } else {
-                VStack(spacing: 4) {
-                    ForEach(Array(popularRecipes.enumerated()), id: \.element.id) { index, recipe in
-                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                            HomePopularRankRow(rank: index + 1, recipe: recipe)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 14) {
+                        ForEach(Array(popularRecipes.enumerated()), id: \.element.id) { index, recipe in
+                            NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                                RecipeCard(recipe: recipe, rank: index + 1)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("home.popularRanking.card.\(recipe.id)")
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, SauceSpacing.screen)
                 }
+                .accessibilityIdentifier("home.popularRanking.rail")
             }
         }
-        .padding(.horizontal, SauceSpacing.screen)
         .accessibilityIdentifier("home.popularRanking")
     }
 
-    private var latestGridSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private var latestSourceRailSection: some View {
+        VStack(alignment: .leading, spacing: 13) {
             HStack(spacing: 8) {
-                Image(systemName: "seal.fill")
-                    .foregroundStyle(SauceColor.primaryContainer)
+                NuguMascotImage(asset: .green)
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
                 Text("최신 소스 조합")
-                    .font(.title2.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
             }
+            .padding(.horizontal, SauceSpacing.screen)
 
-            if viewModel.latestGridRecipes.isEmpty {
+            if viewModel.latestSourceRecipes.isEmpty {
                 Text("새로운 소스 조합이 아직 없어요.")
-                    .font(.subheadline.weight(.semibold))
+                    .font(SauceTypography.body(.semibold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .background(SauceColor.surfaceContainerLow)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(.horizontal, SauceSpacing.screen)
                     .accessibilityIdentifier("home.latest.empty")
             } else {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 14),
-                        GridItem(.flexible(), spacing: 14)
-                    ],
-                    alignment: .center,
-                    spacing: 18
-                ) {
-                    ForEach(viewModel.latestGridRecipes) { recipe in
-                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                            RecipeGridCard(recipe: recipe)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 14) {
+                        ForEach(viewModel.latestSourceRecipes) { recipe in
+                            NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                                RecipeCard(recipe: recipe)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("home.latest.card.\(recipe.id)")
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, SauceSpacing.screen)
                 }
+                .accessibilityIdentifier("home.latest.rail")
             }
         }
-        .padding(.horizontal, SauceSpacing.screen)
         .accessibilityIdentifier("home.latest")
     }
 
@@ -236,7 +252,7 @@ struct HomeView: View {
 
     private var emptyState: some View {
         Text("불러올 소스 조합이 아직 없어요.")
-            .font(.subheadline.weight(.semibold))
+            .font(SauceTypography.body(.semibold))
             .foregroundStyle(SauceColor.onSurfaceVariant)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
@@ -255,79 +271,5 @@ struct HomeView: View {
                 }
             }
         }
-    }
-}
-
-private struct HomePopularRankRow: View {
-    let rank: Int
-    let recipe: RecipeSummaryDTO
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 96)
-                .frame(width: 96, height: 96)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(recipe.title)
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(SauceColor.onSurface)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                RecipeMiniTagRow(recipe: recipe)
-
-                Spacer(minLength: 0)
-
-                RecipeCardMetricRow(recipe: recipe)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            .frame(height: 96, alignment: .topLeading)
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 0) {
-                HomeFavoriteStateBadge(
-                    isFavorite: recipe.isFavorited,
-                    size: 34,
-                    foreground: SauceColor.primaryContainer,
-                    inactiveForeground: SauceColor.onSurfaceVariant
-                )
-
-                Spacer(minLength: 18)
-
-                Text("TOP \(rank)")
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .overlay {
-                        Capsule()
-                            .stroke(SauceColor.outline.opacity(0.18), lineWidth: 1)
-                    }
-            }
-            .frame(height: 96, alignment: .topTrailing)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
-        .contentShape(Rectangle())
-    }
-}
-
-private struct HomeFavoriteStateBadge: View {
-    let isFavorite: Bool
-    var size: CGFloat = 30
-    var foreground: Color = SauceColor.primaryContainer
-    var inactiveForeground: Color = SauceColor.onSurfaceVariant
-
-    var body: some View {
-        Image(systemName: isFavorite ? "bookmark.fill" : "bookmark")
-            .font(.system(size: size * 0.58, weight: isFavorite ? .black : .regular))
-            .foregroundStyle(isFavorite ? foreground : inactiveForeground)
-            .frame(width: size, height: size)
-            .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")
     }
 }

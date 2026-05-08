@@ -26,21 +26,25 @@ struct LoginView: View {
         ScrollView {
             VStack(spacing: 30) {
                 VStack(spacing: 14) {
-                    Image("AppIconMark")
+                    Image("SplashIconMark")
                         .renderingMode(.original)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 92, height: 92)
+                        .frame(width: 168, height: 168)
                         .accessibilityHidden(true)
-                    Text("NuguSauce")
-                        .font(.largeTitle.weight(.black).italic())
-                        .foregroundStyle(SauceColor.primaryContainer)
+                    Image("SplashWordmark")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(SauceColor.onSurface)
+                        .frame(width: 188)
+                        .accessibilityLabel("NuguSauce")
                     Text("로그인하고 소스 조합을 저장해보세요")
-                        .font(.title3.weight(.black))
+                        .font(SauceTypography.sectionTitle())
                         .foregroundStyle(SauceColor.onSurface)
                         .multilineTextAlignment(.center)
                     Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
-                        .font(.subheadline)
+                        .font(SauceTypography.body())
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
@@ -413,7 +417,7 @@ struct LoginFlowNotice: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("카카오 인증 후 필수 약관 동의와 닉네임 설정을 완료해야 시작할 수 있어요.")
-                .font(.caption.weight(.bold))
+                .font(SauceTypography.badge(.bold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -446,10 +450,10 @@ struct ConsentAgreementScreen: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("약관에 동의해주세요")
-                    .font(.headline.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
                 Text("NuguSauce를 사용하려면 아래 정책을 확인하고 동의해야 합니다.")
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -464,12 +468,12 @@ struct ConsentAgreementScreen: View {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text("동의할 정책 버전을 확인하는 중...")
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
             } else {
                 Button("약관 정보 다시 불러오기", action: onRetry)
-                    .font(.subheadline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -503,7 +507,7 @@ struct ConsentPolicyDisclosure: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(ConsentPolicyCopy.paragraphs(for: policy.policyType), id: \.self) { paragraph in
                     Text(paragraph)
-                        .font(.caption)
+                        .font(SauceTypography.metric(.regular))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -512,10 +516,10 @@ struct ConsentPolicyDisclosure: View {
         } label: {
             VStack(alignment: .leading, spacing: 3) {
                 Text(policy.title)
-                    .font(.subheadline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.onSurface)
                 Text("버전 \(policy.version)")
-                    .font(.caption)
+                    .font(SauceTypography.metric(.regular))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
             }
         }
@@ -578,10 +582,10 @@ struct LoginNicknameSetupPanel: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("닉네임을 설정해주세요")
-                    .font(.headline.weight(.black))
+                    .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
                 Text("앱에서 보여줄 이름을 정하면 로그인 설정이 완료됩니다.")
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
             }

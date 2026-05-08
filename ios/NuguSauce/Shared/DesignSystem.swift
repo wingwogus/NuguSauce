@@ -74,6 +74,64 @@ enum SauceSpacing {
     static let controlRadius: CGFloat = 14
 }
 
+enum SauceTypography {
+    static func heroTitle(_ weight: Font.Weight = .black) -> Font {
+        .system(size: 28, weight: weight)
+    }
+
+    static func sectionTitle(_ weight: Font.Weight = .black) -> Font {
+        .system(size: 21, weight: weight)
+    }
+
+    static func cardTitle(_ weight: Font.Weight = .black) -> Font {
+        .system(size: 14, weight: weight)
+    }
+
+    static func body(_ weight: Font.Weight = .regular) -> Font {
+        .subheadline.weight(weight)
+    }
+
+    static func supporting(_ weight: Font.Weight = .regular) -> Font {
+        .footnote.weight(weight)
+    }
+
+    static func badge(_ weight: Font.Weight = .bold) -> Font {
+        .caption2.weight(weight)
+    }
+
+    static func metric(_ weight: Font.Weight = .bold) -> Font {
+        .system(size: 11, weight: weight)
+    }
+
+    static func micro(_ weight: Font.Weight = .bold) -> Font {
+        .system(size: 9, weight: weight)
+    }
+
+    static func rankDisplay(_ weight: Font.Weight = .black) -> Font {
+        .system(size: 50, weight: weight)
+    }
+
+    static func iconSmall(_ weight: Font.Weight = .bold) -> Font {
+        .system(size: 16, weight: weight)
+    }
+
+    static func iconMedium(_ weight: Font.Weight = .bold) -> Font {
+        .system(size: 21, weight: weight)
+    }
+
+    static func iconLarge(_ weight: Font.Weight = .bold) -> Font {
+        .system(size: 28, weight: weight)
+    }
+
+    static func avatarFallbackIcon(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        .system(size: size * 0.82, weight: weight)
+    }
+
+    static func favoriteIcon(size: CGFloat, isActive: Bool) -> Font {
+        .system(size: size * 0.58, weight: isActive ? .black : .regular)
+    }
+}
+
 extension View {
     func sauceCard(cornerRadius: CGFloat = SauceSpacing.cardRadius) -> some View {
         background(SauceColor.surfaceLowest)
@@ -81,7 +139,7 @@ extension View {
     }
 
     func primarySauceButton() -> some View {
-        font(.headline.weight(.bold))
+        font(SauceTypography.body(.bold))
             .foregroundStyle(SauceColor.onPrimary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)

@@ -96,7 +96,7 @@ struct SearchView: View {
     private var results: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("검색 결과")
-                .font(.headline.weight(.bold))
+                .font(SauceTypography.sectionTitle(.bold))
             ForEach(viewModel.results) { recipe in
                 NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
                     CompactRecipeRow(recipe: recipe)
@@ -117,16 +117,16 @@ struct SearchView: View {
         } label: {
             HStack(spacing: 7) {
                 Text(title)
-                    .font(.subheadline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
 
                 if selectedCount > 0 {
                     Text(summary)
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .lineLimit(1)
                 }
 
                 Image(systemName: "chevron.down")
-                    .font(.caption.weight(.bold))
+                    .font(SauceTypography.badge(.bold))
             }
             .foregroundStyle(selectedCount > 0 ? SauceColor.onPrimary : SauceColor.onSurfaceVariant)
             .padding(.horizontal, 14)
@@ -270,7 +270,7 @@ private struct SearchFilterBottomSheet: View {
                 } label: {
                     VStack(spacing: 9) {
                         Text(tab.tabTitle)
-                            .font(.headline.weight(selectedTab == tab ? .bold : .semibold))
+                            .font(SauceTypography.body(selectedTab == tab ? .bold : .semibold))
                             .foregroundStyle(selectedTab == tab ? SauceColor.onSurface : SauceColor.onSurfaceVariant)
 
                         Capsule()
@@ -321,7 +321,7 @@ private struct SearchFilterBottomSheet: View {
                 draft = resetDraft()
             } label: {
                 Text("초기화")
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.onSurface)
                     .frame(width: 102)
                     .padding(.vertical, 18)
@@ -357,12 +357,12 @@ private struct SearchFilterBottomSheet: View {
         toggle: @escaping (Item) -> Void
     ) -> some View where Item.ID == Int {
         Text(helperText)
-            .font(.subheadline)
+            .font(SauceTypography.body())
             .foregroundStyle(SauceColor.onSurfaceVariant)
 
         if items.isEmpty {
             Text(emptyText)
-                .font(.subheadline.weight(.semibold))
+                .font(SauceTypography.body(.semibold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(18)

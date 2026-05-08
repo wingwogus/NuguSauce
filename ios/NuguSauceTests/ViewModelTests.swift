@@ -125,7 +125,7 @@ final class ViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.hotHeroRecipe?.title, "핫한 소스")
         XCTAssertEqual(viewModel.popularRankingRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
-        XCTAssertEqual(viewModel.latestGridRecipes.map(\.title), ["최신 10", "최신 11", "최신 12", "최신 13"])
+        XCTAssertEqual(viewModel.latestSourceRecipes.map(\.title), ["최신 10", "최신 11", "최신 12", "최신 13", "최신 14", "최신 15"])
         XCTAssertEqual(client.fetchRecipeSorts.count, 3)
         XCTAssertTrue(client.fetchRecipeSorts.contains(.hot))
         XCTAssertTrue(client.fetchRecipeSorts.contains(.popular))
@@ -152,13 +152,25 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.popularRankingRecipes.map(\.title), ["인기 1", "인기 2", "인기 3", "인기 4", "인기 5"])
     }
 
-    func testHomeLatestGridUsesAvailableRecentRecipesWhenUnderFour() async {
+    func testHomeLatestSourceRecipesUsesAvailableRecentRecipesWhenUnderFour() async {
         let recentRecipes = (10...11).map { Self.recipe(id: $0, title: "최신 \($0)") }
         let viewModel = HomeViewModel(apiClient: TestAPIClient(recentRecipes: recentRecipes))
 
         await viewModel.load()
 
-        XCTAssertEqual(viewModel.latestGridRecipes.map(\.title), ["최신 10", "최신 11"])
+        XCTAssertEqual(viewModel.latestSourceRecipes.map(\.title), ["최신 10", "최신 11"])
+    }
+
+    func testHomeLatestSourceRecipesKeepAllRecentRecipesForHorizontalRail() async {
+        let recentRecipes = (10...17).map { Self.recipe(id: $0, title: "최신 \($0)") }
+        let viewModel = HomeViewModel(apiClient: TestAPIClient(recentRecipes: recentRecipes))
+
+        await viewModel.load()
+
+        XCTAssertEqual(
+            viewModel.latestSourceRecipes.map(\.title),
+            ["최신 10", "최신 11", "최신 12", "최신 13", "최신 14", "최신 15", "최신 16", "최신 17"]
+        )
     }
 
     func testSearchQueryComposesFilters() {

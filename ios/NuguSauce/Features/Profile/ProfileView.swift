@@ -82,10 +82,10 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 Image(systemName: "circle.lefthalf.filled")
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.primaryContainer)
                 Text("화면 모드")
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.onSurface)
             }
 
@@ -116,7 +116,7 @@ struct ProfileView: View {
     private var nicknameSetupCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("닉네임 설정")
-                .font(.title3.weight(.black))
+                .font(SauceTypography.sectionTitle())
             TextField("소스장인", text: $viewModel.nicknameDraft)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -224,7 +224,7 @@ private struct ProfileHeroCard: View {
                 if let editRoute {
                     NavigationLink(value: editRoute) {
                         Image(systemName: "pencil")
-                            .font(.system(size: 15, weight: .black))
+                            .font(SauceTypography.body(.black))
                             .foregroundStyle(SauceColor.onPrimary)
                             .frame(width: 34, height: 34)
                             .background(SauceColor.primaryContainer)
@@ -239,7 +239,7 @@ private struct ProfileHeroCard: View {
                 }
             }
             Text(displayName)
-                .font(.largeTitle.weight(.black))
+                .font(SauceTypography.heroTitle())
                 .foregroundStyle(SauceColor.onSurface)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -247,16 +247,16 @@ private struct ProfileHeroCard: View {
                 ForEach(stats) { stat in
                     VStack(spacing: 2) {
                         Text(stat.value)
-                            .font(.title3.weight(.black))
+                            .font(SauceTypography.sectionTitle())
                         Text(stat.label)
-                            .font(.caption2)
+                            .font(SauceTypography.badge(.regular))
                             .foregroundStyle(SauceColor.onSurfaceVariant)
                     }
                 }
             }
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.body(.bold))
                     .foregroundStyle(SauceColor.onPrimary)
                     .padding(.horizontal, 48)
                     .padding(.vertical, 13)
@@ -295,7 +295,7 @@ struct ProfileEditView: View {
                             profilePreview
 
                             Image(systemName: "pencil")
-                                .font(.system(size: 15, weight: .black))
+                                .font(SauceTypography.body(.black))
                                 .foregroundStyle(SauceColor.onPrimary)
                                 .frame(width: 34, height: 34)
                                 .background(SauceColor.primaryContainer)
@@ -310,12 +310,12 @@ struct ProfileEditView: View {
                     .accessibilityLabel("프로필 사진 변경")
 
                     Text(viewModel.hasSelectedPhoto ? "새 사진 선택됨" : "프로필 사진")
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
 
                     if viewModel.hasSelectedPhoto {
                         Toggle("직접 촬영했거나 사용할 권리가 있는 사진입니다.", isOn: $viewModel.photoRightsAccepted)
-                            .font(.footnote.weight(.bold))
+                            .font(SauceTypography.supporting(.bold))
                             .foregroundStyle(SauceColor.onSurfaceVariant)
                             .tint(SauceColor.primaryContainer)
                             .padding(.horizontal, 22)
@@ -328,7 +328,7 @@ struct ProfileEditView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("닉네임")
-                        .font(.headline.weight(.bold))
+                        .font(SauceTypography.body(.bold))
                     TextField("소스장인", text: $viewModel.nicknameDraft)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -437,7 +437,7 @@ private struct ProfileRecipeSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
-                .font(.title2.weight(.black))
+                .font(SauceTypography.sectionTitle())
             ForEach(recipes) { recipe in
                 NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
                     RecipeCard(recipe: recipe)
@@ -462,18 +462,18 @@ struct ProfileSetupGateView: View {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("NuguSauce")
-                        .font(.largeTitle.weight(.black).italic())
+                        .font(SauceTypography.heroTitle().italic())
                         .foregroundStyle(SauceColor.primaryContainer)
                     Text("닉네임을 정해주세요")
-                        .font(.title.weight(.black))
+                        .font(SauceTypography.sectionTitle())
                     Text("저장한 닉네임은 소스와 리뷰에 표시됩니다.")
-                        .font(.subheadline)
+                        .font(SauceTypography.body())
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("닉네임")
-                        .font(.headline.weight(.bold))
+                        .font(SauceTypography.body(.bold))
                     TextField("소스장인", text: $viewModel.nicknameDraft)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()

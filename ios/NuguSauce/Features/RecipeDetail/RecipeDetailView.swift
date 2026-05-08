@@ -63,8 +63,8 @@ struct RecipeDetailView: View {
     }
 
     private var favoriteButtonLabel: some View {
-        Image(systemName: viewModel.isFavorite ? "bookmark.fill" : "bookmark")
-            .font(.system(size: 16, weight: .bold))
+        Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+            .font(SauceTypography.iconSmall(.bold))
             .foregroundStyle(SauceColor.primaryContainer)
             .frame(width: 42, height: 42)
             .background(SauceColor.surfaceLowest.opacity(0.9))
@@ -100,12 +100,12 @@ struct RecipeDetailView: View {
     private func titleBlock(_ detail: RecipeDetailDTO) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(detail.title)
-                .font(.largeTitle.weight(.black))
+                .font(SauceTypography.heroTitle())
                 .foregroundStyle(SauceColor.onSurface)
                 .lineLimit(3)
 
             Text(detail.description)
-                .font(.body)
+                .font(SauceTypography.body())
                 .lineSpacing(5)
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
@@ -123,12 +123,12 @@ struct RecipeDetailView: View {
                     .foregroundStyle(SauceColor.muted)
                 Text("·")
                     .foregroundStyle(SauceColor.muted)
-                Image(systemName: "bookmark.fill")
+                Image(systemName: "heart.fill")
                     .foregroundStyle(SauceColor.primaryContainer)
                 Text("\(detail.displayFavoriteCount.formatted())")
                     .fontWeight(.bold)
             }
-            .font(.caption)
+            .font(SauceTypography.metric(.bold))
             .foregroundStyle(SauceColor.onSurfaceVariant)
         }
     }
@@ -148,19 +148,19 @@ struct RecipeDetailView: View {
     private func ingredients(_ ingredients: [RecipeIngredientDTO]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("필요한 재료")
-                .font(.headline.weight(.bold))
+                .font(SauceTypography.sectionTitle(.bold))
 
             VStack(spacing: 0) {
                 ForEach(ingredients) { ingredient in
                     HStack {
                         IngredientArtwork(name: ingredient.name, category: nil, size: 36)
                         Text(ingredient.name)
-                            .font(.subheadline.weight(.bold))
+                            .font(SauceTypography.body(.bold))
                         Spacer()
                         Text(RecipeMeasurementFormatter.oneDecimalText(ingredient.amount ?? ingredient.ratio))
-                            .font(.headline.weight(.black))
+                            .font(SauceTypography.body(.black))
                         Text(ingredient.unit ?? "비율")
-                            .font(.caption)
+                            .font(SauceTypography.metric(.regular))
                             .foregroundStyle(SauceColor.onSurfaceVariant)
                     }
                     .padding(.vertical, 14)
@@ -180,7 +180,7 @@ struct RecipeDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("사용자 리뷰")
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.sectionTitle(.bold))
                 Spacer()
                 reviewWriteLink
             }
@@ -191,18 +191,18 @@ struct RecipeDetailView: View {
                         reviewAuthorLabel(review)
                         Spacer()
                         Text("최근")
-                            .font(.caption2)
+                            .font(SauceTypography.badge(.regular))
                             .foregroundStyle(SauceColor.muted)
                     }
                     HStack(spacing: 2) {
                         ForEach(1...5, id: \.self) { index in
                             Image(systemName: index <= review.rating ? "star.fill" : "star.fill")
-                                .font(.caption2)
+                                .font(SauceTypography.badge(.regular))
                                 .foregroundStyle(index <= review.rating ? SauceColor.secondary : SauceColor.redTint)
                         }
                     }
                     Text(review.text ?? "")
-                        .font(.subheadline)
+                        .font(SauceTypography.body())
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
                 .padding(18)
@@ -230,7 +230,7 @@ struct RecipeDetailView: View {
 
     private var reviewWriteLabel: some View {
         Label("리뷰 쓰기", systemImage: "square.and.pencil")
-            .font(.caption.weight(.bold))
+            .font(SauceTypography.badge(.bold))
             .foregroundStyle(SauceColor.primaryContainer)
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
@@ -245,8 +245,8 @@ struct RecipeDetailView: View {
                 authorIdentityLabel(
                     name: review.authorName,
                     imageURL: review.authorProfileImageUrl,
-                    iconFont: .title2,
-                    nameFont: .subheadline.weight(.bold)
+                    iconFont: SauceTypography.iconMedium(.bold),
+                    nameFont: SauceTypography.body(.bold)
                 )
             }
             .buttonStyle(.plain)
@@ -254,8 +254,8 @@ struct RecipeDetailView: View {
             authorIdentityLabel(
                 name: review.authorName,
                 imageURL: review.authorProfileImageUrl,
-                iconFont: .title2,
-                nameFont: .subheadline.weight(.bold)
+                iconFont: SauceTypography.iconMedium(.bold),
+                nameFont: SauceTypography.body(.bold)
             )
         }
     }
@@ -320,7 +320,7 @@ private struct ReviewComposeView: View {
                         await submit()
                     }
                 }
-                .font(.headline.weight(.bold))
+                .font(SauceTypography.body(.bold))
                 .foregroundStyle(SauceColor.primaryContainer)
                 .disabled(isSubmitting || !viewModel.canSubmitReview)
             }
@@ -345,18 +345,18 @@ private struct ReviewComposeView: View {
                     .frame(width: 82, height: 82)
                     .overlay {
                         Image(systemName: "drop.fill")
-                            .font(.title2.weight(.bold))
+                            .font(SauceTypography.iconMedium(.bold))
                             .foregroundStyle(SauceColor.primaryContainer)
                     }
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(viewModel.detail?.title ?? "리뷰할 소스")
-                    .font(.title3.weight(.bold))
+                    .font(SauceTypography.cardTitle(.bold))
                     .foregroundStyle(SauceColor.onSurface)
                     .lineLimit(2)
                 Text(summaryDescription)
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .lineLimit(2)
             }
@@ -378,10 +378,10 @@ private struct ReviewComposeView: View {
         VStack(spacing: 18) {
             VStack(spacing: 8) {
                 Text("이 소스 어떠셨나요?")
-                    .font(.title3.weight(.bold))
+                    .font(SauceTypography.sectionTitle(.bold))
                     .foregroundStyle(SauceColor.onSurface)
                 Text("별점을 선택해주세요")
-                    .font(.subheadline)
+                    .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
             }
 
@@ -391,7 +391,7 @@ private struct ReviewComposeView: View {
                         viewModel.selectedRating = rating
                     } label: {
                         Image(systemName: "star.fill")
-                            .font(.system(size: 34, weight: .bold))
+                            .font(SauceTypography.iconLarge(.bold))
                             .foregroundStyle(rating <= viewModel.selectedRating ? SauceColor.secondary : SauceColor.redTint)
                             .frame(width: 48, height: 48)
                     }
@@ -410,12 +410,12 @@ private struct ReviewComposeView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("맛 표현 (다중 선택)")
-                    .font(.headline.weight(.bold))
+                    .font(SauceTypography.sectionTitle(.bold))
                     .foregroundStyle(SauceColor.onSurface)
                 Spacer()
                 if !viewModel.selectedTasteTagIDs.isEmpty {
                     Text("\(viewModel.selectedTasteTagIDs.count)개 선택")
-                        .font(.caption.weight(.bold))
+                        .font(SauceTypography.badge(.bold))
                         .foregroundStyle(SauceColor.primaryContainer)
                 }
             }
@@ -427,7 +427,7 @@ private struct ReviewComposeView: View {
                 SauceStatusBanner(message: message)
             } else if viewModel.availableTasteTags.isEmpty {
                 Text("선택할 맛 태그가 아직 없어요.")
-                    .font(.subheadline.weight(.semibold))
+                    .font(SauceTypography.body(.semibold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -459,7 +459,7 @@ private struct ReviewComposeView: View {
     private var textBlock: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("상세 리뷰")
-                .font(.headline.weight(.bold))
+                .font(SauceTypography.sectionTitle(.bold))
 
             ZStack(alignment: .bottomTrailing) {
                 TextField(
@@ -482,7 +482,7 @@ private struct ReviewComposeView: View {
                 }
 
                 Text("\(viewModel.reviewText.count) / \(viewModel.maxReviewTextLength)")
-                    .font(.headline.weight(.semibold))
+                    .font(SauceTypography.body(.semibold))
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .padding(.trailing, 18)
                     .padding(.bottom, 14)
