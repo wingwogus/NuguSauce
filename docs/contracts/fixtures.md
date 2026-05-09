@@ -13,7 +13,7 @@ Fixtures define stable product context for backend tests and optional local back
 
 - `users`: normal user, high-review user, report-threshold user
 - `recipes_curated`: famous sauce recipes
-- `recipes_user_generated`: user-created sauce compositions without author-selected taste classification
+- `recipes_user_generated`: user-created sauce compositions
 - `ingredients_master`: sauce bar ingredients
 - `reviews`: mixed rating distribution and review text
 - `favorites`: member-saved recipes for My Profile
@@ -51,7 +51,7 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
 
 - `users` includes normal, high-review, report-threshold, and admin users.
 - `recipes_curated` contains visible celebrity/creator-attributed famous sauce combinations and at least one hidden recipe.
-- `recipes_user_generated` contains user-created recipes tied to fixture users and must not include `spiceLevel`, `richnessLevel`, or `tagIds`.
+- `recipes_user_generated` contains user-created recipes tied to fixture users.
 - `ingredients_master` contains stable Haidilao sauce bar ingredients.
 - `ingredients_master[].category` is a physical ingredient grouping, not a taste
   classification. Allowed values are `sauce_paste`, `oil`, `vinegar_citrus`,

@@ -25,32 +25,6 @@ struct LoginView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 30) {
-                VStack(spacing: 14) {
-                    Image("SplashIconMark")
-                        .renderingMode(.original)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 168, height: 168)
-                        .accessibilityHidden(true)
-                    Image("SplashWordmark")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(SauceColor.onSurface)
-                        .frame(width: 188)
-                        .accessibilityLabel("NuguSauce")
-                    Text("로그인하고 소스 조합을 저장해보세요")
-                        .font(SauceTypography.sectionTitle())
-                        .foregroundStyle(SauceColor.onSurface)
-                        .multilineTextAlignment(.center)
-                    Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
-                        .font(SauceTypography.body())
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                }
-                .frame(maxWidth: .infinity)
-
                 switch viewModel.flowStep {
                 case .consent:
                     ConsentAgreementScreen(
@@ -81,6 +55,7 @@ struct LoginView: View {
                         }
                     }
                 case .login:
+                    LoginBrandHeader()
                     LoginFlowNotice()
 
                     Button {
@@ -121,7 +96,7 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
         }
         .background(SauceColor.surface.ignoresSafeArea())
-        .navigationTitle("로그인")
+        .navigationTitle(viewModel.flowStep.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("login-screen")
     }
@@ -131,6 +106,17 @@ enum LoginFlowStep: Equatable {
     case login
     case consent
     case nickname
+
+    var navigationTitle: String {
+        switch self {
+        case .login:
+            return "로그인"
+        case .consent:
+            return "약관 동의"
+        case .nickname:
+            return "닉네임 설정"
+        }
+    }
 }
 
 protocol KakaoLoginServicing {
@@ -249,6 +235,11 @@ final class LoginViewModel: ObservableObject {
         guard !isAcceptingConsents,
               let pendingConsentStatus,
               let pendingLogin else {
+            return false
+        }
+
+        guard LegalPolicyContent.canDisplayAllMissingPolicies(in: pendingConsentStatus) else {
+            errorMessage = LegalPolicyContent.missingDocumentMessage
             return false
         }
 
@@ -413,6 +404,36 @@ private struct PendingLoginSession {
     }
 }
 
+struct LoginBrandHeader: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Image("SplashIconMark")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 168, height: 168)
+                .accessibilityHidden(true)
+            Image("SplashWordmark")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(SauceColor.onSurface)
+                .frame(width: 188)
+                .accessibilityLabel("NuguSauce")
+            Text("로그인하고 소스 조합을 저장해보세요")
+                .font(SauceTypography.sectionTitle())
+                .foregroundStyle(SauceColor.onSurface)
+                .multilineTextAlignment(.center)
+            Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
+                .font(SauceTypography.body())
+                .foregroundStyle(SauceColor.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 struct LoginFlowNotice: View {
     var body: some View {
         VStack(spacing: 8) {
@@ -431,6 +452,8 @@ struct ConsentAgreementScreen: View {
     let isAccepting: Bool
     let onAccept: () -> Void
     let onRetry: () -> Void
+    @State private var checkedPolicyIDs: Set<String> = []
+    @State private var selectedDocument: LegalPolicyDocument?
 
     init(
         status: ConsentStatusDTO?,
@@ -452,7 +475,7 @@ struct ConsentAgreementScreen: View {
                 Text("약관에 동의해주세요")
                     .font(SauceTypography.sectionTitle())
                     .foregroundStyle(SauceColor.onSurface)
-                Text("NuguSauce를 사용하려면 아래 정책을 확인하고 동의해야 합니다.")
+                Text("필수 약관 전문을 앱 안에서 확인한 뒤 동의해야 NuguSauce를 사용할 수 있어요.")
                     .font(SauceTypography.body())
                     .foregroundStyle(SauceColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
@@ -460,8 +483,20 @@ struct ConsentAgreementScreen: View {
 
             if let status {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(ConsentPolicyCopy.policies(from: status)) { policy in
-                        ConsentPolicyDisclosure(policy: policy)
+                    allAgreeButton(for: status)
+
+                    ForEach(status.missingPolicies) { policy in
+                        ConsentPolicyChecklistRow(
+                            policy: policy,
+                            document: LegalPolicyContent.document(for: policy),
+                            isChecked: checkedPolicyIDs.contains(policy.id),
+                            onToggle: {
+                                toggle(policy)
+                            },
+                            onOpenDocument: { document in
+                                selectedDocument = document
+                            }
+                        )
                     }
                 }
             } else if isLoading {
@@ -491,84 +526,121 @@ struct ConsentAgreementScreen: View {
                 }
             }
             .primarySauceButton()
-            .disabled(isAccepting || isLoading || status == nil)
+            .disabled(isAccepting || isLoading || !canAccept(status))
         }
         .padding(18)
         .background(SauceColor.surfaceContainerLow)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .sheet(item: $selectedDocument) { document in
+            NavigationStack {
+                LegalDocumentView(document: document)
+            }
+        }
+        .onChange(of: status?.missingPolicies.map(\.id) ?? []) { _, policyIDs in
+            checkedPolicyIDs.formIntersection(Set(policyIDs))
+        }
+    }
+
+    private func allAgreeButton(for status: ConsentStatusDTO) -> some View {
+        Button {
+            let policyIDs = Set(status.missingPolicies.map(\.id))
+            if policyIDs.isSubset(of: checkedPolicyIDs) {
+                checkedPolicyIDs.subtract(policyIDs)
+            } else {
+                checkedPolicyIDs.formUnion(policyIDs)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: allMissingPoliciesChecked(status) ? "checkmark.square.fill" : "square")
+                    .font(SauceTypography.iconSmall(.bold))
+                    .foregroundStyle(allMissingPoliciesChecked(status) ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+                Text("필수 약관 모두 동의")
+                    .font(SauceTypography.body(.bold))
+                    .foregroundStyle(SauceColor.onSurface)
+                Spacer()
+            }
+            .padding(14)
+            .background(SauceColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggle(_ policy: ConsentPolicyDTO) {
+        if checkedPolicyIDs.contains(policy.id) {
+            checkedPolicyIDs.remove(policy.id)
+        } else {
+            checkedPolicyIDs.insert(policy.id)
+        }
+    }
+
+    private func allMissingPoliciesChecked(_ status: ConsentStatusDTO) -> Bool {
+        let policyIDs = Set(status.missingPolicies.map(\.id))
+        return !policyIDs.isEmpty && policyIDs.isSubset(of: checkedPolicyIDs)
+    }
+
+    private func canAccept(_ status: ConsentStatusDTO?) -> Bool {
+        guard let status else {
+            return false
+        }
+        let missingPolicyIDs = Set(status.missingPolicies.map(\.id))
+        return !missingPolicyIDs.isEmpty &&
+            missingPolicyIDs.isSubset(of: checkedPolicyIDs) &&
+            LegalPolicyContent.canDisplayAllMissingPolicies(in: status)
     }
 }
 
-struct ConsentPolicyDisclosure: View {
-    let policy: ConsentPolicyCopy.Policy
+struct ConsentPolicyChecklistRow: View {
+    let policy: ConsentPolicyDTO
+    let document: LegalPolicyDocument?
+    let isChecked: Bool
+    let onToggle: () -> Void
+    let onOpenDocument: (LegalPolicyDocument) -> Void
 
     var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(ConsentPolicyCopy.paragraphs(for: policy.policyType), id: \.self) { paragraph in
-                    Text(paragraph)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Button(action: onToggle) {
+                    Image(systemName: isChecked ? "checkmark.square.fill" : "square")
+                        .font(SauceTypography.iconMedium(.bold))
+                        .foregroundStyle(isChecked ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isChecked ? "\(policy.title) 동의 해제" : "\(policy.title) 동의")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(policy.title)
+                        .font(SauceTypography.body(.bold))
+                        .foregroundStyle(SauceColor.onSurface)
+                    Text("버전 \(policy.version) · 시행일 \(policy.activeFrom)")
                         .font(SauceTypography.metric(.regular))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: 0)
             }
-            .padding(.top, 8)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(policy.title)
-                    .font(SauceTypography.body(.bold))
-                    .foregroundStyle(SauceColor.onSurface)
-                Text("버전 \(policy.version)")
+
+            if let document {
+                Button {
+                    onOpenDocument(document)
+                } label: {
+                    Label("전문 보기", systemImage: "doc.text.magnifyingglass")
+                        .font(SauceTypography.badge(.bold))
+                }
+                .foregroundStyle(SauceColor.primaryContainer)
+                .buttonStyle(.plain)
+            } else {
+                Text(LegalPolicyContent.missingDocumentMessage)
                     .font(SauceTypography.metric(.regular))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .foregroundStyle(SauceColor.primaryContainer)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .tint(SauceColor.primaryContainer)
-    }
-}
-
-enum ConsentPolicyCopy {
-    struct Policy: Identifiable {
-        let policyType: String
-        let title: String
-        let version: String
-
-        var id: String {
-            "\(policyType):\(version)"
-        }
-    }
-
-    static func policies(from status: ConsentStatusDTO) -> [Policy] {
-        return status.missingPolicies.map {
-            Policy(policyType: $0.policyType, title: $0.title, version: $0.version)
-        }
-    }
-
-    static func paragraphs(for policyType: String) -> [String] {
-        switch policyType {
-        case "terms_of_service":
-            return [
-                "서비스 이용약관: NuguSauce 커뮤니티 기능을 사용하기 위한 기본 규칙에 동의합니다.",
-                "레시피, 리뷰, 신고, 프로필 기능을 부정하게 사용하지 않고 타인의 권리를 침해하지 않습니다.",
-                "운영 기준에 따라 부적절한 게시물이나 리뷰가 숨김 또는 제한될 수 있음을 확인합니다."
-            ]
-        case "privacy_policy":
-            return [
-                "개인정보 처리방침: 카카오 계정 식별자, 이메일, 닉네임, 프로필 정보, 서비스 이용 기록을 로그인과 서비스 운영에 사용할 수 있습니다.",
-                "작성한 레시피, 리뷰, 신고, 이미지 관련 정보는 서비스 제공, 보안, 운영 대응, 법적 의무 이행을 위해 처리됩니다.",
-                "필수 정보 제공에 동의하지 않으면 로그인 후 작성 기능을 사용할 수 없습니다."
-            ]
-        case "content_policy":
-            return [
-                "콘텐츠/사진 권리 정책: 직접 작성했거나 사용할 권리가 있는 글과 사진만 업로드합니다.",
-                "타인의 초상, 상표, 저작물, 개인정보가 포함된 콘텐츠를 권한 없이 게시하지 않습니다.",
-                "업로드한 콘텐츠는 NuguSauce 앱 안에서 저장, 표시, 편집 처리될 수 있음을 확인합니다."
-            ]
-        default:
-            return [
-                "이 정책은 NuguSauce의 필수 이용 조건입니다."
-            ]
-        }
+        .padding(14)
+        .background(SauceColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 

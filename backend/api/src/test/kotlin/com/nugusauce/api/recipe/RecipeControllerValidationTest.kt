@@ -25,7 +25,9 @@ import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -127,31 +129,6 @@ class RecipeControllerValidationTest(
     }
 
     @Test
-    fun `create rejects author selected taste classification`() {
-        mockMvc.perform(
-            post("/api/v1/recipes")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "title": "내 소스",
-                      "description": "설명",
-                      "spiceLevel": 2,
-                      "richnessLevel": 4,
-                      "ingredients": [
-                        { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
-                      ],
-                      "tagIds": [1, 2]
-                    }
-                    """.trimIndent()
-                )
-        )
-            .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
-    }
-
-    @Test
     fun `create rejects direct image url`() {
         mockMvc.perform(
             post("/api/v1/recipes")
@@ -205,6 +182,114 @@ class RecipeControllerValidationTest(
     }
 
     @Test
+    fun `update returns updated recipe detail`() {
+        `when`(
+            recipeWriteService.update(
+                RecipeCommand.UpdateRecipe(
+                    authorId = 1L,
+                    recipeId = 10L,
+                    title = "내 소스 수정",
+                    description = "설명 수정",
+                    imageId = 20L,
+                    tips = "잘 섞기",
+                    ingredients = listOf(
+                        RecipeCommand.IngredientInput(
+                            ingredientId = 1L,
+                            amount = java.math.BigDecimal("1.0"),
+                            unit = "스푼"
+                        )
+                    )
+                )
+            )
+        ).thenReturn(recipeDetail(isFavorite = false).copy(title = "내 소스 수정", description = "설명 수정"))
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                patch("/api/v1/me/recipes/10")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(validUpdateRecipeBody())
+            )
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.title", equalTo("내 소스 수정")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `update rejects direct image url`() {
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                patch("/api/v1/me/recipes/10")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(updateRecipeBodyWithForbiddenFields())
+            )
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `update rejects anonymous before deprecated image url semantics`() {
+        mockMvc.perform(
+            patch("/api/v1/me/recipes/10")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateRecipeBodyWithForbiddenFields())
+        )
+            .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("AUTH_001")))
+    }
+
+    @Test
+    fun `update maps missing consent to stable error`() {
+        doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(
+                patch("/api/v1/me/recipes/10")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(validUpdateRecipeBody())
+            )
+                .andExpect(status().`is`(428))
+                .andExpect(jsonPath("$.error.code", equalTo("CONSENT_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `delete returns empty success envelope`() {
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(delete("/api/v1/me/recipes/10"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist())
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
+    fun `delete maps missing consent to stable error`() {
+        doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
+        SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
+        try {
+            mockMvc.perform(delete("/api/v1/me/recipes/10"))
+                .andExpect(status().`is`(428))
+                .andExpect(jsonPath("$.error.code", equalTo("CONSENT_001")))
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
+    }
+
+    @Test
     fun `review maps missing consent to stable error`() {
         doThrow(consentRequired()).`when`(consentService).requireRequiredConsents(1L)
         SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
@@ -249,6 +334,31 @@ class RecipeControllerValidationTest(
         {
           "title": "내 소스",
           "description": "설명",
+          "ingredients": [
+            { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+          ]
+        }
+        """.trimIndent()
+
+    private fun validUpdateRecipeBody(): String =
+        """
+        {
+          "title": "내 소스 수정",
+          "description": "설명 수정",
+          "imageId": 20,
+          "tips": "잘 섞기",
+          "ingredients": [
+            { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+          ]
+        }
+        """.trimIndent()
+
+    private fun updateRecipeBodyWithForbiddenFields(): String =
+        """
+        {
+          "title": "내 소스",
+          "description": "설명",
+          "imageUrl": "https://example.test/image.jpg",
           "ingredients": [
             { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
           ]

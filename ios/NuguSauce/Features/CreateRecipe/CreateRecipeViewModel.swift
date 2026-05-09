@@ -59,20 +59,30 @@ final class CreateRecipeViewModel: ObservableObject {
     @Published private(set) var selectedPhotoData: Data?
     @Published private(set) var selectedPhotoContentType = "image/jpeg"
     @Published private(set) var selectedPhotoFileExtension = "jpg"
+    @Published private(set) var existingImageURL: String?
+    @Published private(set) var isLoading = false
     @Published var photoRightsAccepted = false
     @Published private(set) var pendingConsentStatus: ConsentStatusDTO?
     @Published private(set) var isAcceptingConsents = false
+    @Published private(set) var formResetRevision = 0
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
+    private let editRecipeID: Int?
+    private var didPrefillForEdit = false
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
+    init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol, editRecipeID: Int? = nil) {
         self.apiClient = apiClient
         self.authStore = authStore
+        self.editRecipeID = editRecipeID
     }
 
     var isAuthenticated: Bool {
         authStore.isAuthenticated
+    }
+
+    var isEditing: Bool {
+        editRecipeID != nil
     }
 
     var canSubmit: Bool {
@@ -101,9 +111,18 @@ final class CreateRecipeViewModel: ObservableObject {
     }
 
     func load() async {
+        isLoading = true
+        defer {
+            isLoading = false
+        }
         do {
-            let allIngredients = try await apiClient.fetchIngredients()
+            async let allIngredientsTask = apiClient.fetchIngredients()
+            async let detailTask = loadEditDetailIfNeeded()
+            let allIngredients = try await allIngredientsTask
             quickAddIngredients = allIngredients
+            if let detail = try await detailTask {
+                prefillForEdit(detail, availableIngredients: allIngredients)
+            }
         } catch {
             errorMessage = "재료 목록을 불러오지 못했어요."
         }
@@ -198,6 +217,17 @@ final class CreateRecipeViewModel: ObservableObject {
         )
     }
 
+    func makeUpdateRequest(imageId: Int? = nil) -> UpdateRecipeRequestDTO {
+        let createRequest = makeRequest(imageId: imageId)
+        return UpdateRecipeRequestDTO(
+            title: createRequest.title,
+            description: createRequest.description,
+            imageId: createRequest.imageId,
+            tips: createRequest.tips,
+            ingredients: createRequest.ingredients
+        )
+    }
+
     @discardableResult
     func submit() async -> Int? {
         guard !isSubmitting else {
@@ -230,7 +260,23 @@ final class CreateRecipeViewModel: ObservableObject {
                 isUploadingImage = false
             }
             let imageId = try await uploadSelectedPhotoIfNeeded()
-            let recipe = try await apiClient.createRecipe(makeRequest(imageId: imageId))
+            let recipe: RecipeDetailDTO
+            if let editRecipeID {
+                recipe = try await apiClient.updateRecipe(id: editRecipeID, request: makeUpdateRequest(imageId: imageId))
+                NotificationCenter.default.post(
+                    name: RecipeMutationEvents.didUpdate,
+                    object: nil,
+                    userInfo: [
+                        RecipeMutationEvents.recipeIDKey: recipe.id,
+                        RecipeMutationEvents.recipeKey: recipe
+                    ]
+                )
+            } else {
+                recipe = try await apiClient.createRecipe(makeRequest(imageId: imageId))
+                let createdRecipeID = recipe.id
+                resetDraftAfterSuccessfulCreate()
+                return createdRecipeID
+            }
             submittedRecipeTitle = recipe.title
             submittedRecipeID = recipe.id
             didSubmit = true
@@ -240,12 +286,12 @@ final class CreateRecipeViewModel: ObservableObject {
             if error.code == ApiErrorCode.consentRequired {
                 await loadConsentStatusAfterBlockedWrite()
             } else {
-                errorMessage = error.userVisibleMessage(default: "소스를 등록하지 못했어요.")
+                errorMessage = error.userVisibleMessage(default: submitFailureMessage)
             }
             return nil
         } catch {
             isSubmitting = false
-            errorMessage = "소스를 등록하지 못했어요."
+            errorMessage = submitFailureMessage
             return nil
         }
     }
@@ -253,6 +299,11 @@ final class CreateRecipeViewModel: ObservableObject {
     func acceptRequiredConsents() async -> Bool {
         guard !isAcceptingConsents,
               let pendingConsentStatus else {
+            return false
+        }
+
+        guard LegalPolicyContent.canDisplayAllMissingPolicies(in: pendingConsentStatus) else {
+            errorMessage = LegalPolicyContent.missingDocumentMessage
             return false
         }
 
@@ -294,6 +345,56 @@ final class CreateRecipeViewModel: ObservableObject {
             errorMessage = error.userVisibleMessage(default: "필수 동의 상태를 확인하지 못했어요.")
         } catch {
             errorMessage = "필수 동의 상태를 확인하지 못했어요."
+        }
+    }
+
+    private var submitFailureMessage: String {
+        isEditing ? "소스를 수정하지 못했어요." : "소스를 등록하지 못했어요."
+    }
+
+    private func resetDraftAfterSuccessfulCreate() {
+        title = ""
+        description = ""
+        ingredientSearchText = ""
+        ingredients = []
+        errorMessage = nil
+        didSubmit = false
+        submittedRecipeTitle = nil
+        submittedRecipeID = nil
+        selectedPhotoData = nil
+        selectedPhotoContentType = "image/jpeg"
+        selectedPhotoFileExtension = "jpg"
+        existingImageURL = nil
+        photoRightsAccepted = false
+        pendingConsentStatus = nil
+        formResetRevision += 1
+    }
+
+    private func loadEditDetailIfNeeded() async throws -> RecipeDetailDTO? {
+        guard let editRecipeID else {
+            return nil
+        }
+        return try await apiClient.fetchRecipeDetail(id: editRecipeID)
+    }
+
+    private func prefillForEdit(_ detail: RecipeDetailDTO, availableIngredients: [IngredientDTO]) {
+        guard !didPrefillForEdit else {
+            return
+        }
+        didPrefillForEdit = true
+        title = detail.title
+        description = detail.description
+        existingImageURL = detail.imageUrl
+        ingredients = detail.ingredients.map { detailIngredient in
+            let ingredient = availableIngredients.first { $0.id == detailIngredient.ingredientId }
+                ?? IngredientDTO(id: detailIngredient.ingredientId, name: detailIngredient.name, category: nil)
+            let ratio = RecipeRatioInputRules.normalizedRatio(detailIngredient.ratio ?? detailIngredient.amount ?? 1.0)
+            return EditableIngredient(
+                ingredient: ingredient,
+                amount: RecipeMeasurementFormatter.truncatedTenths(detailIngredient.amount ?? ratio),
+                unit: detailIngredient.unit ?? "비율",
+                ratio: ratio
+            )
         }
     }
 

@@ -8,11 +8,11 @@ import java.time.Instant
 
 interface SauceRecipeRepository : JpaRepository<SauceRecipe, Long>, SauceRecipeQueryRepository {
     fun findAllByVisibility(visibility: RecipeVisibility): List<SauceRecipe>
-    fun findAllByAuthorIdOrderByCreatedAtDesc(authorId: Long): List<SauceRecipe>
     fun findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(
         authorId: Long,
         visibility: RecipeVisibility
     ): List<SauceRecipe>
+    fun findByIdAndAuthorId(recipeId: Long, authorId: Long): SauceRecipe?
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(

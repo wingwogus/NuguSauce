@@ -14,8 +14,9 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -67,7 +68,6 @@ class RecipeController(
         @AuthenticationPrincipal userId: String?,
         @Valid @RequestBody request: RecipeRequests.CreateRecipeRequest
     ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
-        rejectAuthorTasteClassification(request)
         rejectDeprecatedImageUrl(request)
         val memberId = requireUserId(userId)
         consentService.requireRequiredConsents(memberId)
@@ -91,6 +91,47 @@ class RecipeController(
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(ApiResponse.ok(RecipeResponses.RecipeDetailResponse.from(result)))
+    }
+
+    @PatchMapping("/me/recipes/{recipeId}")
+    fun updateMyRecipe(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable recipeId: Long,
+        @Valid @RequestBody request: RecipeRequests.UpdateRecipeRequest
+    ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
+        rejectDeprecatedImageUrl(request)
+        val result = recipeWriteService.update(
+            RecipeCommand.UpdateRecipe(
+                authorId = memberId,
+                recipeId = recipeId,
+                title = request.title,
+                description = request.description,
+                imageId = request.imageId,
+                tips = request.tips,
+                ingredients = request.ingredients.map {
+                    RecipeCommand.IngredientInput(
+                        ingredientId = it.ingredientId,
+                        amount = it.amount,
+                        unit = it.unit,
+                        ratio = it.ratio
+                    )
+                }
+            )
+        )
+        return ResponseEntity.ok(ApiResponse.ok(RecipeResponses.RecipeDetailResponse.from(result)))
+    }
+
+    @DeleteMapping("/me/recipes/{recipeId}")
+    fun deleteMyRecipe(
+        @AuthenticationPrincipal userId: String?,
+        @PathVariable recipeId: Long
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val memberId = requireUserId(userId)
+        consentService.requireRequiredConsents(memberId)
+        recipeWriteService.delete(RecipeCommand.DeleteRecipe(authorId = memberId, recipeId = recipeId))
+        return ResponseEntity.ok(ApiResponse.empty(Unit))
     }
 
     @GetMapping("/ingredients")
@@ -209,20 +250,20 @@ class RecipeController(
         return userId?.toLongOrNull() ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
 
-    private fun rejectAuthorTasteClassification(request: RecipeRequests.CreateRecipeRequest) {
-        if (!request.containsAuthorTasteClassification()) {
+    private fun rejectDeprecatedImageUrl(request: RecipeRequests.CreateRecipeRequest) {
+        if (request.imageUrl == null) {
             return
         }
         throw BusinessException(
             ErrorCode.INVALID_INPUT,
             detail = mapOf(
-                "fields" to listOf("spiceLevel", "richnessLevel", "tagIds"),
-                "reason" to "authors can only submit sauce composition; taste classification comes from reviews"
+                "field" to "imageUrl",
+                "reason" to "use imageId from media upload completion"
             )
         )
     }
 
-    private fun rejectDeprecatedImageUrl(request: RecipeRequests.CreateRecipeRequest) {
+    private fun rejectDeprecatedImageUrl(request: RecipeRequests.UpdateRecipeRequest) {
         if (request.imageUrl == null) {
             return
         }

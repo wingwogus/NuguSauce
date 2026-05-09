@@ -132,6 +132,18 @@ class MediaAsset(
         touch(detachedAt)
     }
 
+    fun detachFromRecipe(recipeId: Long, detachedAt: Instant = Instant.now()) {
+        require(attachedProfileMemberId == null) {
+            "profile media cannot be detached from a recipe"
+        }
+        require(attachedRecipeId == null || attachedRecipeId == recipeId) {
+            "media is attached to another recipe"
+        }
+        attachedRecipeId = null
+        status = MediaAssetStatus.VERIFIED
+        touch(detachedAt)
+    }
+
     val isAttached: Boolean
         get() = attachedRecipeId != null || attachedProfileMemberId != null
 

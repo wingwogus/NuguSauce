@@ -6,6 +6,7 @@ struct ProfileView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: ProfileViewModel
+    @State private var hasLoadedAuthenticatedProfile = false
     @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
@@ -52,13 +53,38 @@ struct ProfileView: View {
         .background(SauceColor.surface.ignoresSafeArea())
         .task(id: profileRefreshID) {
             if authStore.isAuthenticated {
+                hasLoadedAuthenticatedProfile = true
+                await viewModel.load()
+            } else {
+                hasLoadedAuthenticatedProfile = false
+            }
+        }
+        .onAppear {
+            guard hasLoadedAuthenticatedProfile,
+                  authStore.isAuthenticated else {
+                return
+            }
+            Task {
                 await viewModel.load()
             }
         }
         .onChange(of: authStore.currentSession) { _, session in
             if session == nil {
+                hasLoadedAuthenticatedProfile = false
                 viewModel.clearData()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecipeMutationEvents.didUpdate)) { notification in
+            guard let detail = notification.userInfo?[RecipeMutationEvents.recipeKey] as? RecipeDetailDTO else {
+                return
+            }
+            viewModel.recipeWasUpdated(RecipeSummaryDTO(detail: detail))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecipeMutationEvents.didDelete)) { notification in
+            guard let recipeID = notification.userInfo?[RecipeMutationEvents.recipeIDKey] as? Int else {
+                return
+            }
+            viewModel.recipeWasDeleted(id: recipeID)
         }
     }
 

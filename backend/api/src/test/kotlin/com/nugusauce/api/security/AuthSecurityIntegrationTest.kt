@@ -177,6 +177,29 @@ class AuthSecurityIntegrationTest(
     }
 
     @Test
+    fun `my recipe mutation endpoints require authentication`() {
+        mockMvc.perform(
+            patch("/api/v1/me/recipes/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "title": "내 소스",
+                      "description": "설명",
+                      "ingredients": [
+                        { "ingredientId": 1, "amount": 1.0, "unit": "스푼" }
+                      ]
+                    }
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isUnauthorized)
+
+        mockMvc.perform(delete("/api/v1/me/recipes/1"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
     fun `admin recipe visibility endpoint rejects user role`() {
         val accessToken = tokenProvider.createAccessToken(42L, "ROLE_USER")
 

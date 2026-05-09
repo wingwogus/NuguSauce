@@ -221,6 +221,8 @@ struct RootTabView: View {
         switch route {
         case .recipeDetail(let id):
             RecipeDetailView(recipeID: id, apiClient: apiClient, authStore: authStore)
+        case .recipeEdit(let id):
+            CreateRecipeView(apiClient: apiClient, authStore: authStore, editRecipeID: id)
         case .publicProfile(let id):
             PublicProfileView(memberID: id, apiClient: apiClient)
         case .profileEdit:

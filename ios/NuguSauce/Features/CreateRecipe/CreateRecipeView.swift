@@ -6,21 +6,31 @@ struct CreateRecipeView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     let onCreatedRecipe: (Int) -> Void
+    private let editRecipeID: Int?
     @StateObject private var viewModel: CreateRecipeViewModel
     @State private var expandedQuickAddSectionIDs: Set<String> = []
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var ratioInputDrafts: [EditableIngredient.ID: String] = [:]
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedRatioIngredientID: EditableIngredient.ID?
     private let quickAddDisclosureAnimation = Animation.spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.08)
     private let quickAddColumns = [
         GridItem(.adaptive(minimum: 132), spacing: 10, alignment: .top)
     ]
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStore, onCreatedRecipe: @escaping (Int) -> Void = { _ in }) {
+    init(
+        apiClient: APIClientProtocol,
+        authStore: AuthSessionStore,
+        editRecipeID: Int? = nil,
+        onCreatedRecipe: @escaping (Int) -> Void = { _ in }
+    ) {
         self.apiClient = apiClient
         self.authStore = authStore
+        self.editRecipeID = editRecipeID
         self.onCreatedRecipe = onCreatedRecipe
-        _viewModel = StateObject(wrappedValue: CreateRecipeViewModel(apiClient: apiClient, authStore: authStore))
+        _viewModel = StateObject(
+            wrappedValue: CreateRecipeViewModel(apiClient: apiClient, authStore: authStore, editRecipeID: editRecipeID)
+        )
     }
 
     var body: some View {
@@ -48,6 +58,11 @@ struct CreateRecipeView: View {
             Task {
                 await loadSelectedPhoto(newItem)
             }
+        }
+        .onChange(of: viewModel.formResetRevision) { _, _ in
+            selectedPhotoItem = nil
+            ratioInputDrafts.removeAll()
+            focusedRatioIngredientID = nil
         }
         .onChange(of: focusedRatioIngredientID) { previousID, newID in
             guard let previousID, previousID != newID else {
@@ -91,11 +106,15 @@ struct CreateRecipeView: View {
                 commitFocusedRatioInput()
                 Task {
                     if let recipeID = await viewModel.submit() {
-                        onCreatedRecipe(recipeID)
+                        if viewModel.isEditing {
+                            dismiss()
+                        } else {
+                            onCreatedRecipe(recipeID)
+                        }
                     }
                 }
             } label: {
-                Text(viewModel.isSubmitting ? "등록 중..." : "소스 등록하기")
+                Text(submitButtonTitle)
             }
             .primarySauceButton()
             .opacity(viewModel.canSubmit ? 1 : 0.72)
@@ -105,7 +124,7 @@ struct CreateRecipeView: View {
     }
 
     private var topBar: some View {
-        SauceScreenTitle(title: "새 소스 등록")
+        SauceScreenTitle(title: viewModel.isEditing ? "소스 수정" : "새 소스 등록")
     }
 
     private var statusBanners: some View {
@@ -114,9 +133,16 @@ struct CreateRecipeView: View {
                 SauceStatusBanner(message: errorMessage)
             }
             if viewModel.didSubmit, let title = viewModel.submittedRecipeTitle {
-                SauceStatusBanner(message: "\(title) 등록이 완료되었습니다.", isError: false)
+                SauceStatusBanner(message: "\(title) \(viewModel.isEditing ? "수정" : "등록")이 완료되었습니다.", isError: false)
             }
         }
+    }
+
+    private var submitButtonTitle: String {
+        if viewModel.isSubmitting {
+            return viewModel.isEditing ? "수정 중..." : "등록 중..."
+        }
+        return viewModel.isEditing ? "변경사항 저장" : "소스 등록하기"
     }
 
     private var photoUpload: some View {
@@ -139,11 +165,19 @@ struct CreateRecipeView: View {
                             .scaledToFill()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
+                    } else if viewModel.isEditing {
+                        RecipeImage(
+                            imageURL: viewModel.existingImageURL,
+                            recipeID: editRecipeID ?? 0,
+                            height: 260
+                        )
                     } else {
-                        VStack(spacing: 10) {
-                            Image(systemName: "camera.fill")
-                                .font(SauceTypography.iconLarge(.bold))
-                                .foregroundStyle(SauceColor.onSurfaceVariant)
+                        VStack(spacing: 8) {
+                            Image("NuguMascotCamera")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 154, height: 154)
+                                .accessibilityHidden(true)
                             Text("소스 사진 추가")
                                 .font(SauceTypography.body(.bold))
                                 .foregroundStyle(SauceColor.onSurfaceVariant)

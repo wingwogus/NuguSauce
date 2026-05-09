@@ -15,6 +15,8 @@ final class RecipeDetailViewModel: ObservableObject {
     @Published private(set) var didSubmitReview = false
     @Published private(set) var isFavorite = false
     @Published private(set) var isUpdatingFavorite = false
+    @Published private(set) var isDeleting = false
+    @Published private(set) var didDelete = false
     @Published private(set) var pendingConsentStatus: ConsentStatusDTO?
     @Published private(set) var isAcceptingConsents = false
 
@@ -35,6 +37,22 @@ final class RecipeDetailViewModel: ObservableObject {
 
     var isAuthenticated: Bool {
         authStore.isAuthenticated
+    }
+
+    var canMutateRecipe: Bool {
+        guard let authorId = detail?.authorId,
+              let memberId = authStore.currentSession?.memberId else {
+            return false
+        }
+        return authorId == memberId
+    }
+
+    func applyUpdatedRecipe(_ updatedRecipe: RecipeDetailDTO) {
+        guard updatedRecipe.id == recipeID else {
+            return
+        }
+        detail = updatedRecipe
+        isFavorite = updatedRecipe.isFavorited
     }
 
     func beginReviewDraft() {
@@ -139,6 +157,11 @@ final class RecipeDetailViewModel: ObservableObject {
             return false
         }
 
+        guard LegalPolicyContent.canDisplayAllMissingPolicies(in: pendingConsentStatus) else {
+            errorMessage = LegalPolicyContent.missingDocumentMessage
+            return false
+        }
+
         isAcceptingConsents = true
         errorMessage = nil
         defer {
@@ -207,6 +230,44 @@ final class RecipeDetailViewModel: ObservableObject {
                 isFavorite = previousFavoriteState
                 errorMessage = "찜 상태를 변경하지 못했어요."
             }
+        }
+    }
+
+    @discardableResult
+    func deleteRecipe() async -> Bool {
+        guard canMutateRecipe else {
+            errorMessage = "삭제 권한이 없어요."
+            return false
+        }
+        guard !isDeleting else {
+            return false
+        }
+
+        isDeleting = true
+        errorMessage = nil
+        defer {
+            isDeleting = false
+        }
+
+        do {
+            try await apiClient.deleteRecipe(id: recipeID)
+            didDelete = true
+            NotificationCenter.default.post(
+                name: RecipeMutationEvents.didDelete,
+                object: nil,
+                userInfo: [RecipeMutationEvents.recipeIDKey: recipeID]
+            )
+            return true
+        } catch let error as ApiError {
+            if error.code == ApiErrorCode.consentRequired {
+                await loadConsentStatusAfterBlockedWrite()
+            } else {
+                errorMessage = error.userVisibleMessage(default: "소스를 삭제하지 못했어요.")
+            }
+            return false
+        } catch {
+            errorMessage = "소스를 삭제하지 못했어요."
+            return false
         }
     }
 

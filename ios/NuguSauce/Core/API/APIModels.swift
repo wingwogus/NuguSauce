@@ -52,6 +52,7 @@ enum ApiErrorCode {
     static let invalidJSON = "COMMON_002"
     static let internalError = "COMMON_999"
     static let resourceNotFound = "RESOURCE_001"
+    static let recipeNotFound = "RECIPE_001"
     static let duplicateReview = "RECIPE_005"
     static let invalidRating = "RECIPE_007"
     static let invalidIngredientAmount = "RECIPE_008"
@@ -74,7 +75,7 @@ extension ApiError {
             return "접근 권한이 없어요."
         case ApiErrorCode.invalidInput, ApiErrorCode.invalidJSON:
             return "입력한 내용을 확인해주세요."
-        case ApiErrorCode.resourceNotFound:
+        case ApiErrorCode.resourceNotFound, ApiErrorCode.recipeNotFound:
             return "요청한 정보를 찾을 수 없어요."
         case ApiErrorCode.invalidNickname:
             return "2~20자의 한글, 영문, 숫자, 밑줄만 사용할 수 있어요."
@@ -260,6 +261,8 @@ protocol APIClientProtocol {
     ) async throws
     func completeImageUpload(imageId: Int) async throws -> VerifiedImageDTO
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO
+    func updateRecipe(id: Int, request: UpdateRecipeRequestDTO) async throws -> RecipeDetailDTO
+    func deleteRecipe(id: Int) async throws
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO
     func fetchMyRecipes() async throws -> [RecipeSummaryDTO]
     func fetchFavoriteRecipes() async throws -> [RecipeSummaryDTO]

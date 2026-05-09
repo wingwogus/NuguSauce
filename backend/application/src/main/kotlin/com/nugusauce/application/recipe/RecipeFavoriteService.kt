@@ -27,7 +27,10 @@ class RecipeFavoriteService(
     @Transactional(readOnly = true)
     fun listMyRecipes(command: RecipeCommand.MemberRecipes): List<RecipeResult.RecipeSummary> {
         ensureMember(command.memberId)
-        val recipes = sauceRecipeRepository.findAllByAuthorIdOrderByCreatedAtDesc(command.memberId)
+        val recipes = sauceRecipeRepository.findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(
+            command.memberId,
+            RecipeVisibility.VISIBLE
+        )
         return summarizeWithReviewTags(
             recipes,
             favoriteRecipeIds = loadFavoriteRecipeIds(command.memberId, recipes.map { it.id })

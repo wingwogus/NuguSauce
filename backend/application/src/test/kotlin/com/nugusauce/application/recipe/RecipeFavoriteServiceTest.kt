@@ -55,10 +55,15 @@ class RecipeFavoriteServiceTest {
     }
 
     @Test
-    fun `listMyRecipes returns recipes authored by member including own hidden recipes`() {
-        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member()))
-        `when`(sauceRecipeRepository.findAllByAuthorIdOrderByCreatedAtDesc(1L))
-            .thenReturn(listOf(recipe(author = member(), visibility = RecipeVisibility.HIDDEN)))
+    fun `listMyRecipes returns visible recipes authored by member`() {
+        val author = member()
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(author))
+        `when`(
+            sauceRecipeRepository.findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(
+                1L,
+                RecipeVisibility.VISIBLE
+            )
+        ).thenReturn(listOf(recipe(author = author)))
         `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
         `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L)))
             .thenReturn(setOf(10L))
@@ -66,8 +71,12 @@ class RecipeFavoriteServiceTest {
         val results = service.listMyRecipes(RecipeCommand.MemberRecipes(1L))
 
         assertEquals(1, results.size)
-        assertEquals("HIDDEN", results.first().visibility)
+        assertEquals("VISIBLE", results.first().visibility)
         assertEquals(true, results.first().isFavorite)
+        verify(sauceRecipeRepository).findAllByAuthorIdAndVisibilityOrderByCreatedAtDesc(
+            1L,
+            RecipeVisibility.VISIBLE
+        )
         verify(recipeFavoriteRepository).findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L))
     }
 

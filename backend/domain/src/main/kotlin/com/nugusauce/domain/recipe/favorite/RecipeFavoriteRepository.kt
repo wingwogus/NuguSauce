@@ -53,6 +53,8 @@ interface RecipeFavoriteRepository : JpaRepository<RecipeFavorite, Long> {
         @Param("memberId") memberId: Long
     ): RecipeFavorite?
 
+    fun findAllByRecipeId(recipeId: Long): List<RecipeFavorite>
+
     @Query(
         """
         select count(f)

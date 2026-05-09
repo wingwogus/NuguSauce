@@ -8,8 +8,12 @@ import com.nugusauce.domain.media.MediaAssetRepository
 import com.nugusauce.domain.media.MediaAssetStatus
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
+import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
+import com.nugusauce.domain.recipe.report.RecipeReportRepository
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
+import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.springframework.stereotype.Service
@@ -23,6 +27,9 @@ class RecipeWriteService(
     private val ingredientRepository: IngredientRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val mediaAssetRepository: MediaAssetRepository,
+    private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val recipeReportRepository: RecipeReportRepository,
+    private val recipeReviewRepository: RecipeReviewRepository,
     private val imageUrlResolver: ImageUrlResolver
 ) {
     fun create(command: RecipeCommand.CreateRecipe): RecipeResult.RecipeDetail {
@@ -60,6 +67,47 @@ class RecipeWriteService(
         )
     }
 
+    fun update(command: RecipeCommand.UpdateRecipe): RecipeResult.RecipeDetail {
+        val author = findMember(command.authorId)
+        validateRecipe(command.title, command.description, command.ingredients)
+        val recipe = findEditableOwnedRecipe(command.recipeId, command.authorId)
+        val ingredients = loadIngredients(command.ingredients.map { it.ingredientId }.toSet())
+        val imageAsset = resolveUpdateImage(command.imageId, recipe, author)
+
+        recipe.updateContent(
+            title = command.title.trim(),
+            description = command.description.trim(),
+            tips = command.tips?.trim()?.takeIf { it.isNotBlank() },
+            imageAsset = imageAsset
+        )
+        recipe.replaceIngredients(
+            command.ingredients.map { input ->
+                SauceRecipe.IngredientInput(
+                    ingredient = ingredients.getValue(input.ingredientId),
+                    amount = input.amount,
+                    unit = input.unit?.trim()?.takeIf { it.isNotBlank() },
+                    ratio = input.ratio
+                )
+            }
+        )
+        imageAsset?.attachToRecipe(recipe.id)
+
+        return RecipeResult.detail(
+            recipe,
+            imageUrl = imageUrlResolver.recipeImageUrl(recipe),
+            authorProfileImageUrl = imageUrlResolver.memberProfileImageUrl(author)
+        )
+    }
+
+    fun delete(command: RecipeCommand.DeleteRecipe) {
+        val recipe = findDeletableOwnedRecipe(command.recipeId, command.authorId)
+        detachRecipeImage(recipe)
+        recipeReportRepository.deleteAll(recipeReportRepository.findAllByRecipeId(recipe.id))
+        recipeFavoriteRepository.deleteAll(recipeFavoriteRepository.findAllByRecipeId(recipe.id))
+        recipeReviewRepository.deleteAll(recipeReviewRepository.findAllByRecipeId(recipe.id))
+        sauceRecipeRepository.delete(recipe)
+    }
+
     private fun findMember(memberId: Long): Member {
         return memberRepository.findById(memberId).orElseThrow {
             BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -67,16 +115,24 @@ class RecipeWriteService(
     }
 
     private fun validateRecipe(command: RecipeCommand.CreateRecipe) {
-        if (command.title.isBlank() || command.description.isBlank()) {
+        validateRecipe(command.title, command.description, command.ingredients)
+    }
+
+    private fun validateRecipe(
+        title: String,
+        description: String,
+        ingredients: List<RecipeCommand.IngredientInput>
+    ) {
+        if (title.isBlank() || description.isBlank()) {
             throw BusinessException(ErrorCode.INVALID_INPUT)
         }
-        if (command.ingredients.isEmpty()) {
+        if (ingredients.isEmpty()) {
             throw BusinessException(
                 ErrorCode.INVALID_INPUT,
                 detail = mapOf("field" to "ingredients", "reason" to "must not be empty")
             )
         }
-        command.ingredients.forEach(::validateIngredientInput)
+        ingredients.forEach(::validateIngredientInput)
     }
 
     private fun findAttachableImage(imageId: Long, author: Member): MediaAsset {
@@ -93,6 +149,37 @@ class RecipeWriteService(
             throw BusinessException(ErrorCode.MEDIA_NOT_VERIFIED)
         }
         return asset
+    }
+
+    private fun resolveUpdateImage(imageId: Long?, recipe: SauceRecipe, author: Member): MediaAsset? {
+        val currentImage = recipe.imageAsset
+        if (imageId == null || imageId == currentImage?.id) {
+            return currentImage
+        }
+
+        val nextImage = findAttachableImage(imageId, author)
+        currentImage?.detachFromRecipe(recipe.id)
+        return nextImage
+    }
+
+    private fun detachRecipeImage(recipe: SauceRecipe) {
+        val imageAsset = recipe.imageAsset ?: return
+        imageAsset.detachFromRecipe(recipe.id)
+        recipe.imageAsset = null
+    }
+
+    private fun findEditableOwnedRecipe(recipeId: Long, authorId: Long): SauceRecipe {
+        val recipe = sauceRecipeRepository.findByIdAndAuthorId(recipeId, authorId)
+            ?: throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
+        if (recipe.visibility != RecipeVisibility.VISIBLE) {
+            throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
+        }
+        return recipe
+    }
+
+    private fun findDeletableOwnedRecipe(recipeId: Long, authorId: Long): SauceRecipe {
+        return sauceRecipeRepository.findByIdAndAuthorId(recipeId, authorId)
+            ?: throw BusinessException(ErrorCode.RECIPE_NOT_FOUND)
     }
 
     private fun validateIngredientInput(input: RecipeCommand.IngredientInput) {

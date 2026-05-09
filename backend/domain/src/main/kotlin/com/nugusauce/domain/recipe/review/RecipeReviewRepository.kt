@@ -26,6 +26,8 @@ interface RecipeReviewRepository : JpaRepository<RecipeReview, Long> {
 
     fun findAllByRecipeIdOrderByCreatedAtDesc(recipeId: Long): List<RecipeReview>
 
+    fun findAllByRecipeId(recipeId: Long): List<RecipeReview>
+
     @Query(
         """
         select r.recipe.id as recipeId,

@@ -86,3 +86,7 @@ When an error shape changes:
 - Update this document.
 - Add or update backend controller/API tests.
 - Update iOS decoding expectations when the iOS client exists.
+
+Owner-only recipe mutation endpoints intentionally use `RECIPE_001` for missing,
+curated, non-owned, and hidden update targets so those endpoints do not disclose
+recipe ownership. Anonymous requests still use `AUTH_001`.

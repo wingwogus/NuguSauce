@@ -401,12 +401,20 @@ final class ViewModelTests: XCTestCase {
         await viewModel.load()
         viewModel.addIngredient(ingredient)
         viewModel.title = "사천식 매콤 소스"
+        viewModel.description = "기존 입력"
+        viewModel.ingredientSearchText = "참"
 
         let recipeID = await viewModel.submit()
 
         XCTAssertEqual(recipeID, 1)
-        XCTAssertEqual(viewModel.submittedRecipeID, 1)
-        XCTAssertTrue(viewModel.didSubmit)
+        XCTAssertEqual(viewModel.title, "")
+        XCTAssertEqual(viewModel.description, "")
+        XCTAssertEqual(viewModel.ingredientSearchText, "")
+        XCTAssertTrue(viewModel.ingredients.isEmpty)
+        XCTAssertFalse(viewModel.didSubmit)
+        XCTAssertNil(viewModel.submittedRecipeID)
+        XCTAssertEqual(viewModel.formResetRevision, 1)
+        XCTAssertFalse(viewModel.canSubmit)
     }
 
     func testCreateRecipeSubmitDoesNotExposeServerErrorMessage() async {
@@ -454,6 +462,63 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(client.createdRecipeRequests.first?.imageId, 50)
     }
 
+    func testEditRecipeLoadPrefillsExistingDetail() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let sesameOil = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let detail = Self.recipeDetail(
+            id: 42,
+            title: "기존 소스",
+            description: "기존 설명",
+            imageUrl: "https://cdn.example.test/recipe/42.jpg",
+            ingredients: [
+                RecipeIngredientDTO(ingredientId: 1, name: "참기름", amount: 1.2, unit: "스푼", ratio: 1.2),
+                RecipeIngredientDTO(ingredientId: 2, name: "다진 마늘", amount: 0.5, unit: "스푼", ratio: 0.5)
+            ]
+        )
+        let viewModel = CreateRecipeViewModel(
+            apiClient: TestAPIClient(ingredients: [sesameOil], recipeDetail: detail),
+            authStore: authStore,
+            editRecipeID: 42
+        )
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isEditing)
+        XCTAssertEqual(viewModel.title, "기존 소스")
+        XCTAssertEqual(viewModel.description, "기존 설명")
+        XCTAssertEqual(viewModel.existingImageURL, "https://cdn.example.test/recipe/42.jpg")
+        XCTAssertEqual(viewModel.ingredients.map(\.ingredient.name), ["참기름", "다진 마늘"])
+        XCTAssertEqual(viewModel.ingredients.map(\.ratio), [1.2, 0.5])
+    }
+
+    func testEditRecipeSubmitCallsUpdateInsteadOfCreate() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let detail = Self.recipeDetail(
+            id: 42,
+            title: "기존 소스",
+            ingredients: [
+                RecipeIngredientDTO(ingredientId: 1, name: "참기름", amount: 1.0, unit: "비율", ratio: 1.0)
+            ]
+        )
+        let client = TestAPIClient(ingredients: [ingredient], recipeDetail: detail)
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore, editRecipeID: 42)
+
+        await viewModel.load()
+        viewModel.title = "수정한 소스"
+        viewModel.description = "수정한 설명"
+
+        let recipeID = await viewModel.submit()
+
+        XCTAssertEqual(recipeID, 42)
+        XCTAssertTrue(client.createdRecipeRequests.isEmpty)
+        XCTAssertEqual(client.updatedRecipeRequests.map(\.id), [42])
+        XCTAssertEqual(client.updatedRecipeRequests.first?.request.title, "수정한 소스")
+        XCTAssertEqual(client.updatedRecipeRequests.first?.request.description, "수정한 설명")
+        XCTAssertEqual(viewModel.submittedRecipeID, 42)
+        XCTAssertTrue(viewModel.didSubmit)
+    }
+
     func testCreateRecipeSubmitRequiresPhotoRightsConfirmation() async {
         let authStore = TestAuthSessionStore(accessToken: "real-access-token")
         let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
@@ -498,6 +563,28 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(didAccept)
         XCTAssertNil(viewModel.pendingConsentStatus)
         XCTAssertEqual(client.acceptedConsentRequests.first?.acceptedPolicies.first?.policyType, "terms_of_service")
+    }
+
+    func testCreateRecipeConsentRecoveryBlocksUnknownPolicyVersion() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let ingredient = IngredientDTO(id: 1, name: "참기름", category: "oil")
+        let client = TestAPIClient(
+            ingredients: [ingredient],
+            createRecipeError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus(version: "2099-01-01")
+        )
+        let viewModel = CreateRecipeViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.addIngredient(ingredient)
+        viewModel.title = "동의 필요한 소스"
+        _ = await viewModel.submit()
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertFalse(didAccept)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 0)
+        XCTAssertEqual(viewModel.errorMessage, LegalPolicyContent.missingDocumentMessage)
     }
 
     func testCreateRecipeRatioIsTruncatedToTenthsInStateAndRequest() throws {
@@ -1111,15 +1198,57 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(authStore.isAuthenticated)
     }
 
-    func testConsentPolicyCopyProvidesInAppDetailsForRequiredPolicies() {
-        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "terms_of_service").isEmpty)
-        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "privacy_policy").isEmpty)
-        XCTAssertFalse(ConsentPolicyCopy.paragraphs(for: "content_policy").isEmpty)
-        XCTAssertTrue(ConsentPolicyCopy.paragraphs(for: "privacy_policy").joined().contains("개인정보"))
-        XCTAssertTrue(ConsentPolicyCopy.paragraphs(for: "content_policy").joined().contains("사진"))
-        XCTAssertEqual(ConsentPolicyCopy.policies(from: Self.missingConsentStatus()).map(\.policyType), [
+    func testLegalPolicyContentProvidesBundledMarkdownForRequiredPolicies() {
+        let status = Self.allMissingConsentStatus()
+        let documents = LegalPolicyContent.documents(for: status)
+
+        XCTAssertTrue(LegalPolicyContent.canDisplayAllMissingPolicies(in: status))
+        XCTAssertEqual(documents.map(\.policyType), [.termsOfService, .privacyPolicy, .contentPolicy])
+        XCTAssertTrue(documents.first { $0.policyType == .privacyPolicy }?.markdownBody.contains("개인정보") == true)
+        XCTAssertTrue(documents.first { $0.policyType == .contentPolicy }?.markdownBody.contains("사진") == true)
+        XCTAssertEqual(documents.map(\.version), ["2026-05-01", "2026-05-01", "2026-05-01"])
+    }
+
+    func testLegalPolicyContentBlocksUnknownRequiredVersion() {
+        let status = Self.missingConsentStatus(version: "2099-01-01")
+
+        XCTAssertFalse(LegalPolicyContent.canDisplayAllMissingPolicies(in: status))
+        XCTAssertEqual(LegalPolicyContent.missingLocalDocuments(in: status).map(\.policyType), [
             "terms_of_service"
         ])
+    }
+
+    @MainActor
+    func testLoginViewModelBlocksConsentWhenRequiredPolicyDocumentIsMissing() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(version: "2099-01-01"),
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies]
+            ),
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService()
+        )
+
+        let didCompleteAfterKakao = await viewModel.loginWithKakao()
+        let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
+
+        XCTAssertFalse(didCompleteAfterKakao)
+        XCTAssertFalse(didCompleteAfterConsent)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 0)
+        XCTAssertEqual(viewModel.errorMessage, LegalPolicyContent.missingDocumentMessage)
     }
 
     func testKeychainTokenStoreSavesUpdatesReadsAndDeletesWithIsolatedService() {
@@ -1375,6 +1504,26 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(client.acceptedConsentRequests.count, 1)
     }
 
+    func testRecipeDetailConsentRecoveryBlocksUnknownPolicyVersion() async {
+        let client = TestAPIClient(
+            createReviewError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus(version: "2099-01-01")
+        )
+        let viewModel = RecipeDetailViewModel(
+            recipeID: 10,
+            apiClient: client,
+            authStore: TestAuthSessionStore(accessToken: "real-access-token")
+        )
+        viewModel.reviewText = "고소하고 좋아요"
+        _ = await viewModel.submitReview()
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertFalse(didAccept)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 0)
+        XCTAssertEqual(viewModel.errorMessage, LegalPolicyContent.missingDocumentMessage)
+    }
+
     func testRecipeDetailRejectsReviewWhenLoggedOut() async {
         let viewModel = RecipeDetailViewModel(
             recipeID: 10,
@@ -1388,6 +1537,38 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(didSubmit)
         XCTAssertEqual(viewModel.errorMessage, "로그인이 필요합니다.")
         XCTAssertTrue(viewModel.reviews.isEmpty)
+    }
+
+    func testRecipeDetailDeleteRequiresOwner() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        authStore.updateMemberProfile(
+            MemberProfileDTO(id: 7, nickname: "소스장인", displayName: "소스장인", profileSetupRequired: false)
+        )
+        let client = TestAPIClient(recipeDetail: Self.recipeDetail(id: 42, authorId: 8))
+        let viewModel = RecipeDetailViewModel(recipeID: 42, apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        let didDelete = await viewModel.deleteRecipe()
+
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(viewModel.errorMessage, "삭제 권한이 없어요.")
+        XCTAssertTrue(client.deletedRecipeIDs.isEmpty)
+    }
+
+    func testRecipeDetailDeleteCallsOwnerEndpoint() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        authStore.updateMemberProfile(
+            MemberProfileDTO(id: 7, nickname: "소스장인", displayName: "소스장인", profileSetupRequired: false)
+        )
+        let client = TestAPIClient(recipeDetail: Self.recipeDetail(id: 42, authorId: 7))
+        let viewModel = RecipeDetailViewModel(recipeID: 42, apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        let didDelete = await viewModel.deleteRecipe()
+
+        XCTAssertTrue(didDelete)
+        XCTAssertTrue(viewModel.didDelete)
+        XCTAssertEqual(client.deletedRecipeIDs, [42])
     }
 
     func testProfileLoadFetchesMemberProfileAndUpdatesSession() async {
@@ -1411,6 +1592,50 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(authStore.currentSession?.memberId, 7)
         XCTAssertEqual(authStore.currentSession?.displayName, "사용자 7")
         XCTAssertEqual(authStore.currentSession?.profileImageUrl, "https://cdn.example.test/profile/7.jpg")
+    }
+
+    func testProfileAppliesRecipeMutationRowsImmediately() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let originalRecipe = Self.recipe(id: 42, title: "기존 소스")
+        let client = TestAPIClient(
+            recipes: [originalRecipe],
+            favoriteRecipes: [originalRecipe]
+        )
+        let viewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.recipeWasUpdated(Self.recipe(id: 42, title: "수정한 소스"))
+
+        XCTAssertEqual(viewModel.myRecipes.map(\.title), ["수정한 소스"])
+        XCTAssertEqual(viewModel.favoriteRecipes.map(\.title), ["수정한 소스"])
+
+        viewModel.recipeWasDeleted(id: 42)
+
+        XCTAssertTrue(viewModel.myRecipes.isEmpty)
+        XCTAssertTrue(viewModel.favoriteRecipes.isEmpty)
+    }
+
+    func testProfileKeepsRecipeMutationRowsAcrossReloads() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let originalRecipe = Self.recipe(id: 42, title: "기존 소스")
+        let client = TestAPIClient(
+            recipes: [originalRecipe],
+            favoriteRecipes: [originalRecipe]
+        )
+        let viewModel = ProfileViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.recipeWasUpdated(Self.recipe(id: 42, title: "수정한 소스"))
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.myRecipes.map(\.title), ["수정한 소스"])
+        XCTAssertEqual(viewModel.favoriteRecipes.map(\.title), ["수정한 소스"])
+
+        viewModel.recipeWasDeleted(id: 42)
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.myRecipes.isEmpty)
+        XCTAssertTrue(viewModel.favoriteRecipes.isEmpty)
     }
 
     func testProfileNicknameSaveUpdatesMemberProfile() async {
@@ -1521,6 +1746,27 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(client.acceptedConsentRequests.count, 1)
     }
 
+    func testProfileEditConsentRecoveryBlocksUnknownPolicyVersion() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(
+            imageUploadIntentError: ApiError(code: ApiErrorCode.consentRequired, message: "consent required", detail: nil),
+            consentStatus: Self.missingConsentStatus(version: "2099-01-01")
+        )
+        let viewModel = ProfileEditViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.load()
+        viewModel.setSelectedPhoto(data: Data([1, 2, 3]), contentType: "image/jpeg", fileExtension: "jpg")
+        viewModel.photoRightsAccepted = true
+        viewModel.nicknameDraft = "새닉네임"
+        _ = await viewModel.save()
+
+        let didAccept = await viewModel.acceptRequiredConsents()
+
+        XCTAssertFalse(didAccept)
+        XCTAssertEqual(client.acceptedConsentRequests.count, 0)
+        XCTAssertEqual(viewModel.errorMessage, LegalPolicyContent.missingDocumentMessage)
+    }
+
     func testProfileUsesUpdatedSessionAfterProfileSetupGateSavesNickname() async {
         let authStore = TestAuthSessionStore(accessToken: "real-access-token")
         let client = TestAPIClient(
@@ -1582,6 +1828,34 @@ final class ViewModelTests: XCTestCase {
         )
     }
 
+    private static func recipeDetail(
+        id: Int,
+        authorId: Int? = nil,
+        title: String = "상세",
+        description: String = "백엔드 상세",
+        imageUrl: String? = nil,
+        ingredients: [RecipeIngredientDTO] = []
+    ) -> RecipeDetailDTO {
+        RecipeDetailDTO(
+            id: id,
+            title: title,
+            description: description,
+            imageUrl: imageUrl,
+            tips: nil,
+            authorId: authorId,
+            authorName: "NuguSauce",
+            authorProfileImageUrl: nil,
+            visibility: .visible,
+            ingredients: ingredients,
+            reviewTags: [],
+            ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
+            favoriteCount: 0,
+            isFavorite: false,
+            createdAt: "2026-04-25T00:00:00Z",
+            lastReviewedAt: nil
+        )
+    }
+
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "NuguSauceTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!
@@ -1633,20 +1907,37 @@ final class ViewModelTests: XCTestCase {
         return UIImage(cgImage: cgImage)
     }
 
-    private static func missingConsentStatus() -> ConsentStatusDTO {
-        let policy = ConsentPolicyDTO(
-            policyType: "terms_of_service",
-            version: "2026-05-01",
-            title: "서비스 이용약관",
-            url: "nugusauce://legal/terms",
-            required: true,
-            accepted: false,
-            activeFrom: "2026-05-01T00:00:00Z"
-        )
+    private static func missingConsentStatus(version: String = "2026-05-01") -> ConsentStatusDTO {
+        let policy = consentPolicy(policyType: "terms_of_service", title: "서비스 이용약관", version: version)
         return ConsentStatusDTO(
             policies: [policy],
             missingPolicies: [policy],
             requiredConsentsAccepted: false
+        )
+    }
+
+    private static func allMissingConsentStatus(version: String = "2026-05-01") -> ConsentStatusDTO {
+        let policies = [
+            consentPolicy(policyType: "terms_of_service", title: "서비스 이용약관", version: version),
+            consentPolicy(policyType: "privacy_policy", title: "개인정보 처리방침", version: version),
+            consentPolicy(policyType: "content_policy", title: "콘텐츠/사진 권리 정책", version: version)
+        ]
+        return ConsentStatusDTO(
+            policies: policies,
+            missingPolicies: policies,
+            requiredConsentsAccepted: false
+        )
+    }
+
+    private static func consentPolicy(policyType: String, title: String, version: String) -> ConsentPolicyDTO {
+        ConsentPolicyDTO(
+            policyType: policyType,
+            version: version,
+            title: title,
+            url: "nugusauce://legal/\(policyType)",
+            required: true,
+            accepted: false,
+            activeFrom: "\(version)T00:00:00Z"
         )
     }
 }
@@ -1658,6 +1949,7 @@ private final class TestAPIClient: APIClientProtocol {
     private let favoriteRecipes: [RecipeSummaryDTO]
     private let ingredients: [IngredientDTO]
     private let tags: [TagDTO]
+    private let recipeDetail: RecipeDetailDTO?
     private let detailIsFavorite: Bool
     private let createRecipeError: Error?
     private let createReviewError: Error?
@@ -1683,6 +1975,8 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var uploadedImageByteCounts: [Int] = []
     private(set) var completedImageIDs: [Int] = []
     private(set) var createdRecipeRequests: [CreateRecipeRequestDTO] = []
+    private(set) var updatedRecipeRequests: [(id: Int, request: UpdateRecipeRequestDTO)] = []
+    private(set) var deletedRecipeIDs: [Int] = []
     private(set) var uploadEvents: [String] = []
     private(set) var createdReviewRequests: [CreateReviewRequestDTO] = []
     private(set) var updatedNicknames: [String] = []
@@ -1702,6 +1996,7 @@ private final class TestAPIClient: APIClientProtocol {
         favoriteRecipes: [RecipeSummaryDTO]? = nil,
         ingredients: [IngredientDTO] = [],
         tags: [TagDTO] = [],
+        recipeDetail: RecipeDetailDTO? = nil,
         detailIsFavorite: Bool = false,
         createRecipeError: Error? = nil,
         createReviewError: Error? = nil,
@@ -1728,6 +2023,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.favoriteRecipes = favoriteRecipes ?? recipes
         self.ingredients = ingredients
         self.tags = tags
+        self.recipeDetail = recipeDetail
         self.detailIsFavorite = detailIsFavorite
         self.createRecipeError = createRecipeError
         self.createReviewError = createReviewError
@@ -1758,6 +2054,9 @@ private final class TestAPIClient: APIClientProtocol {
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {
+        if let recipeDetail {
+            return recipeDetail
+        }
         return RecipeDetailDTO(
             id: id,
             title: "상세",
@@ -1829,6 +2128,41 @@ private final class TestAPIClient: APIClientProtocol {
         uploadEvents.append("create")
         createdRecipeRequests.append(request)
         return try await fetchRecipeDetail(id: 1)
+    }
+    func updateRecipe(id: Int, request: UpdateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        uploadEvents.append("update")
+        updatedRecipeRequests.append((id, request))
+        return RecipeDetailDTO(
+            id: id,
+            title: request.title,
+            description: request.description,
+            imageUrl: request.imageId.map { "https://cdn.example.test/recipe/\($0).jpg" },
+            tips: request.tips,
+            authorId: memberProfile.id,
+            authorName: memberProfile.displayName,
+            authorProfileImageUrl: memberProfile.profileImageUrl,
+            visibility: .visible,
+            ingredients: request.ingredients.map { requestIngredient in
+                RecipeIngredientDTO(
+                    ingredientId: requestIngredient.ingredientId,
+                    name: ingredients.first { ingredient in
+                        ingredient.id == requestIngredient.ingredientId
+                    }?.name ?? "재료 \(requestIngredient.ingredientId)",
+                    amount: requestIngredient.amount,
+                    unit: requestIngredient.unit,
+                    ratio: requestIngredient.ratio
+                )
+            },
+            reviewTags: [],
+            ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
+            favoriteCount: 0,
+            isFavorite: false,
+            createdAt: "2026-04-25T00:00:00Z",
+            lastReviewedAt: nil
+        )
+    }
+    func deleteRecipe(id: Int) async throws {
+        deletedRecipeIDs.append(id)
     }
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
         if let createReviewError {

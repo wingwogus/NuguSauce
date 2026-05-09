@@ -39,10 +39,10 @@ class SauceRecipe(
     val id: Long = 0L,
 
     @Column(nullable = false, length = 120)
-    val title: String,
+    var title: String,
 
     @Column(nullable = false, length = 1000)
-    val description: String,
+    var description: String,
 
     @Column(nullable = false)
     val spiceLevel: Int,
@@ -55,10 +55,10 @@ class SauceRecipe(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "image_asset_id", nullable = true)
-    val imageAsset: MediaAsset? = null,
+    var imageAsset: MediaAsset? = null,
 
     @Column(nullable = true, length = 1000)
-    val tips: String? = null,
+    var tips: String? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = true)
@@ -132,6 +132,35 @@ class SauceRecipe(
         touch()
     }
 
+    fun updateContent(
+        title: String,
+        description: String,
+        tips: String?,
+        imageAsset: MediaAsset?
+    ) {
+        require(title.isNotBlank()) { "recipe title must not be blank" }
+        require(description.isNotBlank()) { "recipe description must not be blank" }
+        this.title = title
+        this.description = description
+        this.tips = tips
+        this.imageAsset = imageAsset
+        touch()
+    }
+
+    fun replaceIngredients(inputs: List<IngredientInput>) {
+        require(inputs.isNotEmpty()) { "recipe ingredients must not be empty" }
+        ingredients.clear()
+        inputs.forEach { input ->
+            addIngredient(
+                ingredient = input.ingredient,
+                amount = input.amount,
+                unit = input.unit,
+                ratio = input.ratio
+            )
+        }
+        touch()
+    }
+
     fun addTag(tag: RecipeTag) {
         require(author == null) {
             "user recipes cannot select taste tags"
@@ -168,4 +197,11 @@ class SauceRecipe(
     private fun touch(at: Instant = Instant.now()) {
         updatedAt = at
     }
+
+    data class IngredientInput(
+        val ingredient: Ingredient,
+        val amount: BigDecimal?,
+        val unit: String?,
+        val ratio: BigDecimal?
+    )
 }

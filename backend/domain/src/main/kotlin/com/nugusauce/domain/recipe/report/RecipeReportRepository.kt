@@ -16,4 +16,6 @@ interface RecipeReportRepository : JpaRepository<RecipeReport, Long> {
         @Param("recipeId") recipeId: Long,
         @Param("reporterId") reporterId: Long
     ): Boolean
+
+    fun findAllByRecipeId(recipeId: Long): List<RecipeReport>
 }

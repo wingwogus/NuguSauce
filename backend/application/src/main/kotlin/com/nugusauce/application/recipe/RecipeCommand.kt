@@ -58,6 +58,21 @@ object RecipeCommand {
         val ingredients: List<IngredientInput>
     )
 
+    data class UpdateRecipe(
+        val authorId: Long,
+        val recipeId: Long,
+        val title: String,
+        val description: String,
+        val imageId: Long? = null,
+        val tips: String? = null,
+        val ingredients: List<IngredientInput>
+    )
+
+    data class DeleteRecipe(
+        val authorId: Long,
+        val recipeId: Long
+    )
+
     data class CreateReview(
         val authorId: Long,
         val recipeId: Long,

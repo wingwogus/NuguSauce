@@ -12,6 +12,9 @@ final class ProfileViewModel: ObservableObject {
 
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStoreProtocol
+    private var loadedMemberID: Int?
+    private var locallyDeletedRecipeIDs: Set<Int> = []
+    private var locallyUpdatedRecipes: [Int: RecipeSummaryDTO] = [:]
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStoreProtocol) {
         self.apiClient = apiClient
@@ -62,11 +65,12 @@ final class ProfileViewModel: ObservableObject {
             async let myRecipes = apiClient.fetchMyRecipes()
             async let favoriteRecipes = apiClient.fetchFavoriteRecipes()
             let loadedMember = try await member
+            resetLocalRecipeMutationsIfMemberChanged(to: loadedMember.id)
             self.member = loadedMember
             nicknameDraft = loadedMember.nickname ?? ""
             authStore.updateMemberProfile(loadedMember)
-            self.myRecipes = try await myRecipes
-            self.favoriteRecipes = try await favoriteRecipes
+            self.myRecipes = applyLocalRecipeMutations(to: try await myRecipes)
+            self.favoriteRecipes = applyLocalRecipeMutations(to: try await favoriteRecipes)
         } catch {
             errorMessage = "프로필 정보를 불러오지 못했어요."
         }
@@ -108,6 +112,46 @@ final class ProfileViewModel: ObservableObject {
         nicknameDraft = ""
         nicknameErrorMessage = nil
         isSavingNickname = false
+        loadedMemberID = nil
+        locallyDeletedRecipeIDs = []
+        locallyUpdatedRecipes = [:]
+    }
+
+    func recipeWasUpdated(_ recipe: RecipeSummaryDTO) {
+        guard !locallyDeletedRecipeIDs.contains(recipe.id) else {
+            return
+        }
+        locallyUpdatedRecipes[recipe.id] = recipe
+        if let index = myRecipes.firstIndex(where: { $0.id == recipe.id }) {
+            myRecipes[index] = recipe
+        }
+        if let index = favoriteRecipes.firstIndex(where: { $0.id == recipe.id }) {
+            favoriteRecipes[index] = recipe
+        }
+    }
+
+    func recipeWasDeleted(id: Int) {
+        locallyDeletedRecipeIDs.insert(id)
+        locallyUpdatedRecipes[id] = nil
+        myRecipes.removeAll { $0.id == id }
+        favoriteRecipes.removeAll { $0.id == id }
+    }
+
+    private func resetLocalRecipeMutationsIfMemberChanged(to memberID: Int) {
+        if let loadedMemberID, loadedMemberID != memberID {
+            locallyDeletedRecipeIDs = []
+            locallyUpdatedRecipes = [:]
+        }
+        loadedMemberID = memberID
+    }
+
+    private func applyLocalRecipeMutations(to recipes: [RecipeSummaryDTO]) -> [RecipeSummaryDTO] {
+        recipes.compactMap { recipe in
+            if locallyDeletedRecipeIDs.contains(recipe.id) {
+                return nil
+            }
+            return locallyUpdatedRecipes[recipe.id] ?? recipe
+        }
     }
 
     private func nicknameMessage(for error: ApiError) -> String {
@@ -246,6 +290,11 @@ final class ProfileEditViewModel: ObservableObject {
     func acceptRequiredConsents() async -> Bool {
         guard !isAcceptingConsents,
               let pendingConsentStatus else {
+            return false
+        }
+
+        guard LegalPolicyContent.canDisplayAllMissingPolicies(in: pendingConsentStatus) else {
+            errorMessage = LegalPolicyContent.missingDocumentMessage
             return false
         }
 

@@ -127,7 +127,7 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(envelope.error?.code, ApiErrorCode.duplicateReview)
     }
 
-    func testCreateRecipeRequestDoesNotEncodeTasteClassificationFields() throws {
+    func testCreateRecipeRequestEncodesOnlyWritableFields() throws {
         let request = CreateRecipeRequestDTO(
             title: "내 소스",
             description: "고소하고 살짝 매운 조합",
@@ -139,13 +139,32 @@ final class APIContractTests: XCTestCase {
         )
 
         let data = try JSONEncoder().encode(request)
-        let encoded = String(decoding: data, as: UTF8.self)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        XCTAssertFalse(encoded.contains("spiceLevel"))
-        XCTAssertFalse(encoded.contains("richnessLevel"))
-        XCTAssertFalse(encoded.contains("tagIds"))
-        XCTAssertFalse(encoded.contains("imageUrl"))
-        XCTAssertFalse(encoded.contains("tips"))
+        XCTAssertEqual(Set(object.keys), ["title", "description", "ingredients"])
+    }
+
+    func testUpdateRecipeRequestEncodesOnlyWritableFields() throws {
+        let request = UpdateRecipeRequestDTO(
+            title: "수정한 소스",
+            description: "더 고소하게 바꾼 조합",
+            imageId: 50,
+            tips: nil,
+            ingredients: [
+                CreateRecipeIngredientRequestDTO(ingredientId: 1, amount: 1.0, unit: "스푼", ratio: 1.0)
+            ]
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(Set(object.keys), ["title", "description", "imageId", "ingredients"])
+    }
+
+    func testRecipeNotFoundErrorUsesResourceNotFoundMessage() {
+        let error = ApiError(code: ApiErrorCode.recipeNotFound, message: "recipe.not_found", detail: nil)
+
+        XCTAssertEqual(error.userVisibleMessage(default: "fallback"), "요청한 정보를 찾을 수 없어요.")
     }
 
     func testIngredientResponseDecodesPhysicalCategory() throws {

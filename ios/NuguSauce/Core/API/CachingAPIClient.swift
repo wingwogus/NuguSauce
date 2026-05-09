@@ -156,6 +156,17 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         return recipe
     }
 
+    func updateRecipe(id: Int, request: UpdateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        let recipe = try await upstream.updateRecipe(id: id, request: request)
+        await invalidateRecipeMutationAffectedReads(recipeID: id)
+        return recipe
+    }
+
+    func deleteRecipe(id: Int) async throws {
+        try await upstream.deleteRecipe(id: id)
+        await invalidateRecipeMutationAffectedReads(recipeID: id)
+    }
+
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
         let review = try await upstream.createReview(recipeID: recipeID, request: request)
         await invalidate(scopes: [.reviews(recipeID), .recipeDetail(recipeID), .recipeLists])
@@ -285,6 +296,10 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
     }
 
     private func invalidateFavoriteAffectedReads(recipeID: Int) async {
+        await invalidate(scopes: [.recipeDetail(recipeID), .recipeLists, .favorites, .profile])
+    }
+
+    private func invalidateRecipeMutationAffectedReads(recipeID: Int) async {
         await invalidate(scopes: [.recipeDetail(recipeID), .recipeLists, .favorites, .profile])
     }
 

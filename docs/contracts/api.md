@@ -205,6 +205,8 @@ These endpoints require JWT and all current required consents:
 
 - `POST /api/v1/media/images/upload-intent`
 - `POST /api/v1/recipes`
+- `PATCH /api/v1/me/recipes/{recipeId}`
+- `DELETE /api/v1/me/recipes/{recipeId}`
 - `POST /api/v1/recipes/{recipeId}/reviews`
 - `POST /api/v1/recipes/{recipeId}/reports`
 - `PATCH /api/v1/members/me` when `profileImageId` is supplied
@@ -595,8 +597,6 @@ Request:
 }
 ```
 
-Authors can only submit the sauce composition and optional media fields. `spiceLevel`, `richnessLevel`, and `tagIds` are not accepted on user-created recipes; taste classification comes from reviews. Requests containing author-selected taste classification fields fail with `COMMON_001`.
-
 `imageId` is optional. When present, it must refer to a verified media asset
 owned by the authenticated member and not already attached to a recipe or
 profile.
@@ -747,9 +747,9 @@ My recipe APIs require JWT authentication and never expose another user's privat
 
 ### `GET /api/v1/me/recipes`
 
-Returns recipes authored by the authenticated member. Hidden own recipes may be
-returned so the author can manage them. `isFavorite` is still viewer-relative,
-so authored recipes may be either `true` or `false`.
+Returns visible recipes authored by the authenticated member. Hidden recipes are
+not returned from this tab. `isFavorite` is still viewer-relative, so authored
+recipes may be either `true` or `false`.
 
 Success data:
 
@@ -772,6 +772,69 @@ Success data:
   }
 ]
 ```
+
+### `PATCH /api/v1/me/recipes/{recipeId}`
+
+Requires JWT and required service, privacy, and content/photo policy consents.
+
+Updates a visible recipe authored by the authenticated member. The owner lookup
+uses the authenticated member id and `recipeId`; missing recipes, curated
+recipes, recipes owned by another member, and hidden update targets fail with
+`RECIPE_001` so owner-only mutation endpoints do not disclose ownership.
+
+Request:
+
+```json
+{
+  "title": "수정한 내 소스",
+  "description": "고소함을 더 살린 조합",
+  "imageId": 51,
+  "tips": "땅콩소스를 먼저 푼다",
+  "ingredients": [
+    {
+      "ingredientId": 1,
+      "amount": 1.0,
+      "unit": "스푼",
+      "ratio": null
+    }
+  ]
+}
+```
+
+`imageId` is optional. When omitted, the existing recipe image is kept. When a
+new `imageId` is supplied, it must be a verified media asset owned by the
+authenticated member and not attached elsewhere. The previous local media asset
+is detached from the recipe without deleting provider media.
+
+Legacy/direct `imageUrl` input is rejected with `COMMON_001`.
+
+Success data matches the recipe detail shape.
+
+### `DELETE /api/v1/me/recipes/{recipeId}`
+
+Requires JWT and required service, privacy, and content/photo policy consents.
+
+Permanently deletes an authenticated member's own recipe. The backend removes
+the recipe row and owned recipe graph including ingredient rows, reviews, review
+tag links, favorites, reports, and recipe tag links. Local media metadata is
+detached from the recipe; provider media is not deleted by this endpoint.
+
+Missing recipes, curated recipes, and recipes owned by another member fail with
+`RECIPE_001`. Repeating the delete after the row has already been removed also
+fails with `RECIPE_001`.
+
+Success data is empty:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "error": null
+}
+```
+
+After deletion, public search, public detail, favorite lists, public profile
+recipe lists, and `GET /api/v1/me/recipes` must not expose the deleted recipe.
 
 ### `GET /api/v1/me/favorite-recipes`
 

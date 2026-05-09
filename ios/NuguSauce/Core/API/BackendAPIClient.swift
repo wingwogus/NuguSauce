@@ -135,6 +135,23 @@ final class BackendAPIClient: APIClientProtocol {
         try await send(path: "/api/v1/recipes", method: "POST", body: AnyEncodable(request), requiresAuthentication: true)
     }
 
+    func updateRecipe(id: Int, request: UpdateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        try await send(
+            path: "/api/v1/me/recipes/\(id)",
+            method: "PATCH",
+            body: AnyEncodable(request),
+            requiresAuthentication: true
+        )
+    }
+
+    func deleteRecipe(id: Int) async throws {
+        try await sendEmpty(
+            path: "/api/v1/me/recipes/\(id)",
+            method: "DELETE",
+            requiresAuthentication: true
+        )
+    }
+
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
         try await send(
             path: "/api/v1/recipes/\(recipeID)/reviews",

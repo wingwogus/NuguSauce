@@ -178,6 +178,71 @@ final class CachingAPIClientTests: XCTestCase {
         XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
     }
 
+    func testRecipeUpdateInvalidatesAffectedReads() async throws {
+        let authStore = CachingTestAuthStore(memberID: 3)
+        let upstream = CountingAPIClient(authStore: authStore)
+        let client = CachingAPIClient(upstream: upstream, authStore: authStore)
+        let query = RecipeListQuery(sort: .popular)
+
+        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeDetail(id: 10)
+        _ = try await client.fetchFavoriteRecipes()
+        _ = try await client.fetchMyRecipes()
+        _ = try await client.fetchMyMember()
+
+        _ = try await client.updateRecipe(
+            id: 10,
+            request: UpdateRecipeRequestDTO(
+                title: "수정",
+                description: "설명",
+                imageId: nil,
+                tips: nil,
+                ingredients: [
+                    CreateRecipeIngredientRequestDTO(ingredientId: 1, amount: 1.0, unit: "스푼", ratio: nil)
+                ]
+            )
+        )
+
+        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeDetail(id: 10)
+        _ = try await client.fetchFavoriteRecipes()
+        _ = try await client.fetchMyRecipes()
+        _ = try await client.fetchMyMember()
+
+        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
+        XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchMyRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchMyMemberCallCount, 2)
+    }
+
+    func testRecipeDeleteInvalidatesAffectedReads() async throws {
+        let authStore = CachingTestAuthStore(memberID: 3)
+        let upstream = CountingAPIClient(authStore: authStore)
+        let client = CachingAPIClient(upstream: upstream, authStore: authStore)
+        let query = RecipeListQuery(sort: .popular)
+
+        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeDetail(id: 10)
+        _ = try await client.fetchFavoriteRecipes()
+        _ = try await client.fetchMyRecipes()
+        _ = try await client.fetchMyMember()
+
+        try await client.deleteRecipe(id: 10)
+
+        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeDetail(id: 10)
+        _ = try await client.fetchFavoriteRecipes()
+        _ = try await client.fetchMyRecipes()
+        _ = try await client.fetchMyMember()
+
+        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
+        XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchMyRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchMyMemberCallCount, 2)
+    }
+
     fileprivate static func recipe(id: Int, isFavorite: Bool = false) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
@@ -291,6 +356,8 @@ private final class CountingAPIClient: APIClientProtocol {
     private(set) var fetchFavoriteRecipesCallCount = 0
     private(set) var fetchMyRecipesCallCount = 0
     private(set) var fetchMyMemberCallCount = 0
+    private(set) var updateRecipeCallCount = 0
+    private(set) var deleteRecipeCallCount = 0
 
     init(authStore: CachingTestAuthStore) {
         self.authStore = authStore
@@ -344,6 +411,15 @@ private final class CountingAPIClient: APIClientProtocol {
 
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
         return CachingAPIClientTests.detail(id: 99)
+    }
+
+    func updateRecipe(id: Int, request: UpdateRecipeRequestDTO) async throws -> RecipeDetailDTO {
+        updateRecipeCallCount += 1
+        return CachingAPIClientTests.detail(id: id)
+    }
+
+    func deleteRecipe(id: Int) async throws {
+        deleteRecipeCallCount += 1
     }
 
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {

@@ -6,7 +6,11 @@ import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.Ingredient
+import com.nugusauce.domain.recipe.ingredient.RecipeIngredient
+import com.nugusauce.domain.recipe.report.RecipeReport
+import com.nugusauce.domain.recipe.report.RecipeReportRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.tag.RecipeTag
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -37,6 +41,8 @@ import java.util.concurrent.TimeUnit
 class SauceRecipeRepositoryImplTest @Autowired constructor(
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val recipeReviewRepository: RecipeReviewRepository,
+    private val recipeReportRepository: RecipeReportRepository,
     private val memberRepository: MemberRepository,
     private val transactionManager: PlatformTransactionManager,
     private val entityManager: TestEntityManager
@@ -261,6 +267,80 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         assertEquals(listOf("높은 평점", "많은 리뷰", "최신 소스"), rating.map { it.title })
     }
 
+    @Test
+    fun `replaceIngredients orphan removes old ingredient rows after flush`() {
+        val sesameOil = ingredient("참기름")
+        val peanutSauce = ingredient("땅콩소스")
+        val recipe = recipe(title = "재료 교체 소스", ingredients = listOf(sesameOil))
+        flushAndClear()
+
+        val managedRecipe = sauceRecipeRepository.findById(recipe.id).orElseThrow()
+        val managedPeanutSauce = entityManager.find(Ingredient::class.java, peanutSauce.id)
+        managedRecipe.replaceIngredients(
+            listOf(
+                SauceRecipe.IngredientInput(
+                    ingredient = managedPeanutSauce,
+                    amount = BigDecimal("2.0"),
+                    unit = "스푼",
+                    ratio = null
+                )
+            )
+        )
+        flushAndClear()
+
+        val ingredientNames = entityManager.entityManager
+            .createQuery(
+                """
+                select i.ingredient.name
+                from RecipeIngredient i
+                where i.recipe.id = :recipeId
+                order by i.ingredient.name
+                """.trimIndent(),
+                String::class.java
+            )
+            .setParameter("recipeId", recipe.id)
+            .resultList
+
+        assertEquals(listOf("땅콩소스"), ingredientNames)
+    }
+
+    @Test
+    fun `deleting recipe graph removes dependent rows instead of soft hiding`() {
+        val sesameOil = ingredient("참기름")
+        val savory = tag("고소함")
+        val target = recipe(title = "삭제 대상 소스", ingredients = listOf(sesameOil))
+        review(target, savory)
+        favorite(target)
+        report(target)
+        flushAndClear()
+
+        val managedRecipe = sauceRecipeRepository.findById(target.id).orElseThrow()
+        recipeReportRepository.deleteAll(recipeReportRepository.findAllByRecipeId(target.id))
+        recipeFavoriteRepository.deleteAll(recipeFavoriteRepository.findAllByRecipeId(target.id))
+        recipeReviewRepository.deleteAll(recipeReviewRepository.findAllByRecipeId(target.id))
+        sauceRecipeRepository.delete(managedRecipe)
+        flushAndClear()
+
+        assertEquals(false, sauceRecipeRepository.findById(target.id).isPresent)
+        assertEquals(
+            0L,
+            countByRecipeId("select count(i) from RecipeIngredient i where i.recipe.id = :recipeId", target.id)
+        )
+        assertEquals(
+            0L,
+            countByRecipeId("select count(f) from RecipeFavorite f where f.recipe.id = :recipeId", target.id)
+        )
+        assertEquals(
+            0L,
+            countByRecipeId("select count(r) from RecipeReview r where r.recipe.id = :recipeId", target.id)
+        )
+        assertEquals(
+            0L,
+            countByRecipeId("select count(r) from RecipeReport r where r.recipe.id = :recipeId", target.id)
+        )
+        assertEquals(0L, nativeCount("select count(*) from recipe_review_tag"))
+    }
+
     private fun recipe(
         title: String,
         ingredients: List<Ingredient> = emptyList(),
@@ -325,8 +405,34 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         )
     }
 
+    private fun report(
+        recipe: SauceRecipe,
+        createdAt: Instant = Instant.parse("2026-04-01T00:00:00Z")
+    ): RecipeReport {
+        return entityManager.persistAndFlush(
+            RecipeReport(
+                recipe = recipe,
+                reporter = member("reporter-${recipe.id}@example.test"),
+                reason = "부적절한 내용",
+                createdAt = createdAt
+            )
+        )
+    }
+
     private fun member(email: String): Member {
         return entityManager.persistAndFlush(Member(email = email, passwordHash = null))
+    }
+
+    private fun countByRecipeId(jpql: String, recipeId: Long): Long {
+        return entityManager.entityManager
+            .createQuery(jpql, Long::class.javaObjectType)
+            .setParameter("recipeId", recipeId)
+            .singleResult
+            .toLong()
+    }
+
+    private fun nativeCount(sql: String): Long {
+        return (entityManager.entityManager.createNativeQuery(sql).singleResult as Number).toLong()
     }
 
     private fun flushAndClear() {
@@ -342,15 +448,19 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             MediaAsset::class,
             SauceRecipe::class,
             Ingredient::class,
+            RecipeIngredient::class,
             RecipeTag::class,
             RecipeReview::class,
-            RecipeFavorite::class
+            RecipeFavorite::class,
+            RecipeReport::class
         ]
     )
     @EnableJpaRepositories(
         basePackageClasses = [
             SauceRecipeRepository::class,
             RecipeFavoriteRepository::class,
+            RecipeReviewRepository::class,
+            RecipeReportRepository::class,
             MemberRepository::class
         ]
     )

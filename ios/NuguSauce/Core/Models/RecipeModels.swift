@@ -123,6 +123,39 @@ struct CreateRecipeRequestDTO: Codable, Equatable {
     let ingredients: [CreateRecipeIngredientRequestDTO]
 }
 
+struct UpdateRecipeRequestDTO: Codable, Equatable {
+    let title: String
+    let description: String
+    let imageId: Int?
+    let tips: String?
+    let ingredients: [CreateRecipeIngredientRequestDTO]
+}
+
+enum RecipeMutationEvents {
+    static let didUpdate = Notification.Name("NuguSauce.recipeDidUpdate")
+    static let didDelete = Notification.Name("NuguSauce.recipeDidDelete")
+
+    static let recipeIDKey = "recipeID"
+    static let recipeKey = "recipe"
+}
+
+extension RecipeSummaryDTO {
+    init(detail: RecipeDetailDTO) {
+        self.init(
+            id: detail.id,
+            title: detail.title,
+            description: detail.description,
+            imageUrl: detail.imageUrl,
+            visibility: detail.visibility,
+            ratingSummary: detail.ratingSummary,
+            reviewTags: detail.reviewTags,
+            favoriteCount: detail.favoriteCount,
+            isFavorite: detail.isFavorited,
+            createdAt: detail.createdAt
+        )
+    }
+}
+
 struct ImageUploadIntentRequestDTO: Codable, Equatable {
     let contentType: String
     let byteSize: Int

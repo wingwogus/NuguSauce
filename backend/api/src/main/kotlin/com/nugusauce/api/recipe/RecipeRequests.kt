@@ -44,18 +44,31 @@ object RecipeRequests {
 
         @field:NotEmpty(message = "재료를 하나 이상 입력해주세요")
         @field:Valid
-        val ingredients: List<IngredientRequest>,
+        val ingredients: List<IngredientRequest>
+    )
 
-        val spiceLevel: Int? = null,
+    data class UpdateRecipeRequest(
+        @field:NotBlank(message = "레시피 제목을 입력해주세요")
+        @field:Size(max = 120, message = "레시피 제목은 120자 이하여야 합니다")
+        val title: String,
 
-        val richnessLevel: Int? = null,
+        @field:NotBlank(message = "레시피 설명을 입력해주세요")
+        @field:Size(max = 1000, message = "레시피 설명은 1000자 이하여야 합니다")
+        val description: String,
 
-        val tagIds: List<Long>? = null
-    ) {
-        fun containsAuthorTasteClassification(): Boolean {
-            return spiceLevel != null || richnessLevel != null || tagIds != null
-        }
-    }
+        @field:Size(max = 2048, message = "이미지 URL은 2048자 이하여야 합니다")
+        val imageUrl: String? = null,
+
+        @field:Min(value = 1, message = "이미지 ID가 올바르지 않습니다")
+        val imageId: Long? = null,
+
+        @field:Size(max = 1000, message = "팁은 1000자 이하여야 합니다")
+        val tips: String? = null,
+
+        @field:NotEmpty(message = "재료를 하나 이상 입력해주세요")
+        @field:Valid
+        val ingredients: List<IngredientRequest>
+    )
 
     data class CreateReviewRequest(
         @field:Min(value = 1, message = "평점은 1 이상이어야 합니다")

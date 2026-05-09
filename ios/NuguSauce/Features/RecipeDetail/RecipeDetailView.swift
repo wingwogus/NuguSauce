@@ -3,6 +3,8 @@ import SwiftUI
 struct RecipeDetailView: View {
     @ObservedObject private var authStore: AuthSessionStore
     @StateObject private var viewModel: RecipeDetailViewModel
+    @State private var showsDeleteConfirmation = false
+    @Environment(\.dismiss) private var dismiss
 
     init(recipeID: Int, apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         _authStore = ObservedObject(wrappedValue: authStore)
@@ -20,6 +22,46 @@ struct RecipeDetailView: View {
         }
         .background(SauceColor.surface.ignoresSafeArea())
         .navigationBarBackButtonHidden(false)
+        .toolbar {
+            if viewModel.canMutateRecipe {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink(value: AppRoute.recipeEdit(viewModel.recipeID)) {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel("소스 수정")
+
+                    Button(role: .destructive) {
+                        showsDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .disabled(viewModel.isDeleting)
+                    .accessibilityLabel("소스 삭제")
+                }
+            }
+        }
+        .confirmationDialog(
+            "소스를 삭제할까요?",
+            isPresented: $showsDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("삭제", role: .destructive) {
+                Task {
+                    if await viewModel.deleteRecipe() {
+                        dismiss()
+                    }
+                }
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("삭제한 소스는 공개 목록과 프로필에서 보이지 않아요.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecipeMutationEvents.didUpdate)) { notification in
+            guard let recipe = notification.userInfo?[RecipeMutationEvents.recipeKey] as? RecipeDetailDTO else {
+                return
+            }
+            viewModel.applyUpdatedRecipe(recipe)
+        }
         .task {
             await viewModel.load()
         }

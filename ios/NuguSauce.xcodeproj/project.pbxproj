@@ -35,6 +35,12 @@
 		F00000000000000000000127 /* Core/API/CachingAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000127 /* Core/API/CachingAPIClient.swift */; };
 		F00000000000000000000128 /* App/StartupSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000128 /* App/StartupSplashView.swift */; };
 		F00000000000000000000129 /* Shared/KeyboardDismissal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000129 /* Shared/KeyboardDismissal.swift */; };
+		F00000000000000000000130 /* Features/Legal/LegalPolicyContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000130 /* Features/Legal/LegalPolicyContent.swift */; };
+		F00000000000000000000131 /* Features/Legal/LegalDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000131 /* Features/Legal/LegalDocumentView.swift */; };
+		F00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md */; };
+		F00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */; };
+		F00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */; };
+		F00000000000000000000135 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000135 /* InfoPlist.strings */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
 		F00000000000000000000203 /* CachingAPIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000203 /* CachingAPIClientTests.swift */; };
@@ -91,6 +97,13 @@
 		A00000000000000000000127 /* Core/API/CachingAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/API/CachingAPIClient.swift; sourceTree = "<group>"; };
 		A00000000000000000000128 /* App/StartupSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/StartupSplashView.swift; sourceTree = "<group>"; };
 		A00000000000000000000129 /* Shared/KeyboardDismissal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/KeyboardDismissal.swift; sourceTree = "<group>"; };
+		A00000000000000000000130 /* Features/Legal/LegalPolicyContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Legal/LegalPolicyContent.swift; sourceTree = "<group>"; };
+		A00000000000000000000131 /* Features/Legal/LegalDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Legal/LegalDocumentView.swift; sourceTree = "<group>"; };
+		A00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md"; sourceTree = "<group>"; };
+		A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md"; sourceTree = "<group>"; };
+		A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_content_policy_2026-05-01.md"; sourceTree = "<group>"; };
+		A00000000000000000000136 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		A00000000000000000000137 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000202 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000203 /* CachingAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachingAPIClientTests.swift; sourceTree = "<group>"; };
@@ -152,6 +165,8 @@
 				A00000000000000000000107 /* Core/Auth/KakaoLoginService.swift */,
 				A00000000000000000000108 /* Core/Models/RecipeModels.swift */,
 				A00000000000000000000125 /* Features/Auth/LoginView.swift */,
+				A00000000000000000000130 /* Features/Legal/LegalPolicyContent.swift */,
+				A00000000000000000000131 /* Features/Legal/LegalDocumentView.swift */,
 				A00000000000000000000109 /* Features/Home/HomeViewModel.swift */,
 				A00000000000000000000110 /* Features/Home/HomeView.swift */,
 				A00000000000000000000111 /* Features/RecipeDetail/RecipeDetailViewModel.swift */,
@@ -169,6 +184,10 @@
 				A00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift */,
 				A00000000000000000000129 /* Shared/KeyboardDismissal.swift */,
 				A00000000000000000000124 /* Resources/Assets.xcassets */,
+				A00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md */,
+				A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */,
+				A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */,
+				A00000000000000000000135 /* InfoPlist.strings */,
 				A00000000000000000000121 /* Info.plist */,
 			);
 			path = NuguSauce;
@@ -292,6 +311,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ko,
 				Base,
 			);
 			mainGroup = A00000000000000000000010;
@@ -315,6 +335,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				F00000000000000000000124 /* Resources/Assets.xcassets in Resources */,
+				F00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md in Resources */,
+				F00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md in Resources */,
+				F00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md in Resources */,
+				F00000000000000000000135 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,6 +386,8 @@
 				F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */,
 				F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */,
 				F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */,
+				F00000000000000000000130 /* Features/Legal/LegalPolicyContent.swift in Sources */,
+				F00000000000000000000131 /* Features/Legal/LegalDocumentView.swift in Sources */,
 				F00000000000000000000119 /* Shared/DesignSystem.swift in Sources */,
 				F00000000000000000000120 /* Shared/SauceComponents.swift in Sources */,
 				F00000000000000000000126 /* Shared/ImageUploadPreprocessor.swift in Sources */,
@@ -401,6 +427,18 @@
 			targetProxy = D00000000000000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		A00000000000000000000135 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A00000000000000000000136 /* en */,
+				A00000000000000000000137 /* ko */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		A00000000000000000002100 /* Debug */ = {
@@ -463,7 +501,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NuguSauce/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = NuguSauce;
+				INFOPLIST_KEY_CFBundleDisplayName = Nugusauce;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -471,8 +509,13 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				KAKAO_NATIVE_APP_KEY = 220dd123265c8d0cffcbee57f081cc9e;
 				MARKETING_VERSION = 1.0;
+				NUGUSAUCE_API_BASE_URL = "http://localhost:8080";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nugusauce.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -490,7 +533,7 @@
 				DEVELOPMENT_TEAM = MDXGG9N5VC;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NuguSauce/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = NuguSauce;
+				INFOPLIST_KEY_CFBundleDisplayName = Nugusauce;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -498,8 +541,13 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				KAKAO_NATIVE_APP_KEY = 220dd123265c8d0cffcbee57f081cc9e;
 				MARKETING_VERSION = 1.0;
+				NUGUSAUCE_API_BASE_URL = "https://nugusauce.jaehyuns.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nugusauce.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -586,7 +634,7 @@
 				A00000000000000000002101 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		A00000000000000000002010 /* Build configuration list for PBXNativeTarget "NuguSauce" */ = {
 			isa = XCConfigurationList;
@@ -595,7 +643,7 @@
 				A00000000000000000002111 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		A00000000000000000002020 /* Build configuration list for PBXNativeTarget "NuguSauceTests" */ = {
 			isa = XCConfigurationList;
@@ -604,7 +652,7 @@
 				A00000000000000000002121 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		A00000000000000000002030 /* Build configuration list for PBXNativeTarget "NuguSauceUITests" */ = {
 			isa = XCConfigurationList;
@@ -613,7 +661,7 @@
 				A00000000000000000002131 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 
