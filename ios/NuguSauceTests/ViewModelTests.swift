@@ -17,6 +17,13 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(restoredPreference, .system)
     }
 
+    func testProfileRecipeGridLayoutUsesTwoColumns() {
+        XCTAssertEqual(ProfileRecipeGridLayout.columnCount, 2)
+        XCTAssertEqual(ProfileRecipeGridLayout.columns.count, 2)
+        XCTAssertEqual(ProfileRecipeGridLayout.columnSpacing, 14)
+        XCTAssertEqual(ProfileRecipeGridLayout.rowSpacing, 18)
+    }
+
     func testProfilePlaceholderUsesRedForNuguSauceIdentity() {
         XCTAssertEqual(
             NuguMascotAsset.profilePlaceholder(identityName: "NuguSauce", seed: "member:42"),

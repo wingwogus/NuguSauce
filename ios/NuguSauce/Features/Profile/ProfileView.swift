@@ -477,13 +477,38 @@ private struct ProfileRecipeSection: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(SauceTypography.sectionTitle())
-            ForEach(recipes) { recipe in
-                NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                    RecipeCard(recipe: recipe)
+            LazyVGrid(
+                columns: ProfileRecipeGridLayout.columns,
+                alignment: .leading,
+                spacing: ProfileRecipeGridLayout.rowSpacing
+            ) {
+                ForEach(recipes) { recipe in
+                    NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                        RecipeCard(recipe: recipe)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("profile.recipe.\(recipe.id)")
                 }
-                .buttonStyle(.plain)
             }
+            .accessibilityIdentifier("profile.recipeGrid")
         }
+    }
+}
+
+enum ProfileRecipeGridLayout {
+    static let columnCount = 2
+    static let columnSpacing: CGFloat = 14
+    static let rowSpacing: CGFloat = 18
+
+    static var columns: [GridItem] {
+        Array(
+            repeating: GridItem(
+                .fixed(RecipeCard.cardWidth),
+                spacing: columnSpacing,
+                alignment: .top
+            ),
+            count: columnCount
+        )
     }
 }
 
