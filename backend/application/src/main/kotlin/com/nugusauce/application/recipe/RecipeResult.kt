@@ -6,7 +6,6 @@ import com.nugusauce.domain.recipe.ingredient.Ingredient
 import com.nugusauce.domain.recipe.ingredient.RecipeIngredient
 import com.nugusauce.domain.recipe.report.RecipeReport
 import com.nugusauce.domain.recipe.review.RecipeReview
-import com.nugusauce.domain.recipe.review.RecipeReviewTagCountProjection
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.tag.RecipeTag
 import java.math.BigDecimal
@@ -37,12 +36,6 @@ object RecipeResult {
         val reviewCount: Int
     )
 
-    data class ReviewTagCount(
-        val id: Long,
-        val name: String,
-        val count: Long
-    )
-
     data class RecipeSummary(
         val id: Long,
         val title: String,
@@ -53,7 +46,6 @@ object RecipeResult {
         val visibility: String,
         val ratingSummary: RatingSummary,
         val tags: List<TagItem>,
-        val reviewTags: List<ReviewTagCount>,
         val favoriteCount: Int = 0,
         val isFavorite: Boolean = false,
         val createdAt: Instant
@@ -73,7 +65,6 @@ object RecipeResult {
         val visibility: String,
         val ingredients: List<RecipeIngredientItem>,
         val tags: List<TagItem>,
-        val reviewTags: List<ReviewTagCount>,
         val ratingSummary: RatingSummary,
         val favoriteCount: Int = 0,
         val isFavorite: Boolean,
@@ -89,7 +80,6 @@ object RecipeResult {
         val authorProfileImageUrl: String?,
         val rating: Int,
         val text: String?,
-        val tasteTags: List<TagItem>,
         val createdAt: Instant
     )
 
@@ -132,7 +122,6 @@ object RecipeResult {
 
     fun summary(
         recipe: SauceRecipe,
-        reviewTags: List<ReviewTagCount> = emptyList(),
         isFavorite: Boolean = false,
         imageUrl: String? = recipe.imageUrl
     ): RecipeSummary {
@@ -145,8 +134,7 @@ object RecipeResult {
             imageUrl = imageUrl,
             visibility = recipe.visibility.name,
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
-            tags = recipe.tags.map(::fromTag).sortedBy { it.name },
-            reviewTags = reviewTags,
+            tags = sortedTags(recipe),
             favoriteCount = recipe.favoriteCount,
             isFavorite = isFavorite,
             createdAt = recipe.createdAt
@@ -155,7 +143,6 @@ object RecipeResult {
 
     fun detail(
         recipe: SauceRecipe,
-        reviewTags: List<ReviewTagCount> = emptyList(),
         isFavorite: Boolean = false,
         imageUrl: String? = recipe.imageUrl,
         authorProfileImageUrl: String? = null
@@ -173,8 +160,7 @@ object RecipeResult {
             authorProfileImageUrl = authorProfileImageUrl,
             visibility = recipe.visibility.name,
             ingredients = recipe.ingredients.map(::fromRecipeIngredient).sortedBy { it.name },
-            tags = recipe.tags.map(::fromTag).sortedBy { it.name },
-            reviewTags = reviewTags,
+            tags = sortedTags(recipe),
             ratingSummary = RatingSummary(recipe.averageRating, recipe.reviewCount),
             favoriteCount = recipe.favoriteCount,
             isFavorite = isFavorite,
@@ -192,7 +178,6 @@ object RecipeResult {
             authorProfileImageUrl = authorProfileImageUrl,
             rating = review.rating,
             text = review.text,
-            tasteTags = review.tasteTags.map(::fromTag).sortedBy { it.name },
             createdAt = review.createdAt
         )
     }
@@ -213,15 +198,13 @@ object RecipeResult {
         )
     }
 
-    fun reviewTagCount(projection: RecipeReviewTagCountProjection): ReviewTagCount {
-        return ReviewTagCount(
-            id = projection.tagId,
-            name = projection.tagName,
-            count = projection.tagCount
-        )
-    }
-
     private fun authorName(recipe: SauceRecipe): String {
         return recipe.author?.let(MemberResult::displayName) ?: "NuguSauce"
+    }
+
+    private fun sortedTags(recipe: SauceRecipe): List<TagItem> {
+        return recipe.tags
+            .map(::fromTag)
+            .sortedBy { RecipeTagDerivationPolicy.canonicalOrderIndex(it.name) }
     }
 }

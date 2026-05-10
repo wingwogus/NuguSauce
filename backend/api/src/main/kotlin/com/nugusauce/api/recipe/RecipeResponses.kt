@@ -69,22 +69,6 @@ object RecipeResponses {
         }
     }
 
-    data class ReviewTagCountResponse(
-        val id: Long,
-        val name: String,
-        val count: Long
-    ) {
-        companion object {
-            fun from(result: RecipeResult.ReviewTagCount): ReviewTagCountResponse {
-                return ReviewTagCountResponse(
-                    id = result.id,
-                    name = result.name,
-                    count = result.count
-                )
-            }
-        }
-    }
-
     data class RecipeSummaryResponse(
         val id: Long,
         val title: String,
@@ -92,7 +76,7 @@ object RecipeResponses {
         val imageUrl: String?,
         val visibility: String,
         val ratingSummary: RatingSummaryResponse,
-        val reviewTags: List<ReviewTagCountResponse>,
+        val tags: List<TagResponse>,
         val favoriteCount: Int,
         val isFavorite: Boolean,
         val createdAt: Instant
@@ -106,7 +90,7 @@ object RecipeResponses {
                     imageUrl = result.imageUrl,
                     visibility = result.visibility,
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
-                    reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
+                    tags = result.tags.map(TagResponse::from),
                     favoriteCount = result.favoriteCount,
                     isFavorite = result.isFavorite,
                     createdAt = result.createdAt
@@ -126,7 +110,7 @@ object RecipeResponses {
         val authorProfileImageUrl: String?,
         val visibility: String,
         val ingredients: List<RecipeIngredientResponse>,
-        val reviewTags: List<ReviewTagCountResponse>,
+        val tags: List<TagResponse>,
         val ratingSummary: RatingSummaryResponse,
         val favoriteCount: Int,
         val isFavorite: Boolean,
@@ -146,7 +130,7 @@ object RecipeResponses {
                     authorProfileImageUrl = result.authorProfileImageUrl,
                     visibility = result.visibility,
                     ingredients = result.ingredients.map(RecipeIngredientResponse::from),
-                    reviewTags = result.reviewTags.map(ReviewTagCountResponse::from),
+                    tags = result.tags.map(TagResponse::from),
                     ratingSummary = RatingSummaryResponse.from(result.ratingSummary),
                     favoriteCount = result.favoriteCount,
                     isFavorite = result.isFavorite,
@@ -165,7 +149,6 @@ object RecipeResponses {
         val authorProfileImageUrl: String?,
         val rating: Int,
         val text: String?,
-        val tasteTags: List<TagResponse>,
         val createdAt: Instant
     ) {
         companion object {
@@ -178,7 +161,6 @@ object RecipeResponses {
                     authorProfileImageUrl = result.authorProfileImageUrl,
                     rating = result.rating,
                     text = result.text,
-                    tasteTags = result.tasteTags.map(TagResponse::from),
                     createdAt = result.createdAt
                 )
             }

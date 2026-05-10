@@ -1,5 +1,6 @@
 package com.nugusauce.application.bootstrap
 
+import com.nugusauce.application.recipe.RecipeTagDerivationPolicy
 import com.nugusauce.domain.consent.PolicyType
 import com.nugusauce.domain.consent.PolicyVersion
 import com.nugusauce.domain.consent.PolicyVersionRepository
@@ -68,7 +69,8 @@ class LocalSeedServiceTest {
             recipeReviewRepository,
             recipeReportRepository,
             recipeFavoriteRepository,
-            passwordEncoder
+            passwordEncoder,
+            RecipeTagDerivationPolicy()
         )
     }
 

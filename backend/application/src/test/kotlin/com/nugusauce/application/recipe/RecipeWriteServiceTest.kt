@@ -23,10 +23,11 @@ import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
+import com.nugusauce.domain.recipe.tag.RecipeTag
+import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -62,6 +63,9 @@ class RecipeWriteServiceTest {
     @Mock
     private lateinit var recipeReviewRepository: RecipeReviewRepository
 
+    @Mock
+    private lateinit var recipeTagRepository: RecipeTagRepository
+
     private lateinit var service: RecipeWriteService
 
     @BeforeEach
@@ -74,7 +78,9 @@ class RecipeWriteServiceTest {
             recipeFavoriteRepository,
             recipeReportRepository,
             recipeReviewRepository,
-            ImageUrlResolver(TestImageStoragePort)
+            ImageUrlResolver(TestImageStoragePort),
+            recipeTagRepository,
+            RecipeTagDerivationPolicy()
         )
     }
 
@@ -84,6 +90,7 @@ class RecipeWriteServiceTest {
         val ingredient = Ingredient(1L, "참기름", "oil")
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
         `when`(ingredientRepository.findAllById(setOf(1L))).thenReturn(listOf(ingredient))
+        `when`(recipeTagRepository.findAllByNameIn(listOf("고소함"))).thenReturn(listOf(RecipeTag(1L, "고소함")))
         `when`(sauceRecipeRepository.save(Mockito.any(SauceRecipe::class.java)))
             .thenAnswer { it.getArgument(0) }
 
@@ -108,7 +115,7 @@ class RecipeWriteServiceTest {
         assertEquals("소스장인", result.authorName)
         assertEquals(0, result.spiceLevel)
         assertEquals(0, result.richnessLevel)
-        assertTrue(result.tags.isEmpty())
+        assertEquals(listOf("고소함"), result.tags.map { it.name })
     }
 
     @Test
@@ -132,6 +139,7 @@ class RecipeWriteServiceTest {
         `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
         `when`(ingredientRepository.findAllById(setOf(1L))).thenReturn(listOf(ingredient))
         `when`(mediaAssetRepository.findById(20L)).thenReturn(Optional.of(imageAsset))
+        `when`(recipeTagRepository.findAllByNameIn(listOf("고소함"))).thenReturn(listOf(RecipeTag(1L, "고소함")))
         `when`(sauceRecipeRepository.save(Mockito.any(SauceRecipe::class.java)))
             .thenAnswer { it.getArgument(0) }
 
@@ -233,6 +241,7 @@ class RecipeWriteServiceTest {
         `when`(sauceRecipeRepository.findByIdAndAuthorId(10L, 1L)).thenReturn(recipe)
         `when`(ingredientRepository.findAllById(setOf(2L))).thenReturn(listOf(newIngredient))
         `when`(mediaAssetRepository.findById(21L)).thenReturn(Optional.of(newImageAsset))
+        `when`(recipeTagRepository.findAllByNameIn(listOf("고소함"))).thenReturn(listOf(RecipeTag(1L, "고소함")))
 
         val result = service.update(
             RecipeCommand.UpdateRecipe(

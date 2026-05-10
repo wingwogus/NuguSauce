@@ -161,11 +161,9 @@ class SauceRecipe(
         touch()
     }
 
-    fun addTag(tag: RecipeTag) {
-        require(author == null) {
-            "user recipes cannot select taste tags"
-        }
-        tags.add(tag)
+    fun replaceDerivedTags(nextTags: Collection<RecipeTag>) {
+        tags.clear()
+        tags.addAll(nextTags)
         touch()
     }
 

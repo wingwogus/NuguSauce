@@ -26,17 +26,16 @@ class RecipeQueryService(
     private val recipeReviewRepository: RecipeReviewRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
     private val imageUrlResolver: ImageUrlResolver,
+    private val tagDerivationPolicy: RecipeTagDerivationPolicy,
     private val clock: Clock = Clock.systemUTC()
 ) {
     fun search(command: RecipeCommand.SearchRecipes): List<RecipeResult.RecipeSummary> {
         val recipes = sauceRecipeRepository.searchVisibleRecipes(command.toSearchCondition())
-        val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
         val favoriteRecipeIds = loadFavoriteRecipeIds(command.viewerMemberId, recipes.map { it.id })
         return recipes
             .map { recipe ->
                 RecipeResult.summary(
                     recipe,
-                    reviewTagsByRecipeId[recipe.id].orEmpty(),
                     isFavorite = recipe.id in favoriteRecipeIds,
                     imageUrl = imageUrlResolver.recipeImageUrl(recipe)
                 )
@@ -47,7 +46,6 @@ class RecipeQueryService(
         val recipe = findVisibleRecipe(recipeId)
         return RecipeResult.detail(
             recipe,
-            loadReviewTagCounts(listOf(recipe.id))[recipe.id].orEmpty(),
             isFavorite = memberId?.let {
                 recipeFavoriteRepository.existsByRecipeAndMember(recipe.id, it)
             } ?: false,
@@ -62,7 +60,10 @@ class RecipeQueryService(
     }
 
     fun listTags(): List<RecipeResult.TagItem> {
-        return recipeTagRepository.findAllByOrderByNameAsc()
+        val tagsByName = recipeTagRepository.findAllByNameIn(tagDerivationPolicy.canonicalTagNames)
+            .associateBy { it.name }
+        return tagDerivationPolicy.canonicalTagNames
+            .mapNotNull(tagsByName::get)
             .map(RecipeResult::fromTag)
     }
 
@@ -85,22 +86,6 @@ class RecipeQueryService(
             throw BusinessException(ErrorCode.HIDDEN_RECIPE)
         }
         return recipe
-    }
-
-    private fun loadReviewTagCounts(recipeIds: Collection<Long>): Map<Long, List<RecipeResult.ReviewTagCount>> {
-        if (recipeIds.isEmpty()) {
-            return emptyMap()
-        }
-        return recipeReviewRepository.countTasteTagsByRecipeIds(recipeIds.toSet())
-            .groupBy { it.recipeId }
-            .mapValues { (_, counts) ->
-                counts
-                    .map(RecipeResult::reviewTagCount)
-                    .sortedWith(
-                        compareByDescending<RecipeResult.ReviewTagCount> { it.count }
-                            .thenBy { it.name }
-                    )
-            }
     }
 
     private fun loadFavoriteRecipeIds(memberId: Long?, recipeIds: Collection<Long>): Set<Long> {

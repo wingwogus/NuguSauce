@@ -159,8 +159,7 @@ class RecipeController(
                 authorId = memberId,
                 recipeId = recipeId,
                 rating = request.rating,
-                text = request.text,
-                tasteTagIds = request.tasteTagIds
+                text = request.text
             )
         )
         return ResponseEntity

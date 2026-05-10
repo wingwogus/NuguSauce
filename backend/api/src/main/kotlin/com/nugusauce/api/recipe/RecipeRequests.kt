@@ -76,9 +76,7 @@ object RecipeRequests {
         val rating: Int,
 
         @field:Size(max = 1000, message = "리뷰는 1000자 이하여야 합니다")
-        val text: String? = null,
-
-        val tasteTagIds: List<Long> = emptyList()
+        val text: String? = null
     )
 
     data class CreateReportRequest(

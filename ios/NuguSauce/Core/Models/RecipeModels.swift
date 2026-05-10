@@ -10,12 +10,6 @@ struct RatingSummaryDTO: Codable, Equatable {
     let reviewCount: Int
 }
 
-struct ReviewTagDTO: Codable, Identifiable, Equatable {
-    let id: Int
-    let name: String
-    let count: Int?
-}
-
 struct RecipeIngredientDTO: Codable, Identifiable, Equatable {
     var id: Int { ingredientId }
     let ingredientId: Int
@@ -32,7 +26,7 @@ struct RecipeSummaryDTO: Codable, Identifiable, Equatable {
     let imageUrl: String?
     let visibility: RecipeVisibility
     let ratingSummary: RatingSummaryDTO
-    let reviewTags: [ReviewTagDTO]
+    let tags: [TagDTO]
     let favoriteCount: Int
     let isFavorite: Bool
     let createdAt: String
@@ -61,7 +55,7 @@ struct RecipeDetailDTO: Codable, Identifiable, Equatable {
     let authorProfileImageUrl: String?
     let visibility: RecipeVisibility
     let ingredients: [RecipeIngredientDTO]
-    let reviewTags: [ReviewTagDTO]
+    let tags: [TagDTO]
     let ratingSummary: RatingSummaryDTO
     let favoriteCount: Int
     let isFavorite: Bool?
@@ -93,7 +87,6 @@ struct RecipeReviewDTO: Codable, Identifiable, Equatable {
     let authorProfileImageUrl: String?
     let rating: Int
     let text: String?
-    let tasteTags: [ReviewTagDTO]
     let createdAt: String
 }
 
@@ -140,6 +133,10 @@ enum RecipeMutationEvents {
 }
 
 extension RecipeSummaryDTO {
+    var tagTitles: [String] {
+        tags.prefix(3).map(\.name)
+    }
+
     init(detail: RecipeDetailDTO) {
         self.init(
             id: detail.id,
@@ -148,7 +145,7 @@ extension RecipeSummaryDTO {
             imageUrl: detail.imageUrl,
             visibility: detail.visibility,
             ratingSummary: detail.ratingSummary,
-            reviewTags: detail.reviewTags,
+            tags: detail.tags,
             favoriteCount: detail.favoriteCount,
             isFavorite: detail.isFavorited,
             createdAt: detail.createdAt
@@ -192,7 +189,6 @@ struct VerifiedImageDTO: Codable, Equatable {
 struct CreateReviewRequestDTO: Codable, Equatable {
     let rating: Int
     let text: String?
-    let tasteTagIds: [Int]
 }
 
 struct FavoriteResponseDTO: Codable, Equatable {

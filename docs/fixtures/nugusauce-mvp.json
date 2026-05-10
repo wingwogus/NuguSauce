@@ -50,16 +50,13 @@
     { "id": 2, "name": "매콤함" },
     { "id": 3, "name": "달달함" },
     { "id": 4, "name": "상큼함" },
-    { "id": 5, "name": "초보추천" },
-    { "id": 6, "name": "마라강함" },
-    { "id": 7, "name": "감칠맛" },
-    { "id": 8, "name": "담백함" },
-    { "id": 9, "name": "마늘향" },
-    { "id": 10, "name": "해산물추천" },
-    { "id": 11, "name": "채식추천" },
-    { "id": 12, "name": "유명조합" },
-    { "id": 13, "name": "한국식" },
-    { "id": 14, "name": "셀럽추천" }
+    { "id": 5, "name": "마라강함" },
+    { "id": 6, "name": "감칠맛" },
+    { "id": 7, "name": "담백함" },
+    { "id": 8, "name": "마늘향" },
+    { "id": 9, "name": "짭짤함" },
+    { "id": 10, "name": "알싸함" },
+    { "id": 11, "name": "향긋함" }
   ],
   "recipes_curated": [
     {
@@ -69,7 +66,7 @@
       "spiceLevel": 3,
       "richnessLevel": 4,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 3, 12, 14],
+      "tagIds": [2, 3, 1],
       "ingredients": [
         { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
         { "ingredientId": 13, "amount": 2.5, "unit": "스푼" },
@@ -90,7 +87,7 @@
       "spiceLevel": 3,
       "richnessLevel": 5,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 7, 12, 14],
+      "tagIds": [2, 10, 1],
       "ingredients": [
         { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
         { "ingredientId": 13, "amount": 1.0, "unit": "스푼" },
@@ -111,7 +108,7 @@
       "spiceLevel": 4,
       "richnessLevel": 4,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 7, 14],
+      "tagIds": [6, 10, 9],
       "ingredients": [
         { "ingredientId": 2, "amount": 2.0, "unit": "스푼" },
         { "ingredientId": 3, "amount": 1.5, "unit": "스푼" },
@@ -132,7 +129,7 @@
       "spiceLevel": 5,
       "richnessLevel": 4,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 6, 14],
+      "tagIds": [5, 10, 1],
       "ingredients": [
         { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
         { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
@@ -161,7 +158,7 @@
       "spiceLevel": 4,
       "richnessLevel": 5,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 7, 14],
+      "tagIds": [6, 10, 2],
       "ingredients": [
         { "ingredientId": 2, "amount": 1.0, "unit": "스푼" },
         { "ingredientId": 33, "amount": 1.0, "unit": "스푼" },
@@ -178,7 +175,7 @@
       "spiceLevel": 2,
       "richnessLevel": 3,
       "visibility": "VISIBLE",
-      "tagIds": [1, 4, 9, 14],
+      "tagIds": [4, 8, 1],
       "ingredients": [
         { "ingredientId": 2, "amount": 1.5, "unit": "스푼" },
         { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
@@ -195,7 +192,7 @@
       "spiceLevel": 3,
       "richnessLevel": 5,
       "visibility": "VISIBLE",
-      "tagIds": [1, 2, 7, 14],
+      "tagIds": [1, 6, 10],
       "ingredients": [
         { "ingredientId": 18, "amount": 2.0, "unit": "스푼" },
         { "ingredientId": 13, "amount": 1.0, "unit": "스푼" },
@@ -213,7 +210,7 @@
       "spiceLevel": 2,
       "richnessLevel": 3,
       "visibility": "VISIBLE",
-      "tagIds": [7, 8, 9, 14],
+      "tagIds": [1, 10, 8],
       "ingredients": [
         { "ingredientId": 1, "amount": 3.0, "unit": "스푼" },
         { "ingredientId": 3, "amount": 1.0, "unit": "스푼" },
@@ -230,7 +227,7 @@
       "spiceLevel": 1,
       "richnessLevel": 1,
       "visibility": "VISIBLE",
-      "tagIds": [4, 8, 10, 14],
+      "tagIds": [11, 9, 4],
       "ingredients": [
         { "ingredientId": 4, "amount": 3.0, "unit": "스푼" },
         { "ingredientId": 10, "amount": 1.0, "unit": "스푼" },
@@ -271,10 +268,10 @@
     }
   ],
   "reviews": [
-    { "id": 1001, "recipeId": 1, "authorUserId": 1, "rating": 5, "text": "단짠 균형이 좋아서 계속 손이 감", "tasteTagIds": [1, 12] },
-    { "id": 1002, "recipeId": 1, "authorUserId": 2, "rating": 4, "text": "고소하지만 살짝 더 매워도 좋음", "tasteTagIds": [1, 2] },
-    { "id": 1003, "recipeId": 2, "authorUserId": 2, "rating": 5, "text": "감칠맛이 더 진한 버전", "tasteTagIds": [1, 7] },
-    { "id": 1004, "recipeId": 3, "authorUserId": 1, "rating": 4, "text": "간장과 땅콩 베이스가 묵직함", "tasteTagIds": [1, 7] }
+    { "id": 1001, "recipeId": 1, "authorUserId": 1, "rating": 5, "text": "단짠 균형이 좋아서 계속 손이 감" },
+    { "id": 1002, "recipeId": 1, "authorUserId": 2, "rating": 4, "text": "고소하지만 살짝 더 매워도 좋음" },
+    { "id": 1003, "recipeId": 2, "authorUserId": 2, "rating": 5, "text": "감칠맛이 더 진한 버전" },
+    { "id": 1004, "recipeId": 3, "authorUserId": 1, "rating": 4, "text": "간장과 땅콩 베이스가 묵직함" }
   ],
   "reports": [
     { "id": 2001, "recipeId": 5, "reporterUserId": 1, "reason": "부적절한 내용" }

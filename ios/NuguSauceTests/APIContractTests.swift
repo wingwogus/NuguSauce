@@ -13,7 +13,7 @@ final class APIContractTests: XCTestCase {
             "imageUrl": null,
             "visibility": "VISIBLE",
             "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
-            "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+            "tags": [{ "id": 1, "name": "고소함" }],
             "favoriteCount": 9,
             "isFavorite": false,
             "createdAt": "2026-04-25T00:00:00Z"
@@ -40,7 +40,7 @@ final class APIContractTests: XCTestCase {
           "imageUrl": null,
           "visibility": "VISIBLE",
           "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
-          "reviewTags": [],
+          "tags": [],
           "favoriteCount": 11,
           "isFavorite": true,
           "createdAt": "2026-04-25T00:00:00Z"
@@ -66,7 +66,7 @@ final class APIContractTests: XCTestCase {
           "authorProfileImageUrl": "https://cdn.example.test/profile/7.jpg",
           "visibility": "VISIBLE",
           "ingredients": [],
-          "reviewTags": [],
+          "tags": [],
           "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
           "favoriteCount": 5,
           "isFavorite": true,
@@ -94,7 +94,7 @@ final class APIContractTests: XCTestCase {
           "tips": "땅콩소스를 먼저 푼다",
           "visibility": "VISIBLE",
           "ingredients": [],
-          "reviewTags": [],
+          "tags": [],
           "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
           "favoriteCount": 0,
           "createdAt": "2026-04-25T00:00:00Z",
@@ -192,7 +192,6 @@ final class APIContractTests: XCTestCase {
           "authorProfileImageUrl": "https://cdn.example.test/profile/8.jpg",
           "rating": 5,
           "text": "고소하고 초보자도 먹기 좋았어요",
-          "tasteTags": [{ "id": 1, "name": "고소함" }],
           "createdAt": "2026-04-25T01:00:00Z"
         }
         """.data(using: .utf8)!
@@ -311,7 +310,7 @@ final class APIContractTests: XCTestCase {
               "imageUrl": null,
               "visibility": "VISIBLE",
               "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
-              "reviewTags": [{ "id": 1, "name": "고소함", "count": 12 }],
+              "tags": [{ "id": 1, "name": "고소함" }],
               "favoriteCount": 9,
               "isFavorite": true,
               "createdAt": "2026-04-25T00:00:00Z"
@@ -568,7 +567,7 @@ final class APIContractTests: XCTestCase {
                   "averageRating": 0.0,
                   "reviewCount": 0
                 },
-                "reviewTags": [],
+                "tags": [],
                 "favoriteCount": 0,
                 "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
@@ -585,7 +584,7 @@ final class APIContractTests: XCTestCase {
                   "averageRating": 4.5,
                   "reviewCount": 4
                 },
-                "reviewTags": [],
+                "tags": [],
                 "favoriteCount": 4,
                 "isFavorite": false,
                 "createdAt": "2026-04-25T00:00:00Z"
@@ -629,7 +628,7 @@ final class APIContractTests: XCTestCase {
             "authorProfileImageUrl": null,
             "visibility": "VISIBLE",
             "ingredients": [],
-            "reviewTags": [],
+            "tags": [],
             "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
             "favoriteCount": 9,
             "isFavorite": true,

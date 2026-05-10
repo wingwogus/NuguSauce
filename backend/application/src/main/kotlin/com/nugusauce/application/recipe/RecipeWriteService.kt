@@ -16,6 +16,8 @@ import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
+import com.nugusauce.domain.recipe.tag.RecipeTag
+import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -30,7 +32,9 @@ class RecipeWriteService(
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
     private val recipeReportRepository: RecipeReportRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
-    private val imageUrlResolver: ImageUrlResolver
+    private val imageUrlResolver: ImageUrlResolver,
+    private val recipeTagRepository: RecipeTagRepository,
+    private val tagDerivationPolicy: RecipeTagDerivationPolicy
 ) {
     fun create(command: RecipeCommand.CreateRecipe): RecipeResult.RecipeDetail {
         val author = findMember(command.authorId)
@@ -57,6 +61,7 @@ class RecipeWriteService(
                 ratio = input.ratio
             )
         }
+        recipe.replaceDerivedTags(deriveTagsFor(recipe))
 
         val saved = sauceRecipeRepository.save(recipe)
         imageAsset?.attachToRecipe(saved.id)
@@ -90,6 +95,7 @@ class RecipeWriteService(
                 )
             }
         )
+        recipe.replaceDerivedTags(deriveTagsFor(recipe))
         imageAsset?.attachToRecipe(recipe.id)
 
         return RecipeResult.detail(
@@ -206,6 +212,33 @@ class RecipeWriteService(
             )
         }
         return ingredients
+    }
+
+    private fun deriveTagsFor(recipe: SauceRecipe): List<RecipeTag> {
+        val tagNames = tagDerivationPolicy.derive(
+            recipe.ingredients.map { recipeIngredient ->
+                RecipeTagDerivationPolicy.IngredientSignal(
+                    name = recipeIngredient.ingredient.name,
+                    category = recipeIngredient.ingredient.category,
+                    amount = recipeIngredient.amount,
+                    unit = recipeIngredient.unit,
+                    ratio = recipeIngredient.ratio
+                )
+            }
+        )
+        if (tagNames.isEmpty()) {
+            return emptyList()
+        }
+
+        val tagsByName = recipeTagRepository.findAllByNameIn(tagNames).associateBy { it.name }
+        val missing = tagNames.filterNot(tagsByName::containsKey)
+        if (missing.isNotEmpty()) {
+            throw BusinessException(
+                ErrorCode.TAG_NOT_FOUND,
+                detail = mapOf("tagNames" to missing)
+            )
+        }
+        return tagNames.map { tagsByName.getValue(it) }
     }
 
     companion object {

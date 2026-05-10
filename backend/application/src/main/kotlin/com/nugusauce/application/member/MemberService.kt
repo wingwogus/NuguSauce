@@ -11,7 +11,6 @@ import com.nugusauce.domain.media.MediaAssetStatus
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -32,7 +31,6 @@ class MemberService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val recipeReviewRepository: RecipeReviewRepository,
     private val imageUrlResolver: ImageUrlResolver,
     private val mediaAssetRepository: MediaAssetRepository,
     private val imageStoragePort: ImageStoragePort,
@@ -56,11 +54,10 @@ class MemberService(
         val favoriteRecipes = recipeFavoriteRepository.findAllByMemberIdOrderByCreatedAtDesc(memberId)
             .map { it.recipe }
             .filter { it.visibility == RecipeVisibility.VISIBLE }
-        val reviewTagsByRecipeId = loadReviewTagCounts((recipes + favoriteRecipes).map { it.id })
         return MemberResult.publicProfile(
             member = member,
-            recipes = summarizeWithReviewTags(recipes, reviewTagsByRecipeId),
-            favoriteRecipes = summarizeWithReviewTags(favoriteRecipes, reviewTagsByRecipeId),
+            recipes = summarizeRecipes(recipes),
+            favoriteRecipes = summarizeRecipes(favoriteRecipes),
             profileImageUrl = imageUrlResolver.memberProfileImageUrl(member)
         )
     }
@@ -154,33 +151,13 @@ class MemberService(
         }
     }
 
-    private fun summarizeWithReviewTags(
-        recipes: List<SauceRecipe>,
-        reviewTagsByRecipeId: Map<Long, List<RecipeResult.ReviewTagCount>>
-    ): List<RecipeResult.RecipeSummary> {
+    private fun summarizeRecipes(recipes: List<SauceRecipe>): List<RecipeResult.RecipeSummary> {
         return recipes.map { recipe ->
             RecipeResult.summary(
                 recipe,
-                reviewTagsByRecipeId[recipe.id].orEmpty(),
                 imageUrl = imageUrlResolver.recipeImageUrl(recipe)
             )
         }
-    }
-
-    private fun loadReviewTagCounts(recipeIds: Collection<Long>): Map<Long, List<RecipeResult.ReviewTagCount>> {
-        if (recipeIds.isEmpty()) {
-            return emptyMap()
-        }
-        return recipeReviewRepository.countTasteTagsByRecipeIds(recipeIds.toSet())
-            .groupBy { it.recipeId }
-            .mapValues { (_, counts) ->
-                counts
-                    .map(RecipeResult::reviewTagCount)
-                    .sortedWith(
-                        compareByDescending<RecipeResult.ReviewTagCount> { it.count }
-                            .thenBy { it.name }
-                    )
-            }
     }
 
     private fun normalizeNickname(rawNickname: String): String {

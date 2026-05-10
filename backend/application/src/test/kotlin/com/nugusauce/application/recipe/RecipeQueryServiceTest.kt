@@ -11,12 +11,12 @@ import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
 import com.nugusauce.domain.recipe.ingredient.IngredientRepository
 import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewTagCountProjection
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import com.nugusauce.domain.recipe.sauce.SauceRecipeSearchCondition
 import com.nugusauce.domain.recipe.sauce.SauceRecipeSort
+import com.nugusauce.domain.recipe.tag.RecipeTag
 import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -62,7 +62,8 @@ class RecipeQueryServiceTest {
             recipeTagRepository,
             recipeReviewRepository,
             recipeFavoriteRepository,
-            ImageUrlResolver(TestImageStoragePort)
+            ImageUrlResolver(TestImageStoragePort),
+            RecipeTagDerivationPolicy()
         )
     }
 
@@ -71,7 +72,6 @@ class RecipeQueryServiceTest {
         val condition = SauceRecipeSearchCondition(keyword = "건희")
         `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
             .thenReturn(listOf(recipe(title = "건희 소스")))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
 
         val results = service.search(RecipeCommand.SearchRecipes(q = "  건희  "))
 
@@ -90,7 +90,6 @@ class RecipeQueryServiceTest {
         )
         `when`(sauceRecipeRepository.searchVisibleRecipes(SauceRecipeSearchCondition()))
             .thenReturn(recipes)
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L, 20L))).thenReturn(emptyList())
         `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L, 20L)))
             .thenReturn(setOf(20L))
 
@@ -112,21 +111,15 @@ class RecipeQueryServiceTest {
     }
 
     @Test
-    fun `search delegates tag and ingredient filters and returns review tag counts`() {
+    fun `search delegates tag and ingredient filters and returns recipe tags`() {
+        val nutty = RecipeTag(id = 1L, name = "고소함")
         val condition = SauceRecipeSearchCondition(
             tagIds = setOf(1L),
             ingredientIds = setOf(9L),
             sort = SauceRecipeSort.RATING
         )
         `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
-            .thenReturn(listOf(recipe(id = 10L, title = "건희 소스")))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L)))
-            .thenReturn(
-                listOf(
-                    tagCount(recipeId = 10L, tagId = 1L, tagName = "고소함", tagCount = 3),
-                    tagCount(recipeId = 10L, tagId = 2L, tagName = "매콤함", tagCount = 1)
-                )
-            )
+            .thenReturn(listOf(recipe(id = 10L, title = "건희 소스", tags = listOf(nutty))))
 
         val results = service.search(
             RecipeCommand.SearchRecipes(
@@ -138,8 +131,7 @@ class RecipeQueryServiceTest {
 
         assertEquals(1, results.size)
         assertEquals("건희 소스", results.first().title)
-        assertEquals("고소함", results.first().reviewTags.first().name)
-        assertEquals(3L, results.first().reviewTags.first().count)
+        assertEquals("고소함", results.first().tags.first().name)
         verify(sauceRecipeRepository).searchVisibleRecipes(condition)
     }
 
@@ -167,7 +159,6 @@ class RecipeQueryServiceTest {
         )
         `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
             .thenReturn(listOf(hotRecipe, olderPopular))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L, 20L))).thenReturn(emptyList())
 
         val results = service.search(RecipeCommand.SearchRecipes(sort = RecipeCommand.RecipeSort.HOT))
 
@@ -192,7 +183,6 @@ class RecipeQueryServiceTest {
         val author = Member(7L, "maker@example.test", null, nickname = "소스장인")
         `when`(sauceRecipeRepository.findById(10L))
             .thenReturn(Optional.of(recipe(author = author)))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
 
         val result = service.getDetail(10L)
 
@@ -203,7 +193,6 @@ class RecipeQueryServiceTest {
     @Test
     fun `getDetail includes current member favorite state when member is present`() {
         `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe()))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
         `when`(recipeFavoriteRepository.existsByRecipeAndMember(10L, 1L)).thenReturn(true)
 
         val result = service.getDetail(10L, memberId = 1L)
@@ -214,7 +203,6 @@ class RecipeQueryServiceTest {
     @Test
     fun `getDetail defaults favorite state to false for anonymous users`() {
         `when`(sauceRecipeRepository.findById(10L)).thenReturn(Optional.of(recipe()))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
 
         val result = service.getDetail(10L)
 
@@ -250,7 +238,8 @@ class RecipeQueryServiceTest {
         reviewCount: Int = 0,
         averageRating: Double = 0.0,
         lastReviewedAt: Instant? = null,
-        createdAt: Instant = Instant.parse("2026-04-25T00:00:00Z")
+        createdAt: Instant = Instant.parse("2026-04-25T00:00:00Z"),
+        tags: List<RecipeTag> = emptyList()
     ): SauceRecipe {
         return SauceRecipe(
             id = id,
@@ -265,6 +254,7 @@ class RecipeQueryServiceTest {
             this.reviewCount = reviewCount
             this.averageRating = averageRating
             this.lastReviewedAt = lastReviewedAt
+            this.tags.addAll(tags)
         }
     }
 
@@ -276,22 +266,9 @@ class RecipeQueryServiceTest {
             recipeReviewRepository,
             recipeFavoriteRepository,
             ImageUrlResolver(TestImageStoragePort),
+            RecipeTagDerivationPolicy(),
             clock
         )
-    }
-
-    private fun tagCount(
-        recipeId: Long,
-        tagId: Long,
-        tagName: String,
-        tagCount: Long
-    ): RecipeReviewTagCountProjection {
-        return object : RecipeReviewTagCountProjection {
-            override val recipeId: Long = recipeId
-            override val tagId: Long = tagId
-            override val tagName: String = tagName
-            override val tagCount: Long = tagCount
-        }
     }
 
     private object TestImageStoragePort : ImageStoragePort {

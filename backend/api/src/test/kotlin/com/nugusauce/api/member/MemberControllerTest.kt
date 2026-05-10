@@ -163,7 +163,6 @@ class MemberControllerTest(
             visibility = "VISIBLE",
             ratingSummary = RecipeResult.RatingSummary(0.0, 0),
             tags = emptyList(),
-            reviewTags = emptyList(),
             createdAt = Instant.parse("2026-04-25T00:00:00Z")
         )
     }

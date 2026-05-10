@@ -13,7 +13,6 @@ import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
-import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
@@ -36,9 +35,6 @@ class RecipeReviewServiceTest {
     @Mock
     private lateinit var recipeReviewRepository: RecipeReviewRepository
 
-    @Mock
-    private lateinit var recipeTagRepository: RecipeTagRepository
-
     private lateinit var service: RecipeReviewService
 
     @BeforeEach
@@ -47,7 +43,6 @@ class RecipeReviewServiceTest {
             memberRepository,
             sauceRecipeRepository,
             recipeReviewRepository,
-            recipeTagRepository,
             ImageUrlResolver(TestImageStoragePort)
         )
     }

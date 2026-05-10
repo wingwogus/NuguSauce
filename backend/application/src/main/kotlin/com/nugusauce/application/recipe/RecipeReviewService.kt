@@ -10,8 +10,6 @@ import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
-import com.nugusauce.domain.recipe.tag.RecipeTag
-import com.nugusauce.domain.recipe.tag.RecipeTagRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -22,7 +20,6 @@ class RecipeReviewService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeReviewRepository: RecipeReviewRepository,
-    private val recipeTagRepository: RecipeTagRepository,
     private val imageUrlResolver: ImageUrlResolver
 ) {
     fun create(command: RecipeCommand.CreateReview): RecipeResult.ReviewItem {
@@ -36,7 +33,6 @@ class RecipeReviewService(
             throw BusinessException(ErrorCode.DUPLICATE_REVIEW)
         }
 
-        val tags = loadTags(command.tasteTagIds.toSet())
         val reviewedAt = Instant.now()
         val review = RecipeReview(
             recipe = recipe,
@@ -45,7 +41,6 @@ class RecipeReviewService(
             text = command.text?.trim()?.takeIf { it.isNotBlank() },
             createdAt = reviewedAt
         )
-        tags.values.forEach { review.tasteTags.add(it) }
         recipe.recordReview(command.rating, reviewedAt)
         sauceRecipeRepository.save(recipe)
 
@@ -71,18 +66,4 @@ class RecipeReviewService(
         return recipe
     }
 
-    private fun loadTags(ids: Set<Long>): Map<Long, RecipeTag> {
-        if (ids.isEmpty()) {
-            return emptyMap()
-        }
-        val tags = recipeTagRepository.findAllById(ids).associateBy { it.id }
-        val missing = ids - tags.keys
-        if (missing.isNotEmpty()) {
-            throw BusinessException(
-                ErrorCode.TAG_NOT_FOUND,
-                detail = mapOf("tagIds" to missing.sorted())
-            )
-        }
-        return tags
-    }
 }

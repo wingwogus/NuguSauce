@@ -1,5 +1,6 @@
 package com.nugusauce.application.bootstrap
 
+import com.nugusauce.application.recipe.RecipeTagDerivationPolicy
 import com.nugusauce.domain.consent.PolicyType
 import com.nugusauce.domain.consent.PolicyVersion
 import com.nugusauce.domain.consent.PolicyVersionRepository
@@ -41,7 +42,8 @@ class LocalSeedService(
     private val recipeReviewRepository: RecipeReviewRepository,
     private val recipeReportRepository: RecipeReportRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val tagDerivationPolicy: RecipeTagDerivationPolicy
 ) : ApplicationRunner {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -59,7 +61,7 @@ class LocalSeedService(
         val ingredients = seedIngredients()
         val tags = seedTags()
         val recipes = seedRecipes(users, ingredients, tags)
-        seedReviews(users, recipes, tags)
+        seedReviews(users, recipes)
         seedReports(users, recipes)
         seedFavorites(users, recipes)
 
@@ -125,8 +127,25 @@ class LocalSeedService(
     }
 
     private fun seedTags(): Map<String, RecipeTag> {
-        val tags = TAG_NAMES.map { name -> RecipeTag(name = name) }
+        val tags = tagDerivationPolicy.canonicalTagNames.map { name -> RecipeTag(name = name) }
         return recipeTagRepository.saveAll(tags).associateBy { it.name }
+    }
+
+    private fun deriveTagsFor(
+        recipe: SauceRecipe,
+        tags: Map<String, RecipeTag>
+    ): List<RecipeTag> {
+        return tagDerivationPolicy.derive(
+            recipe.ingredients.map { recipeIngredient ->
+                RecipeTagDerivationPolicy.IngredientSignal(
+                    name = recipeIngredient.ingredient.name,
+                    category = recipeIngredient.ingredient.category,
+                    amount = recipeIngredient.amount,
+                    unit = recipeIngredient.unit,
+                    ratio = recipeIngredient.ratio
+                )
+            }
+        ).map(tags::getValue)
     }
 
     private fun seedRecipes(
@@ -151,9 +170,7 @@ class LocalSeedService(
                         null
                     )
                 }
-                if (seed.authorEmail == null) {
-                    seed.tagNames.map(tags::getValue).forEach(::addTag)
-                }
+                replaceDerivedTags(deriveTagsFor(this, tags))
             }
         }
 
@@ -163,14 +180,13 @@ class LocalSeedService(
 
     private fun seedReviews(
         users: Map<String, Member>,
-        recipes: Map<String, SauceRecipe>,
-        tags: Map<String, RecipeTag>
+        recipes: Map<String, SauceRecipe>
     ) {
         val reviews = listOf(
-            ReviewSeed(SEED_NORMAL_EMAIL, "건희 소스 오리지널", 5, "단짠 균형이 좋아서 계속 손이 감", listOf("고소함", "유명조합")),
-            ReviewSeed("reviewer@example.test", "건희 소스 오리지널", 4, "고소하지만 살짝 더 매워도 좋음", listOf("고소함", "매콤함")),
-            ReviewSeed("reviewer@example.test", "건희 소스 2025 버전", 5, "감칠맛이 더 진한 버전", listOf("고소함", "감칠맛")),
-            ReviewSeed(SEED_NORMAL_EMAIL, "마크 소스", 4, "간장과 땅콩 베이스가 묵직함", listOf("고소함", "감칠맛"))
+            ReviewSeed(SEED_NORMAL_EMAIL, "건희 소스 오리지널", 5, "단짠 균형이 좋아서 계속 손이 감"),
+            ReviewSeed("reviewer@example.test", "건희 소스 오리지널", 4, "고소하지만 살짝 더 매워도 좋음"),
+            ReviewSeed("reviewer@example.test", "건희 소스 2025 버전", 5, "감칠맛이 더 진한 버전"),
+            ReviewSeed(SEED_NORMAL_EMAIL, "마크 소스", 4, "간장과 땅콩 베이스가 묵직함")
         ).map { seed ->
             val recipe = recipes.getValue(seed.recipeTitle)
             recipe.recordReview(seed.rating)
@@ -179,9 +195,7 @@ class LocalSeedService(
                 author = users.getValue(seed.authorEmail),
                 rating = seed.rating,
                 text = seed.text
-            ).apply {
-                seed.tagNames.map(tags::getValue).forEach(tasteTags::add)
-            }
+            )
         }
 
         sauceRecipeRepository.saveAll(recipes.values)
@@ -225,8 +239,7 @@ class LocalSeedService(
         val authorEmail: String,
         val recipeTitle: String,
         val rating: Int,
-        val text: String,
-        val tagNames: List<String>
+        val text: String
     )
 
     private data class IngredientSeed(
@@ -239,7 +252,6 @@ class LocalSeedService(
         val description: String,
         val spiceLevel: Int,
         val richnessLevel: Int,
-        val tagNames: List<String>,
         val ingredients: List<IngredientAmountSeed>,
         val authorEmail: String? = null,
         val visibility: RecipeVisibility = RecipeVisibility.VISIBLE
@@ -335,31 +347,12 @@ class LocalSeedService(
             IngredientSeed("대파", "fresh_aromatic"),
             IngredientSeed("참깨가루", "topping_seed")
         )
-
-        private val TAG_NAMES = listOf(
-            "고소함",
-            "매콤함",
-            "달달함",
-            "상큼함",
-            "초보추천",
-            "마라강함",
-            "감칠맛",
-            "담백함",
-            "마늘향",
-            "해산물추천",
-            "채식추천",
-            "유명조합",
-            "한국식",
-            "셀럽추천"
-        )
-
         private val RECIPE_SEEDS = listOf(
             RecipeSeed(
                 title = "건희 소스 오리지널",
                 description = "원어스 건희가 팬 소통 채널과 SNS를 통해 알린 대표 하이디라오 소스",
                 spiceLevel = 3,
                 richnessLevel = 4,
-                tagNames = listOf("고소함", "매콤함", "달달함", "유명조합", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "1.0"),
                     IngredientAmountSeed("스위트 칠리소스", "2.5"),
@@ -378,7 +371,6 @@ class LocalSeedService(
                 description = "원어스 건희의 2025년식 하이디라오 소스 조합",
                 spiceLevel = 3,
                 richnessLevel = 5,
-                tagNames = listOf("고소함", "매콤함", "감칠맛", "유명조합", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "1.0"),
                     IngredientAmountSeed("스위트 칠리소스", "1.0"),
@@ -397,7 +389,6 @@ class LocalSeedService(
                 description = "마크가 SNS로 공개한 땅콩, 간장, 굴소스 기반 하이디라오 소스",
                 spiceLevel = 4,
                 richnessLevel = 4,
-                tagNames = listOf("고소함", "매콤함", "감칠맛", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "2.0"),
                     IngredientAmountSeed("다진 마늘", "1.5"),
@@ -416,7 +407,6 @@ class LocalSeedService(
                 description = "필릭스가 SNS로 공개한 마라시즈닝과 청유 훠궈 소스를 섞은 조합",
                 spiceLevel = 5,
                 richnessLevel = 4,
-                tagNames = listOf("고소함", "매콤함", "마라강함", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "1.0"),
                     IngredientAmountSeed("다진 마늘", "1.0"),
@@ -431,7 +421,6 @@ class LocalSeedService(
                 description = "공개 목록에서 제외되어야 하는 fixture",
                 spiceLevel = 2,
                 richnessLevel = 2,
-                tagNames = listOf("매콤함"),
                 ingredients = listOf(IngredientAmountSeed("다진 고추", "1.0")),
                 visibility = RecipeVisibility.HIDDEN
             ),
@@ -440,7 +429,6 @@ class LocalSeedService(
                 description = "아이엔이 SNS로 공개한 버섯소스와 오향 우육 중심의 진한 조합",
                 spiceLevel = 4,
                 richnessLevel = 5,
-                tagNames = listOf("고소함", "매콤함", "감칠맛", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "1.0"),
                     IngredientAmountSeed("버섯소스", "1.0"),
@@ -455,7 +443,6 @@ class LocalSeedService(
                 description = "우기가 SNS로 공개한 고수, 마늘, 식초를 강하게 쓰는 산뜻한 조합",
                 spiceLevel = 2,
                 richnessLevel = 3,
-                tagNames = listOf("고소함", "상큼함", "마늘향", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("땅콩소스", "1.5"),
                     IngredientAmountSeed("파", "1.0"),
@@ -470,7 +457,6 @@ class LocalSeedService(
                 description = "성찬이 SNS로 공개한 참깨소스, 칠리, 다진 고기를 넣은 고소한 조합",
                 spiceLevel = 3,
                 richnessLevel = 5,
-                tagNames = listOf("고소함", "매콤함", "감칠맛", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("참깨소스", "2.0"),
                     IngredientAmountSeed("스위트 칠리소스", "1.0"),
@@ -486,7 +472,6 @@ class LocalSeedService(
                 description = "소희가 SNS로 공개한 참기름, 마늘, 굴소스 중심의 담백한 조합",
                 spiceLevel = 2,
                 richnessLevel = 3,
-                tagNames = listOf("감칠맛", "담백함", "마늘향", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("참기름", "3.0"),
                     IngredientAmountSeed("다진 마늘", "1.0"),
@@ -501,7 +486,6 @@ class LocalSeedService(
                 description = "블랙핑크 지수가 에스콰이어 일일 에디터 글에서 직접 소개한 고수 듬뿍 간장 소스",
                 spiceLevel = 1,
                 richnessLevel = 1,
-                tagNames = listOf("상큼함", "담백함", "해산물추천", "셀럽추천"),
                 ingredients = listOf(
                     IngredientAmountSeed("고수", "3.0"),
                     IngredientAmountSeed("파", "1.0"),
@@ -519,7 +503,6 @@ class LocalSeedService(
                 description = "마늘 향이 강한 커스텀 조합",
                 spiceLevel = 0,
                 richnessLevel = 0,
-                tagNames = emptyList(),
                 ingredients = listOf(
                     IngredientAmountSeed("다진 마늘", "1.5"),
                     IngredientAmountSeed("참기름", "1.0"),
@@ -532,7 +515,6 @@ class LocalSeedService(
                 description = "고수와 식초 중심의 산뜻한 조합",
                 spiceLevel = 0,
                 richnessLevel = 0,
-                tagNames = emptyList(),
                 ingredients = listOf(
                     IngredientAmountSeed("고수", "1.0"),
                     IngredientAmountSeed("식초", "1.0"),

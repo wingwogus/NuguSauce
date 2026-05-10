@@ -251,7 +251,7 @@ final class CachingAPIClientTests: XCTestCase {
             imageUrl: nil,
             visibility: .visible,
             ratingSummary: RatingSummaryDTO(averageRating: 4.5, reviewCount: 2),
-            reviewTags: [],
+            tags: [],
             favoriteCount: 1,
             isFavorite: isFavorite,
             createdAt: "2026-04-25T00:00:00Z"
@@ -270,7 +270,7 @@ final class CachingAPIClientTests: XCTestCase {
             authorProfileImageUrl: nil,
             visibility: .visible,
             ingredients: [],
-            reviewTags: [],
+            tags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 4.5, reviewCount: 2),
             favoriteCount: 1,
             isFavorite: isFavorite,
@@ -431,7 +431,6 @@ private final class CountingAPIClient: APIClientProtocol {
             authorProfileImageUrl: nil,
             rating: request.rating,
             text: request.text,
-            tasteTags: [],
             createdAt: "2026-04-25T00:00:00Z"
         )
     }

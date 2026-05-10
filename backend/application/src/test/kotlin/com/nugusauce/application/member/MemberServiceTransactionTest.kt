@@ -10,7 +10,6 @@ import com.nugusauce.domain.media.MediaProvider
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -108,9 +107,6 @@ class MemberServiceTransactionTest {
         open fun recipeFavoriteRepository(): RecipeFavoriteRepository = mock(RecipeFavoriteRepository::class.java)
 
         @Bean
-        open fun recipeReviewRepository(): RecipeReviewRepository = mock(RecipeReviewRepository::class.java)
-
-        @Bean
         open fun mediaAssetRepository(): MediaAssetRepository = mock(MediaAssetRepository::class.java)
 
         @Bean
@@ -128,7 +124,6 @@ class MemberServiceTransactionTest {
             memberRepository: MemberRepository,
             sauceRecipeRepository: SauceRecipeRepository,
             recipeFavoriteRepository: RecipeFavoriteRepository,
-            recipeReviewRepository: RecipeReviewRepository,
             mediaAssetRepository: MediaAssetRepository,
             imageStoragePort: ImageStoragePort,
             transactionManager: RecordingTransactionManager
@@ -137,7 +132,6 @@ class MemberServiceTransactionTest {
                 memberRepository,
                 sauceRecipeRepository,
                 recipeFavoriteRepository,
-                recipeReviewRepository,
                 ImageUrlResolver(imageStoragePort),
                 mediaAssetRepository,
                 imageStoragePort,

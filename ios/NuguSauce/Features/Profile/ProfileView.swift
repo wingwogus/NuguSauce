@@ -477,38 +477,58 @@ private struct ProfileRecipeSection: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(SauceTypography.sectionTitle())
-            LazyVGrid(
-                columns: ProfileRecipeGridLayout.columns,
-                alignment: .leading,
-                spacing: ProfileRecipeGridLayout.rowSpacing
-            ) {
-                ForEach(recipes) { recipe in
-                    NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                        RecipeCard(recipe: recipe)
+            GeometryReader { proxy in
+                LazyVGrid(
+                    columns: ProfileRecipeGridLayout.columns(availableWidth: proxy.size.width),
+                    alignment: .leading,
+                    spacing: ProfileRecipeGridLayout.rowSpacing
+                ) {
+                    ForEach(recipes) { recipe in
+                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                            RecipeCard(recipe: recipe)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("profile.recipe.\(recipe.id)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("profile.recipe.\(recipe.id)")
                 }
+                .accessibilityIdentifier("profile.recipeGrid")
             }
-            .accessibilityIdentifier("profile.recipeGrid")
+            .frame(height: ProfileRecipeGridLayout.gridHeight(itemCount: recipes.count))
         }
     }
 }
 
 enum ProfileRecipeGridLayout {
     static let columnCount = 2
-    static let columnSpacing: CGFloat = 14
+    static let minimumColumnSpacing: CGFloat = 14
     static let rowSpacing: CGFloat = 18
 
-    static var columns: [GridItem] {
+    static func columnSpacing(availableWidth: CGFloat) -> CGFloat {
+        max(
+            minimumColumnSpacing,
+            availableWidth - RecipeCard.cardWidth * CGFloat(columnCount)
+        )
+    }
+
+    static func columns(availableWidth: CGFloat) -> [GridItem] {
         Array(
             repeating: GridItem(
                 .fixed(RecipeCard.cardWidth),
-                spacing: columnSpacing,
+                spacing: columnSpacing(availableWidth: availableWidth),
                 alignment: .top
             ),
             count: columnCount
         )
+    }
+
+    static func gridHeight(itemCount: Int) -> CGFloat {
+        guard itemCount > 0 else {
+            return 0
+        }
+
+        let rowCount = Int(ceil(Double(itemCount) / Double(columnCount)))
+        return RecipeCard.cardHeight * CGFloat(rowCount) +
+            rowSpacing * CGFloat(rowCount - 1)
     }
 }
 

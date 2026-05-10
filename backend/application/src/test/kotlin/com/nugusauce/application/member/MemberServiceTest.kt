@@ -14,7 +14,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -50,9 +49,6 @@ class MemberServiceTest {
     private lateinit var recipeFavoriteRepository: RecipeFavoriteRepository
 
     @Mock
-    private lateinit var recipeReviewRepository: RecipeReviewRepository
-
-    @Mock
     private lateinit var mediaAssetRepository: MediaAssetRepository
 
     private lateinit var imageStoragePort: RecordingImageStoragePort
@@ -65,7 +61,6 @@ class MemberServiceTest {
             memberRepository,
             sauceRecipeRepository,
             recipeFavoriteRepository,
-            recipeReviewRepository,
             ImageUrlResolver(imageStoragePort),
             mediaAssetRepository,
             imageStoragePort,
@@ -105,8 +100,6 @@ class MemberServiceTest {
                     RecipeFavorite(recipe = hiddenFavorite, member = member)
                 )
             )
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L, 11L))).thenReturn(emptyList())
-
         val result = service.getPublicProfile(2L)
 
         assertEquals(2L, result.id)

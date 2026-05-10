@@ -48,23 +48,27 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     private val entityManager: TestEntityManager
 ) {
     @Test
-    fun `searchVisibleRecipes filters keyword review tag ingredient and visibility in query`() {
+    fun `searchVisibleRecipes filters keyword recipe tag ingredient and visibility in query`() {
         val garlic = ingredient("마늘")
         val honey = ingredient("꿀")
         val spicy = tag("매콤함")
         val creamy = tag("고소함")
-        val target = recipe(title = "마라 디핑", ingredients = listOf(garlic))
-        review(target, spicy)
-        val wrongIngredient = recipe(title = "마라 허니", ingredients = listOf(honey))
-        review(wrongIngredient, spicy)
-        val wrongTag = recipe(title = "마라 갈릭", ingredients = listOf(garlic))
-        review(wrongTag, creamy)
-        val hidden = recipe(
+        val target = recipe(title = "마라 디핑", ingredients = listOf(garlic)).apply {
+            replaceDerivedTags(listOf(spicy))
+        }
+        recipe(title = "마라 허니", ingredients = listOf(honey)).apply {
+            replaceDerivedTags(listOf(spicy))
+        }
+        recipe(title = "마라 갈릭", ingredients = listOf(garlic)).apply {
+            replaceDerivedTags(listOf(creamy))
+        }
+        recipe(
             title = "마라 히든",
             ingredients = listOf(garlic),
             visibility = RecipeVisibility.HIDDEN
-        )
-        review(hidden, spicy)
+        ).apply {
+            replaceDerivedTags(listOf(spicy))
+        }
         flushAndClear()
 
         val results = sauceRecipeRepository.searchVisibleRecipes(
@@ -81,7 +85,6 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     @Test
     fun `searchVisibleRecipes hot sort ranks recent engagement above older popularity`() {
         val since = Instant.parse("2026-04-22T00:00:00Z")
-        val spicy = tag("매콤함")
         val olderPopular = recipe(
             title = "누적 인기 소스",
             reviewCount = 80,
@@ -94,7 +97,7 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             averageRating = 4.0,
             lastReviewedAt = since.plus(1, ChronoUnit.DAYS)
         )
-        review(hotRecipe, spicy, createdAt = since.plus(1, ChronoUnit.DAYS))
+        review(hotRecipe, createdAt = since.plus(1, ChronoUnit.DAYS))
         flushAndClear()
 
         val results = sauceRecipeRepository.searchVisibleRecipes(
@@ -308,8 +311,10 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     fun `deleting recipe graph removes dependent rows instead of soft hiding`() {
         val sesameOil = ingredient("참기름")
         val savory = tag("고소함")
-        val target = recipe(title = "삭제 대상 소스", ingredients = listOf(sesameOil))
-        review(target, savory)
+        val target = recipe(title = "삭제 대상 소스", ingredients = listOf(sesameOil)).apply {
+            replaceDerivedTags(listOf(savory))
+        }
+        review(target)
         favorite(target)
         report(target)
         flushAndClear()
@@ -338,7 +343,7 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
             0L,
             countByRecipeId("select count(r) from RecipeReport r where r.recipe.id = :recipeId", target.id)
         )
-        assertEquals(0L, nativeCount("select count(*) from recipe_review_tag"))
+        assertEquals(0L, nativeCount("select count(*) from sauce_recipe_tag"))
     }
 
     private fun recipe(
@@ -379,17 +384,14 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
 
     private fun review(
         recipe: SauceRecipe,
-        tag: RecipeTag,
         createdAt: Instant = Instant.parse("2026-04-01T00:00:00Z")
     ): RecipeReview {
         return RecipeReview(
             recipe = recipe,
-            author = member("reviewer-${recipe.id}-${tag.id}@example.test"),
+            author = member("reviewer-${recipe.id}-${createdAt.toEpochMilli()}@example.test"),
             rating = 5,
             createdAt = createdAt
-        ).apply {
-            tasteTags.add(tag)
-        }.let(entityManager::persistAndFlush)
+        ).let(entityManager::persistAndFlush)
     }
 
     private fun favorite(

@@ -151,6 +151,8 @@ struct RecipeDetailView: View {
                 .lineSpacing(5)
                 .foregroundStyle(SauceColor.onSurfaceVariant)
 
+            tagStrip(detail.tags)
+
             HStack(spacing: 10) {
                 if let authorName = detail.displayAuthorName {
                     recipeAuthorLabel(name: authorName, detail: detail)
@@ -172,6 +174,17 @@ struct RecipeDetailView: View {
             }
             .font(SauceTypography.metric(.bold))
             .foregroundStyle(SauceColor.onSurfaceVariant)
+        }
+    }
+
+    @ViewBuilder
+    private func tagStrip(_ tags: [TagDTO]) -> some View {
+        if !tags.isEmpty {
+            HStack(spacing: 7) {
+                ForEach(tags.prefix(3)) { tag in
+                    RecipeTasteTag(title: tag.name)
+                }
+            }
         }
     }
 
@@ -332,14 +345,12 @@ private struct ReviewComposeView: View {
     @ObservedObject var viewModel: RecipeDetailViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var isSubmitting = false
-    private let tagColumns = [GridItem(.adaptive(minimum: 96), spacing: 10)]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 recipeSummaryBlock
                 ratingBlock
-                tagBlock
                 textBlock
 
                 if let errorMessage = viewModel.errorMessage {
@@ -380,9 +391,6 @@ private struct ReviewComposeView: View {
         }
         .onAppear {
             viewModel.beginReviewDraft()
-        }
-        .task {
-            await viewModel.loadTasteTagsIfNeeded()
         }
     }
 
@@ -457,56 +465,6 @@ private struct ReviewComposeView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 34)
         .sauceCard(cornerRadius: 28)
-    }
-
-    private var tagBlock: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("맛 표현 (다중 선택)")
-                    .font(SauceTypography.sectionTitle(.bold))
-                    .foregroundStyle(SauceColor.onSurface)
-                Spacer()
-                if !viewModel.selectedTasteTagIDs.isEmpty {
-                    Text("\(viewModel.selectedTasteTagIDs.count)개 선택")
-                        .font(SauceTypography.badge(.bold))
-                        .foregroundStyle(SauceColor.primaryContainer)
-                }
-            }
-
-            if viewModel.isLoadingTasteTags {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else if let message = viewModel.tasteTagErrorMessage {
-                SauceStatusBanner(message: message)
-            } else if viewModel.availableTasteTags.isEmpty {
-                Text("선택할 맛 태그가 아직 없어요.")
-                    .font(SauceTypography.body(.semibold))
-                    .foregroundStyle(SauceColor.onSurfaceVariant)
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SauceColor.surfaceLowest)
-                    .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
-            } else {
-                LazyVGrid(columns: tagColumns, alignment: .leading, spacing: 10) {
-                    ForEach(viewModel.availableTasteTags) { tag in
-                        let isSelected = viewModel.selectedTasteTagIDs.contains(tag.id)
-                        Button {
-                            viewModel.toggleTasteTag(tag)
-                        } label: {
-                            SauceChip(
-                                title: tag.name,
-                                isSelected: isSelected,
-                                icon: isSelected ? "checkmark" : nil
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(tag.name)
-                        .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
-                    }
-                }
-            }
-        }
     }
 
     private var textBlock: some View {

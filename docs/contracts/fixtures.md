@@ -57,8 +57,13 @@ The JSON is intentionally portable so backend tests and local seed flows can reu
   classification. Allowed values are `sauce_paste`, `oil`, `vinegar_citrus`,
   `fresh_aromatic`, `dry_seasoning`, `sweet_dairy`, `topping_seed`, `protein`,
   and `other`.
-- `tags` contains taste tags such as `고소함`, `매콤함`, `달달함`, `상큼함`.
-- `reviews` contains mixed ratings and `tasteTagIds`; user-generated recipe taste classification comes from review tags, not author input.
+- `tags` contains exactly the canonical ingredient-derived taste tags:
+  `고소함`, `매콤함`, `달달함`, `상큼함`, `마라강함`, `감칠맛`, `담백함`,
+  `마늘향`, `짭짤함`, `알싸함`, and `향긋함`.
+- Curated recipe `tagIds` are the deterministic ingredient-derived source tags
+  and must contain at most three tags.
+- `reviews` contains mixed ratings and review text only; review-level
+  `tasteTagIds` are not part of the MVP contract.
 - `reports` contains at least one report and must not expose reporter identity in public responses.
 - `favorites` contains at least one saved recipe for a normal user.
 - Persisted recipe seed data must keep denormalized `favoriteCount` aligned

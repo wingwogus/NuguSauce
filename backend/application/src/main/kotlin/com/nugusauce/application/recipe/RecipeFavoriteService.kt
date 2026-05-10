@@ -7,7 +7,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -21,7 +20,6 @@ class RecipeFavoriteService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
-    private val recipeReviewRepository: RecipeReviewRepository,
     private val imageUrlResolver: ImageUrlResolver
 ) {
     @Transactional(readOnly = true)
@@ -31,7 +29,7 @@ class RecipeFavoriteService(
             command.memberId,
             RecipeVisibility.VISIBLE
         )
-        return summarizeWithReviewTags(
+        return summarizeRecipes(
             recipes,
             favoriteRecipeIds = loadFavoriteRecipeIds(command.memberId, recipes.map { it.id })
         )
@@ -43,7 +41,7 @@ class RecipeFavoriteService(
         val recipes = recipeFavoriteRepository.findAllByMemberIdOrderByCreatedAtDesc(command.memberId)
             .map { it.recipe }
             .filter { it.visibility == RecipeVisibility.VISIBLE }
-        return summarizeWithReviewTags(
+        return summarizeRecipes(
             recipes,
             favoriteRecipeIds = recipes.map { it.id }.toSet()
         )
@@ -95,15 +93,13 @@ class RecipeFavoriteService(
         return recipe
     }
 
-    private fun summarizeWithReviewTags(
+    private fun summarizeRecipes(
         recipes: List<SauceRecipe>,
         favoriteRecipeIds: Set<Long> = emptySet()
     ): List<RecipeResult.RecipeSummary> {
-        val reviewTagsByRecipeId = loadReviewTagCounts(recipes.map { it.id })
         return recipes.map { recipe ->
             RecipeResult.summary(
                 recipe,
-                reviewTagsByRecipeId[recipe.id].orEmpty(),
                 isFavorite = recipe.id in favoriteRecipeIds,
                 imageUrl = imageUrlResolver.recipeImageUrl(recipe)
             )
@@ -117,19 +113,4 @@ class RecipeFavoriteService(
         return recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(memberId, recipeIds.toSet())
     }
 
-    private fun loadReviewTagCounts(recipeIds: Collection<Long>): Map<Long, List<RecipeResult.ReviewTagCount>> {
-        if (recipeIds.isEmpty()) {
-            return emptyMap()
-        }
-        return recipeReviewRepository.countTasteTagsByRecipeIds(recipeIds.toSet())
-            .groupBy { it.recipeId }
-            .mapValues { (_, counts) ->
-                counts
-                    .map(RecipeResult::reviewTagCount)
-                    .sortedWith(
-                        compareByDescending<RecipeResult.ReviewTagCount> { it.count }
-                            .thenBy { it.name }
-                    )
-            }
-    }
 }

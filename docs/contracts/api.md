@@ -357,7 +357,10 @@ Success data:
         "averageRating": 0.0,
         "reviewCount": 0
       },
-      "reviewTags": [],
+      "tags": [
+        { "id": 8, "name": "마늘향" },
+        { "id": 1, "name": "고소함" }
+      ],
       "favoriteCount": 2,
       "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
@@ -374,7 +377,11 @@ Success data:
         "averageRating": 4.7,
         "reviewCount": 12
       },
-      "reviewTags": [],
+      "tags": [
+        { "id": 2, "name": "매콤함" },
+        { "id": 3, "name": "달달함" },
+        { "id": 1, "name": "고소함" }
+      ],
       "favoriteCount": 42,
       "isFavorite": false,
       "createdAt": "2026-04-25T00:00:00Z"
@@ -494,7 +501,7 @@ Recipe list supports `sort` values:
 Query parameters:
 
 - `q`: optional keyword matched against title, description, and tips.
-- `tagIds`: optional repeated or comma-compatible review taste tag IDs. Matching is based on tags selected in reviews, not author input.
+- `tagIds`: optional repeated or comma-compatible recipe taste tag IDs. Matching is based on source tags derived from the recipe's ingredient composition.
 - `ingredientIds`: optional repeated or comma-compatible ingredient IDs.
 - `sort`: optional `hot|popular|recent|rating`, default `popular`.
 
@@ -504,6 +511,8 @@ member's favorite state. Anonymous public list requests return
 authorization when personalized responses are enabled.
 `favoriteCount` is the public aggregate number of members who saved the recipe
 and is separate from viewer-relative `isFavorite`.
+`tags` contains at most three recipe-owned taste tags derived from ingredient
+ratio/amount composition; review text and rating never change these tags.
 
 Success data:
 
@@ -519,9 +528,10 @@ Success data:
       "averageRating": 4.7,
       "reviewCount": 18
     },
-    "reviewTags": [
-      { "id": 1, "name": "고소함", "count": 12 },
-      { "id": 2, "name": "매콤함", "count": 6 }
+    "tags": [
+      { "id": 2, "name": "매콤함" },
+      { "id": 3, "name": "달달함" },
+      { "id": 1, "name": "고소함" }
     ],
     "favoriteCount": 42,
     "isFavorite": true,
@@ -560,9 +570,10 @@ Success data:
       "ratio": null
     }
   ],
-  "reviewTags": [
-    { "id": 1, "name": "고소함", "count": 12 },
-    { "id": 2, "name": "매콤함", "count": 6 }
+  "tags": [
+    { "id": 2, "name": "매콤함" },
+    { "id": 3, "name": "달달함" },
+    { "id": 1, "name": "고소함" }
   ],
   "ratingSummary": {
     "averageRating": 4.7,
@@ -628,8 +639,8 @@ Success data:
 Ingredient `category` is a physical ingredient grouping for sauce registration,
 not a taste classification. Current stable category values are `sauce_paste`,
 `oil`, `vinegar_citrus`, `fresh_aromatic`, `dry_seasoning`, `sweet_dairy`,
-`topping_seed`, `protein`, and `other`. Taste classification remains in
-review/tag data.
+`topping_seed`, `protein`, and `other`. Taste classification is derived from
+recipe ingredient composition and exposed through recipe tags.
 
 ### `GET /api/v1/tags`
 
@@ -637,7 +648,17 @@ Success data:
 
 ```json
 [
-  { "id": 1, "name": "고소함" }
+  { "id": 1, "name": "고소함" },
+  { "id": 2, "name": "매콤함" },
+  { "id": 3, "name": "달달함" },
+  { "id": 4, "name": "상큼함" },
+  { "id": 5, "name": "마라강함" },
+  { "id": 6, "name": "감칠맛" },
+  { "id": 7, "name": "담백함" },
+  { "id": 8, "name": "마늘향" },
+  { "id": 9, "name": "짭짤함" },
+  { "id": 10, "name": "알싸함" },
+  { "id": 11, "name": "향긋함" }
 ]
 ```
 
@@ -650,8 +671,7 @@ Request:
 ```json
 {
   "rating": 5,
-  "text": "고소하고 초보자도 먹기 좋았어요",
-  "tasteTagIds": [1, 2]
+  "text": "고소하고 초보자도 먹기 좋았어요"
 }
 ```
 
@@ -668,9 +688,6 @@ Success data:
   "authorProfileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/7/<uuid>",
   "rating": 5,
   "text": "고소하고 초보자도 먹기 좋았어요",
-  "tasteTags": [
-    { "id": 1, "name": "고소함" }
-  ],
   "createdAt": "2026-04-25T01:00:00Z"
 }
 ```
@@ -689,9 +706,6 @@ Success data:
     "authorProfileImageUrl": "https://res.cloudinary.com/<cloud-name>/image/upload/f_auto,q_auto/nugusauce/images/7/<uuid>",
     "rating": 5,
     "text": "고소하고 초보자도 먹기 좋았어요",
-    "tasteTags": [
-      { "id": 1, "name": "고소함" }
-    ],
     "createdAt": "2026-04-25T01:00:00Z"
   }
 ]
@@ -765,7 +779,10 @@ Success data:
       "averageRating": 0.0,
       "reviewCount": 0
     },
-    "reviewTags": [],
+    "tags": [
+      { "id": 8, "name": "마늘향" },
+      { "id": 1, "name": "고소함" }
+    ],
     "favoriteCount": 0,
     "isFavorite": false,
     "createdAt": "2026-04-25T00:00:00Z"

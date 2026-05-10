@@ -28,11 +28,11 @@ struct RecipeTasteTag: View {
     var body: some View {
         Text(title)
             .font(SauceTypography.badge(.bold))
-            .foregroundStyle(SauceColor.onSurface)
+            .foregroundStyle(SauceColor.recipeTagText)
             .lineLimit(1)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
-            .background(SauceColor.redTint)
+            .background(SauceColor.recipeTagFill)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
@@ -41,7 +41,7 @@ struct RecipeMiniTagRow: View {
     private let titles: [String]
 
     init(recipe: RecipeSummaryDTO) {
-        titles = recipe.reviewTagTitles
+        titles = recipe.tagTitles
     }
 
     var body: some View {
@@ -641,7 +641,7 @@ struct RecipeCard: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.86)
 
-                RecipeCardTagRow(tags: Array(recipe.reviewTags.prefix(3)))
+                RecipeCardTagRow(tags: Array(recipe.tags.prefix(3)))
 
                 RecipeCardMetricRow(recipe: recipe)
                     .font(SauceTypography.metric(.bold))
@@ -658,7 +658,7 @@ struct RecipeCard: View {
     }
 
     static let cardWidth: CGFloat = 156
-    private static var cardHeight: CGFloat {
+    static var cardHeight: CGFloat {
         imageHeight + contentHeight
     }
     private static let imageHeight: CGFloat = 142
@@ -666,19 +666,19 @@ struct RecipeCard: View {
 }
 
 private struct RecipeCardTagRow: View {
-    let tags: [ReviewTagDTO]
+    let tags: [TagDTO]
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(tags) { tag in
                 Text(tag.name)
                     .font(SauceTypography.micro(.bold))
-                    .foregroundStyle(SauceColor.onSurface)
+                    .foregroundStyle(SauceColor.recipeTagText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 3)
-                    .background(SauceColor.redTint)
+                    .background(SauceColor.recipeTagFill)
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             }
         }
@@ -730,12 +730,6 @@ struct RecipeFavoriteStateBadge: View {
             .foregroundStyle(isFavorite ? foreground : inactiveForeground)
             .frame(width: size, height: size)
             .accessibilityLabel(isFavorite ? "찜한 소스" : "찜하지 않은 소스")
-    }
-}
-
-extension RecipeSummaryDTO {
-    var reviewTagTitles: [String] {
-        reviewTags.prefix(2).map(\.name)
     }
 }
 

@@ -48,9 +48,11 @@ enum SauceColor {
     static let muted = dynamic(light: color(0.620, 0.580, 0.590), dark: color(0.678, 0.600, 0.584))
     static let outline = dynamic(light: color(0.580, 0.431, 0.412), dark: color(0.788, 0.580, 0.549))
     static let chip = dynamic(light: color(1.000, 0.956, 0.960), dark: color(0.231, 0.176, 0.165))
-    static let redTint = dynamic(light: color(1.000, 0.918, 0.925), dark: color(0.267, 0.110, 0.129))
-    static let photoPlaceholderStart = dynamic(light: color(1.000, 0.956, 0.960), dark: color(0.169, 0.196, 0.188))
-    static let photoPlaceholderEnd = dynamic(light: color(1.000, 0.918, 0.925), dark: color(0.282, 0.216, 0.176))
+    static let redTint = dynamic(light: color(1.000, 0.894, 0.780), dark: color(0.267, 0.110, 0.129))
+    static let recipeTagFill = dynamic(light: color(1.000, 0.949, 0.784), dark: color(0.392, 0.247, 0.098))
+    static let recipeTagText = dynamic(light: color(0.635, 0.090, 0.043), dark: color(1.000, 0.855, 0.353))
+    static let photoPlaceholderStart = dynamic(light: color(1.000, 0.965, 0.902), dark: color(0.169, 0.196, 0.188))
+    static let photoPlaceholderEnd = dynamic(light: color(0.996, 0.860, 0.710), dark: color(0.282, 0.216, 0.176))
     static let onPrimary = Color.white
     static let cardShadow = Color.clear
 

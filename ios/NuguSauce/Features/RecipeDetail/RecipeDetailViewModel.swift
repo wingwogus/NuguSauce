@@ -4,11 +4,7 @@ import Foundation
 final class RecipeDetailViewModel: ObservableObject {
     @Published private(set) var detail: RecipeDetailDTO?
     @Published private(set) var reviews: [RecipeReviewDTO] = []
-    @Published private(set) var availableTasteTags: [TagDTO] = []
-    @Published private(set) var isLoadingTasteTags = false
-    @Published private(set) var tasteTagErrorMessage: String?
     @Published var selectedRating = 5
-    @Published var selectedTasteTagIDs: Set<Int> = []
     @Published var reviewText = ""
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
@@ -57,7 +53,6 @@ final class RecipeDetailViewModel: ObservableObject {
 
     func beginReviewDraft() {
         selectedRating = 5
-        selectedTasteTagIDs.removeAll()
         reviewText = ""
         didSubmitReview = false
         errorMessage = nil
@@ -69,45 +64,14 @@ final class RecipeDetailViewModel: ObservableObject {
         do {
             async let detail = apiClient.fetchRecipeDetail(id: recipeID)
             async let reviews = apiClient.fetchReviews(recipeID: recipeID)
-            async let tags = apiClient.fetchTags()
             let loadedDetail = try await detail
             self.detail = loadedDetail
             isFavorite = loadedDetail.isFavorited
             self.reviews = try await reviews
-            do {
-                availableTasteTags = try await tags
-                tasteTagErrorMessage = nil
-            } catch {
-                availableTasteTags = []
-                tasteTagErrorMessage = "맛 태그를 불러오지 못했어요."
-            }
         } catch {
             errorMessage = "상세 정보를 불러오지 못했어요."
         }
         isLoading = false
-    }
-
-    func loadTasteTagsIfNeeded() async {
-        guard availableTasteTags.isEmpty, !isLoadingTasteTags else {
-            return
-        }
-
-        isLoadingTasteTags = true
-        tasteTagErrorMessage = nil
-        do {
-            availableTasteTags = try await apiClient.fetchTags()
-        } catch {
-            tasteTagErrorMessage = "맛 태그를 불러오지 못했어요."
-        }
-        isLoadingTasteTags = false
-    }
-
-    func toggleTasteTag(_ tag: TagDTO) {
-        if selectedTasteTagIDs.contains(tag.id) {
-            selectedTasteTagIDs.remove(tag.id)
-        } else {
-            selectedTasteTagIDs.insert(tag.id)
-        }
     }
 
     func trimReviewTextIfNeeded() {
@@ -129,13 +93,11 @@ final class RecipeDetailViewModel: ObservableObject {
                 recipeID: recipeID,
                 request: CreateReviewRequestDTO(
                     rating: selectedRating,
-                    text: reviewText,
-                    tasteTagIds: selectedTasteTagIDs.sorted()
+                    text: reviewText
                 )
             )
             reviews.insert(review, at: 0)
             reviewText = ""
-            selectedTasteTagIDs.removeAll()
             didSubmitReview = true
             return true
         } catch let error as ApiError {

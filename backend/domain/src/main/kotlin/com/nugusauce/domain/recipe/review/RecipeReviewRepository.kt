@@ -4,13 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
-interface RecipeReviewTagCountProjection {
-    val recipeId: Long
-    val tagId: Long
-    val tagName: String
-    val tagCount: Long
-}
-
 interface RecipeReviewRepository : JpaRepository<RecipeReview, Long> {
     @Query(
         """
@@ -28,19 +21,4 @@ interface RecipeReviewRepository : JpaRepository<RecipeReview, Long> {
 
     fun findAllByRecipeId(recipeId: Long): List<RecipeReview>
 
-    @Query(
-        """
-        select r.recipe.id as recipeId,
-               tag.id as tagId,
-               tag.name as tagName,
-               count(tag) as tagCount
-        from RecipeReview r
-        join r.tasteTags tag
-        where r.recipe.id in :recipeIds
-        group by r.recipe.id, tag.id, tag.name
-        """
-    )
-    fun countTasteTagsByRecipeIds(
-        @Param("recipeIds") recipeIds: Collection<Long>
-    ): List<RecipeReviewTagCountProjection>
 }

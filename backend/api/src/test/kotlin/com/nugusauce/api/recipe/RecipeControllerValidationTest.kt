@@ -380,7 +380,6 @@ class RecipeControllerValidationTest(
             visibility = "VISIBLE",
             ingredients = emptyList(),
             tags = emptyList(),
-            reviewTags = emptyList(),
             ratingSummary = RecipeResult.RatingSummary(0.0, 0),
             isFavorite = isFavorite,
             createdAt = Instant.parse("2026-04-25T00:00:00Z"),
@@ -399,7 +398,6 @@ class RecipeControllerValidationTest(
             visibility = "VISIBLE",
             ratingSummary = RecipeResult.RatingSummary(4.7, 18),
             tags = emptyList(),
-            reviewTags = emptyList(),
             isFavorite = isFavorite,
             createdAt = Instant.parse("2026-04-25T00:00:00Z")
         )

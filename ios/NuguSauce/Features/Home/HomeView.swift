@@ -269,9 +269,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private func tagRow(for recipe: RecipeSummaryDTO) -> some View {
-        if !recipe.reviewTags.isEmpty {
+        if !recipe.tags.isEmpty {
             HStack(spacing: 7) {
-                ForEach(recipe.reviewTags.prefix(2)) { tag in
+                ForEach(recipe.tags.prefix(2)) { tag in
                     RecipeTasteTag(title: tag.name)
                 }
             }

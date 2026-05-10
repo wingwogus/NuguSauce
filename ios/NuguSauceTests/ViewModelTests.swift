@@ -19,9 +19,12 @@ final class ViewModelTests: XCTestCase {
 
     func testProfileRecipeGridLayoutUsesTwoColumns() {
         XCTAssertEqual(ProfileRecipeGridLayout.columnCount, 2)
-        XCTAssertEqual(ProfileRecipeGridLayout.columns.count, 2)
-        XCTAssertEqual(ProfileRecipeGridLayout.columnSpacing, 14)
+        XCTAssertEqual(ProfileRecipeGridLayout.columns(availableWidth: 357).count, 2)
+        XCTAssertEqual(ProfileRecipeGridLayout.minimumColumnSpacing, 14)
         XCTAssertEqual(ProfileRecipeGridLayout.rowSpacing, 18)
+        XCTAssertEqual(ProfileRecipeGridLayout.columnSpacing(availableWidth: 357), 45)
+        XCTAssertEqual(ProfileRecipeGridLayout.columnSpacing(availableWidth: 320), 14)
+        XCTAssertEqual(ProfileRecipeGridLayout.gridHeight(itemCount: 4), RecipeCard.cardHeight * 2 + 18)
     }
 
     func testProfilePlaceholderUsesRedForNuguSauceIdentity() {
@@ -347,6 +350,21 @@ final class ViewModelTests: XCTestCase {
 
         viewModel.selectedTagIDs = [1, 3]
         XCTAssertEqual(viewModel.selectedTagSummary, "매콤 외 1개")
+    }
+
+    func testSearchCompactRecipeTagTitlesExposeThreeRecipeTags() {
+        let recipe = Self.recipe(
+            id: 1,
+            title: "검색 결과 소스",
+            tags: [
+                TagDTO(id: 1, name: "고소함"),
+                TagDTO(id: 2, name: "매콤함"),
+                TagDTO(id: 3, name: "달달함"),
+                TagDTO(id: 4, name: "상큼함")
+            ]
+        )
+
+        XCTAssertEqual(recipe.tagTitles, ["고소함", "매콤함", "달달함"])
     }
 
     func testSearchSelectedIngredientSummaryUsesLoadedIngredients() async {
@@ -1369,23 +1387,6 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.reviewText, "")
     }
 
-    func testRecipeDetailLoadFetchesTasteTagsForReviewCompose() async {
-        let viewModel = RecipeDetailViewModel(
-            recipeID: 10,
-            apiClient: TestAPIClient(
-                tags: [
-                    TagDTO(id: 1, name: "매콤해요"),
-                    TagDTO(id: 2, name: "고소해요")
-                ]
-            ),
-            authStore: TestAuthSessionStore(accessToken: "real-access-token")
-        )
-
-        await viewModel.load()
-
-        XCTAssertEqual(viewModel.availableTasteTags.map(\.name), ["매콤해요", "고소해요"])
-    }
-
     func testRecipeDetailLoadAppliesFavoriteStateFromDetail() async {
         let viewModel = RecipeDetailViewModel(
             recipeID: 10,
@@ -1461,29 +1462,22 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isUpdatingFavorite)
     }
 
-    func testRecipeDetailSubmitReviewSendsSelectedTasteTagIDs() async {
-        let client = TestAPIClient(
-            tags: [
-                TagDTO(id: 3, name: "달콤해요"),
-                TagDTO(id: 1, name: "매콤해요")
-            ]
-        )
+    func testRecipeDetailSubmitReviewSendsRatingAndTextOnly() async {
+        let client = TestAPIClient()
         let viewModel = RecipeDetailViewModel(
             recipeID: 10,
             apiClient: client,
             authStore: TestAuthSessionStore(accessToken: "real-access-token")
         )
-        await viewModel.load()
         viewModel.beginReviewDraft()
         viewModel.reviewText = "매콤하고 달콤해서 좋아요"
-        viewModel.toggleTasteTag(TagDTO(id: 3, name: "달콤해요"))
-        viewModel.toggleTasteTag(TagDTO(id: 1, name: "매콤해요"))
+        viewModel.selectedRating = 4
 
         let didSubmit = await viewModel.submitReview()
 
         XCTAssertTrue(didSubmit)
-        XCTAssertEqual(client.createdReviewRequests.first?.tasteTagIds, [1, 3])
-        XCTAssertTrue(viewModel.selectedTasteTagIDs.isEmpty)
+        XCTAssertEqual(client.createdReviewRequests.first?.rating, 4)
+        XCTAssertEqual(client.createdReviewRequests.first?.text, "매콤하고 달콤해서 좋아요")
     }
 
     func testRecipeDetailConsentRequiredLoadsConsentStatusAndAcceptsRecovery() async {
@@ -1820,7 +1814,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
     }
 
-    private static func recipe(id: Int, title: String) -> RecipeSummaryDTO {
+    private static func recipe(id: Int, title: String, tags: [TagDTO] = []) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
             title: title,
@@ -1828,7 +1822,7 @@ final class ViewModelTests: XCTestCase {
             imageUrl: nil,
             visibility: .visible,
             ratingSummary: RatingSummaryDTO(averageRating: 4.7, reviewCount: 18),
-            reviewTags: [],
+            tags: tags,
             favoriteCount: 6,
             isFavorite: false,
             createdAt: "2026-04-25T00:00:00Z"
@@ -1854,7 +1848,7 @@ final class ViewModelTests: XCTestCase {
             authorProfileImageUrl: nil,
             visibility: .visible,
             ingredients: ingredients,
-            reviewTags: [],
+            tags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
             favoriteCount: 0,
             isFavorite: false,
@@ -2075,7 +2069,7 @@ private final class TestAPIClient: APIClientProtocol {
             authorProfileImageUrl: nil,
             visibility: .visible,
             ingredients: [],
-            reviewTags: [],
+            tags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
             favoriteCount: 0,
             isFavorite: detailIsFavorite,
@@ -2160,7 +2154,7 @@ private final class TestAPIClient: APIClientProtocol {
                     ratio: requestIngredient.ratio
                 )
             },
-            reviewTags: [],
+            tags: [],
             ratingSummary: RatingSummaryDTO(averageRating: 0, reviewCount: 0),
             favoriteCount: 0,
             isFavorite: false,
@@ -2184,7 +2178,6 @@ private final class TestAPIClient: APIClientProtocol {
             authorProfileImageUrl: memberProfile.profileImageUrl,
             rating: request.rating,
             text: request.text,
-            tasteTags: [],
             createdAt: "2026-04-25T00:00:00Z"
         )
     }

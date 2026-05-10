@@ -19,7 +19,6 @@ class RecipeResponsesTest {
                 visibility = "VISIBLE",
                 ratingSummary = RecipeResult.RatingSummary(4.7, 18),
                 tags = emptyList(),
-                reviewTags = emptyList(),
                 favoriteCount = 12,
                 isFavorite = true,
                 createdAt = Instant.parse("2026-04-25T00:00:00Z")
@@ -47,7 +46,6 @@ class RecipeResponsesTest {
                 visibility = "VISIBLE",
                 ingredients = emptyList(),
                 tags = emptyList(),
-                reviewTags = emptyList(),
                 ratingSummary = RecipeResult.RatingSummary(0.0, 0),
                 favoriteCount = 3,
                 isFavorite = true,
@@ -80,7 +78,6 @@ class RecipeResponsesTest {
                 visibility = "VISIBLE",
                 ingredients = emptyList(),
                 tags = emptyList(),
-                reviewTags = emptyList(),
                 ratingSummary = RecipeResult.RatingSummary(0.0, 0),
                 isFavorite = false,
                 createdAt = Instant.parse("2026-04-25T00:00:00Z"),
@@ -103,7 +100,6 @@ class RecipeResponsesTest {
                 authorProfileImageUrl = "https://cdn.example.test/reviewer.jpg",
                 rating = 5,
                 text = "고소하고 좋아요",
-                tasteTags = emptyList(),
                 createdAt = Instant.parse("2026-04-25T01:00:00Z")
             )
         )

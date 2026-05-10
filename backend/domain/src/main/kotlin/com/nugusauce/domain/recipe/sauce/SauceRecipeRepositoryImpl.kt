@@ -4,7 +4,6 @@ import com.nugusauce.domain.recipe.favorite.QRecipeFavorite
 import com.nugusauce.domain.recipe.ingredient.QRecipeIngredient
 import com.nugusauce.domain.recipe.review.QRecipeReview
 import com.nugusauce.domain.recipe.sauce.QSauceRecipe.sauceRecipe
-import com.nugusauce.domain.recipe.tag.QRecipeTag
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.core.types.OrderSpecifier
 import com.querydsl.core.types.dsl.BooleanExpression
@@ -105,7 +104,7 @@ class SauceRecipeRepositoryImpl(
     private fun searchPredicate(condition: SauceRecipeSearchCondition): BooleanBuilder {
         val predicate = BooleanBuilder(sauceRecipe.visibility.eq(RecipeVisibility.VISIBLE))
         keywordPredicate(condition.keyword)?.let(predicate::and)
-        reviewTagPredicate(condition.tagIds)?.let(predicate::and)
+        recipeTagPredicate(condition.tagIds)?.let(predicate::and)
         ingredientPredicate(condition.ingredientIds)?.let(predicate::and)
         return predicate
     }
@@ -117,22 +116,12 @@ class SauceRecipeRepositoryImpl(
             .or(sauceRecipe.tips.lower().contains(normalized))
     }
 
-    private fun reviewTagPredicate(tagIds: Set<Long>): BooleanExpression? {
+    private fun recipeTagPredicate(tagIds: Set<Long>): BooleanExpression? {
         if (tagIds.isEmpty()) {
             return null
         }
 
-        val reviewForTag = QRecipeReview("reviewForTag")
-        val tasteTag = QRecipeTag("tasteTag")
-        return JPAExpressions
-            .selectOne()
-            .from(reviewForTag)
-            .join(reviewForTag.tasteTags, tasteTag)
-            .where(
-                reviewForTag.recipe.id.eq(sauceRecipe.id)
-                    .and(tasteTag.id.`in`(tagIds))
-            )
-            .exists()
+        return sauceRecipe.tags.any().id.`in`(tagIds)
     }
 
     private fun ingredientPredicate(ingredientIds: Set<Long>): BooleanExpression? {

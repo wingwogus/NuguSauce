@@ -78,13 +78,15 @@ class SauceRecipeTest {
     }
 
     @Test
-    fun `user recipe rejects author selected taste tag`() {
+    fun `replaceDerivedTags stores only latest derived tags`() {
         val recipe = userRecipe()
-        val tag = RecipeTag(id = 1L, name = "고소함")
+        val nutty = RecipeTag(id = 1L, name = "고소함")
+        val spicy = RecipeTag(id = 2L, name = "매콤함")
 
-        assertThrows(IllegalArgumentException::class.java) {
-            recipe.addTag(tag)
-        }
+        recipe.replaceDerivedTags(listOf(nutty))
+        recipe.replaceDerivedTags(listOf(spicy))
+
+        assertEquals(listOf("매콤함"), recipe.tags.map { it.name })
     }
 
     private fun userRecipe(): SauceRecipe {

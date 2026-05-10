@@ -10,7 +10,6 @@ import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
-import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -38,9 +37,6 @@ class RecipeFavoriteServiceTest {
     @Mock
     private lateinit var recipeFavoriteRepository: RecipeFavoriteRepository
 
-    @Mock
-    private lateinit var recipeReviewRepository: RecipeReviewRepository
-
     private lateinit var service: RecipeFavoriteService
 
     @BeforeEach
@@ -49,7 +45,6 @@ class RecipeFavoriteServiceTest {
             memberRepository,
             sauceRecipeRepository,
             recipeFavoriteRepository,
-            recipeReviewRepository,
             ImageUrlResolver(TestImageStoragePort)
         )
     }
@@ -64,7 +59,6 @@ class RecipeFavoriteServiceTest {
                 RecipeVisibility.VISIBLE
             )
         ).thenReturn(listOf(recipe(author = author)))
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
         `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L)))
             .thenReturn(setOf(10L))
 
@@ -91,8 +85,6 @@ class RecipeFavoriteServiceTest {
                     RecipeFavorite(recipe = recipe(visibility = RecipeVisibility.HIDDEN), member = member)
                 )
             )
-        `when`(recipeReviewRepository.countTasteTagsByRecipeIds(setOf(10L))).thenReturn(emptyList())
-
         val results = service.listFavorites(RecipeCommand.MemberRecipes(1L))
 
         assertEquals(1, results.size)

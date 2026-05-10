@@ -23,6 +23,19 @@ class NuguSauceFixtureContractTest {
         "protein",
         "other"
     )
+    private val canonicalTagNames = listOf(
+        "고소함",
+        "매콤함",
+        "달달함",
+        "상큼함",
+        "마라강함",
+        "감칠맛",
+        "담백함",
+        "마늘향",
+        "짭짤함",
+        "알싸함",
+        "향긋함"
+    )
 
     @Test
     fun `curated recipes include visible celebrity sauce set and hidden sample`() {
@@ -75,6 +88,13 @@ class NuguSauceFixtureContractTest {
     }
 
     @Test
+    fun `tags are canonical ingredient derived taste tags`() {
+        val tagNames = fixture.requiredArray("tags").map { it.requiredText("name") }
+
+        assertEquals(canonicalTagNames, tagNames)
+    }
+
+    @Test
     fun `recipe ingredient and tag references point at master data`() {
         val ingredientIds = fixture.requiredArray("ingredients_master")
             .map { it.requiredLong("id") }
@@ -101,6 +121,10 @@ class NuguSauceFixtureContractTest {
                     "Unknown tag ${tagId.asLong()} in ${recipe.requiredText("title")}"
                 )
             }
+            assertTrue(
+                recipe.optionalArray("tagIds").size <= 3,
+                "Recipe ${recipe.requiredText("title")} must carry at most three derived tags"
+            )
         }
     }
 
@@ -125,6 +149,7 @@ class NuguSauceFixtureContractTest {
         fixture.requiredArray("reviews").forEach { review ->
             assertTrue(review.requiredLong("recipeId") in recipeIds, "Review references unknown recipe")
             assertTrue(review.requiredLong("authorUserId") in userIds, "Review references unknown user")
+            assertFalse(review.has("tasteTagIds"), "Review fixture must not carry tasteTagIds")
         }
 
         fixture.requiredArray("reports").forEach { report ->

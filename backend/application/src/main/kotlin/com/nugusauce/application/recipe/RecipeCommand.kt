@@ -77,8 +77,7 @@ object RecipeCommand {
         val authorId: Long,
         val recipeId: Long,
         val rating: Int,
-        val text: String? = null,
-        val tasteTagIds: List<Long> = emptyList()
+        val text: String? = null
     )
 
     data class CreateReport(
