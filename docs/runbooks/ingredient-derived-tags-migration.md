@@ -7,8 +7,8 @@ recipe-owned tags derived from ingredient composition.
 
 - Keep `recipe_tag` as the canonical tag table.
 - Keep `sauce_recipe_tag` as the recipe-to-derived-tag relation.
-- Stop using `recipe_review_tag`; leave it empty or drop it during an approved
-  DDL window.
+- Stop using `recipe_review_tag`; drop it in pre-launch environments or during
+  an approved DDL window.
 - Reviews keep only rating and text.
 
 ## Canonical Tags
@@ -52,6 +52,8 @@ environments, the checked-in SQL scripts mirror the policy:
 - `ops/sql/ingredient-derived-tags-cleanup.sql` clears `recipe_review_tag` and
   deletes unreferenced non-canonical `recipe_tag` rows after the new backend is
   healthy.
+- `ops/sql/drop-recipe-review-tag.sql` drops the unused review-to-tag join table
+  after cleanup, when old review-tag semantics are no longer needed.
 
 1. Upsert the 11 canonical `recipe_tag` names.
 2. Delete obsolete tag rows only after checking no other feature references
@@ -62,6 +64,7 @@ environments, the checked-in SQL scripts mirror the policy:
 5. Derive tag names through `RecipeTagDerivationPolicy`.
 6. Insert the resulting top three tag IDs into `sauce_recipe_tag`.
 7. Delete all rows from `recipe_review_tag` if the table exists.
+8. Drop `recipe_review_tag` once the new backend is deployed and verified.
 
 ## Verification
 
@@ -71,18 +74,17 @@ Run these checks after backfill:
 select count(*) from recipe_tag;
 select name from recipe_tag order by id;
 select recipe_id, count(*) from sauce_recipe_tag group by recipe_id having count(*) > 3;
-select count(*) from recipe_review_tag;
+select to_regclass('public.recipe_review_tag') as recipe_review_tag_table;
 ```
 
 Expected:
 
 - `recipe_tag` has 11 rows with the canonical names above.
 - The `having count(*) > 3` query returns no rows.
-- `recipe_review_tag` is zero rows, or the table is absent because it was
-  dropped in the DDL window.
+- `recipe_review_tag_table` is null after the drop step.
 
 ## Rollback
 
 Rollback requires restoring the table snapshot because old review tag semantics
 cannot be reconstructed from rating/text alone after `recipe_review_tag` is
-cleared.
+cleared or dropped.
