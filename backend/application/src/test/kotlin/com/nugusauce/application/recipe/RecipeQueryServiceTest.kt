@@ -1,5 +1,7 @@
 package com.nugusauce.application.recipe
 
+import com.nugusauce.application.common.cursor.CursorCodec
+import com.nugusauce.application.common.cursor.CursorShape
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
@@ -13,8 +15,11 @@ import com.nugusauce.domain.recipe.review.RecipeReview
 import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
+import com.nugusauce.domain.recipe.sauce.SauceRecipeHomeCondition
+import com.nugusauce.domain.recipe.sauce.SauceRecipeHomeSections
+import com.nugusauce.domain.recipe.sauce.SauceRecipePageCondition
+import com.nugusauce.domain.recipe.sauce.SauceRecipePageSlice
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
-import com.nugusauce.domain.recipe.sauce.SauceRecipeSearchCondition
 import com.nugusauce.domain.recipe.sauce.SauceRecipeSort
 import com.nugusauce.domain.recipe.tag.RecipeTag
 import com.nugusauce.domain.recipe.tag.RecipeTagRepository
@@ -29,10 +34,7 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.junit.jupiter.MockitoExtension
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -69,16 +71,17 @@ class RecipeQueryServiceTest {
 
     @Test
     fun `search delegates normalized condition to repository and maps summaries`() {
-        val condition = SauceRecipeSearchCondition(keyword = "건희")
-        `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
-            .thenReturn(listOf(recipe(title = "건희 소스")))
+        val condition = SauceRecipePageCondition(keyword = "건희", limit = 20)
+        `when`(sauceRecipeRepository.searchRecipePage(condition))
+            .thenReturn(page(recipe(title = "건희 소스")))
 
         val results = service.search(RecipeCommand.SearchRecipes(q = "  건희  "))
 
-        assertEquals(1, results.size)
-        assertEquals("건희 소스", results.first().title)
-        assertEquals(false, results.first().isFavorite)
-        verify(sauceRecipeRepository).searchVisibleRecipes(condition)
+        assertEquals(1, results.items.size)
+        assertEquals("건희 소스", results.items.first().title)
+        assertEquals(false, results.items.first().isFavorite)
+        assertEquals(false, results.hasNext)
+        verify(sauceRecipeRepository).searchRecipePage(condition)
         verifyNoInteractions(recipeFavoriteRepository)
     }
 
@@ -88,82 +91,126 @@ class RecipeQueryServiceTest {
             recipe(id = 10L, title = "건희 소스"),
             recipe(id = 20L, title = "찜한 소스")
         )
-        `when`(sauceRecipeRepository.searchVisibleRecipes(SauceRecipeSearchCondition()))
-            .thenReturn(recipes)
+        `when`(sauceRecipeRepository.searchRecipePage(SauceRecipePageCondition(limit = 20)))
+            .thenReturn(page(recipes))
         `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L, 20L)))
             .thenReturn(setOf(20L))
 
         val results = service.search(RecipeCommand.SearchRecipes(viewerMemberId = 1L))
 
-        assertEquals(listOf(false, true), results.map { it.isFavorite })
+        assertEquals(listOf(false, true), results.items.map { it.isFavorite })
         verify(recipeFavoriteRepository).findRecipeIdsByMemberAndRecipeIds(1L, setOf(10L, 20L))
     }
 
     @Test
     fun `search skips favorite lookup for empty result list`() {
-        `when`(sauceRecipeRepository.searchVisibleRecipes(SauceRecipeSearchCondition()))
-            .thenReturn(emptyList())
+        `when`(sauceRecipeRepository.searchRecipePage(SauceRecipePageCondition(limit = 20)))
+            .thenReturn(SauceRecipePageSlice(recipes = emptyList(), hasNext = false))
 
         val results = service.search(RecipeCommand.SearchRecipes(viewerMemberId = 1L))
 
-        assertEquals(emptyList<RecipeResult.RecipeSummary>(), results)
+        assertEquals(emptyList<RecipeResult.RecipeSummary>(), results.items)
         verifyNoInteractions(recipeFavoriteRepository)
+    }
+
+    @Test
+    fun `search encodes next cursor from last returned row when page has next`() {
+        val condition = SauceRecipePageCondition(limit = 1)
+        `when`(sauceRecipeRepository.searchRecipePage(condition))
+            .thenReturn(page(listOf(recipe(id = 10L, title = "건희 소스")), hasNext = true))
+
+        val result = service.search(RecipeCommand.SearchRecipes(limit = 1))
+
+        assertEquals(listOf("건희 소스"), result.items.map { it.title })
+        assertEquals(true, result.hasNext)
+        assertNotEquals(null, result.nextCursor)
+    }
+
+    @Test
+    fun `search rejects malformed cursor before repository lookup`() {
+        val exception = assertThrows(BusinessException::class.java) {
+            service.search(RecipeCommand.SearchRecipes(cursor = "not-base64"))
+        }
+
+        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(sauceRecipeRepository)
+    }
+
+    @Test
+    fun `search delegates decoded cursor offset to repository`() {
+        val cursor = CursorCodec().encode(
+            CursorShape(
+                mapOf(
+                    "q" to null,
+                    "tagIds" to "",
+                    "ingredientIds" to "",
+                    "sort" to "popular",
+                    "limit" to "20"
+                )
+            ),
+            offset = 20
+        )
+        val condition = SauceRecipePageCondition(limit = 20, offset = 20)
+        `when`(sauceRecipeRepository.searchRecipePage(condition))
+            .thenReturn(page(recipe(id = 30L, title = "두 번째 페이지 소스")))
+
+        val results = service.search(RecipeCommand.SearchRecipes(cursor = cursor))
+
+        assertEquals(listOf("두 번째 페이지 소스"), results.items.map { it.title })
+        verify(sauceRecipeRepository).searchRecipePage(condition)
     }
 
     @Test
     fun `search delegates tag and ingredient filters and returns recipe tags`() {
         val nutty = RecipeTag(id = 1L, name = "고소함")
-        val condition = SauceRecipeSearchCondition(
+        val condition = SauceRecipePageCondition(
             tagIds = setOf(1L),
             ingredientIds = setOf(9L),
-            sort = SauceRecipeSort.RATING
+            sort = SauceRecipeSort.RECENT,
+            limit = 20
         )
-        `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
-            .thenReturn(listOf(recipe(id = 10L, title = "건희 소스", tags = listOf(nutty))))
+        `when`(sauceRecipeRepository.searchRecipePage(condition))
+            .thenReturn(page(recipe(id = 10L, title = "건희 소스", tags = listOf(nutty))))
 
         val results = service.search(
             RecipeCommand.SearchRecipes(
                 tagIds = listOf(1L, 1L),
                 ingredientIds = listOf(9L),
-                sort = RecipeCommand.RecipeSort.RATING
+                sort = RecipeCommand.RecipeSort.RECENT
             )
         )
 
-        assertEquals(1, results.size)
-        assertEquals("건희 소스", results.first().title)
-        assertEquals("고소함", results.first().tags.first().name)
-        verify(sauceRecipeRepository).searchVisibleRecipes(condition)
+        assertEquals(1, results.items.size)
+        assertEquals("건희 소스", results.items.first().title)
+        assertEquals("고소함", results.items.first().tags.first().name)
+        verify(sauceRecipeRepository).searchRecipePage(condition)
     }
 
     @Test
-    fun `hot search delegates seven day window to repository`() {
-        val now = Instant.parse("2026-04-29T00:00:00Z")
-        service = service(clock = Clock.fixed(now, ZoneOffset.UTC))
-        val olderPopular = recipe(
-            id = 10L,
-            title = "누적 인기 소스",
-            reviewCount = 80,
-            averageRating = 4.9,
-            lastReviewedAt = now.minus(20, ChronoUnit.DAYS)
+    fun `home loads fixed sections once and personalizes favorites in bulk`() {
+        val popular = recipe(id = 20L, title = "인기 소스")
+        val recent = recipe(id = 30L, title = "최신 소스")
+        val condition = SauceRecipeHomeCondition(
+            popularLimit = 5,
+            recentLimit = 10
         )
-        val hotRecipe = recipe(
-            id = 20L,
-            title = "요즘 핫한 소스",
-            reviewCount = 2,
-            averageRating = 4.0,
-            lastReviewedAt = now.minus(1, ChronoUnit.DAYS)
-        )
-        val condition = SauceRecipeSearchCondition(
-            sort = SauceRecipeSort.HOT,
-            hotSince = now.minus(7, ChronoUnit.DAYS)
-        )
-        `when`(sauceRecipeRepository.searchVisibleRecipes(condition))
-            .thenReturn(listOf(hotRecipe, olderPopular))
+        `when`(sauceRecipeRepository.searchHomeSections(condition))
+            .thenReturn(
+                SauceRecipeHomeSections(
+                    popular = listOf(popular),
+                    recent = listOf(recent)
+                )
+            )
+        `when`(recipeFavoriteRepository.findRecipeIdsByMemberAndRecipeIds(1L, setOf(20L, 30L)))
+            .thenReturn(setOf(20L))
 
-        val results = service.search(RecipeCommand.SearchRecipes(sort = RecipeCommand.RecipeSort.HOT))
+        val result = service.home(RecipeCommand.HomeFeed(viewerMemberId = 1L))
 
-        assertEquals(listOf("요즘 핫한 소스", "누적 인기 소스"), results.map { it.title })
-        verify(sauceRecipeRepository).searchVisibleRecipes(condition)
+        assertEquals(listOf("인기 소스"), result.popularTop.map { it.title })
+        assertEquals(listOf("최신 소스"), result.recentTop.map { it.title })
+        assertEquals(true, result.popularTop.first().isFavorite)
+        verify(sauceRecipeRepository).searchHomeSections(condition)
+        verify(recipeFavoriteRepository).findRecipeIdsByMemberAndRecipeIds(1L, setOf(20L, 30L))
     }
 
     @Test
@@ -258,16 +305,20 @@ class RecipeQueryServiceTest {
         }
     }
 
-    private fun service(clock: Clock): RecipeQueryService {
-        return RecipeQueryService(
-            sauceRecipeRepository,
-            ingredientRepository,
-            recipeTagRepository,
-            recipeReviewRepository,
-            recipeFavoriteRepository,
-            ImageUrlResolver(TestImageStoragePort),
-            RecipeTagDerivationPolicy(),
-            clock
+    private fun page(
+        vararg recipes: SauceRecipe,
+        hasNext: Boolean = false
+    ): SauceRecipePageSlice {
+        return page(recipes.toList(), hasNext)
+    }
+
+    private fun page(
+        recipes: List<SauceRecipe>,
+        hasNext: Boolean = false
+    ): SauceRecipePageSlice {
+        return SauceRecipePageSlice(
+            recipes = recipes,
+            hasNext = hasNext
         )
     }
 

@@ -106,23 +106,17 @@ extension ApiError {
 }
 
 enum RecipeSort: String, CaseIterable, Identifiable {
-    case hot
     case popular
     case recent
-    case rating
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .hot:
-            return "핫한순"
         case .popular:
             return "인기순"
         case .recent:
             return "최신순"
-        case .rating:
-            return "평점순"
         }
     }
 }
@@ -132,6 +126,52 @@ struct RecipeListQuery: Equatable {
     var tagIDs: Set<Int> = []
     var ingredientIDs: Set<Int> = []
     var sort: RecipeSort = .popular
+}
+
+struct RecipeSearchPageDTO: Codable, Equatable {
+    let items: [RecipeSummaryDTO]
+    let nextCursor: String?
+    let hasNext: Bool
+
+    init(items: [RecipeSummaryDTO], nextCursor: String?, hasNext: Bool) {
+        self.items = items
+        self.nextCursor = nextCursor
+        self.hasNext = hasNext
+    }
+
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.container(keyedBy: CodingKeys.self),
+           container.contains(.items) {
+            items = try container.decode([RecipeSummaryDTO].self, forKey: .items)
+            nextCursor = try container.decodeIfPresent(String.self, forKey: .nextCursor)
+            hasNext = try container.decode(Bool.self, forKey: .hasNext)
+            return
+        }
+
+        if var legacyContainer = try? decoder.unkeyedContainer() {
+            var recipes: [RecipeSummaryDTO] = []
+            while !legacyContainer.isAtEnd {
+                recipes.append(try legacyContainer.decode(RecipeSummaryDTO.self))
+            }
+            items = recipes
+            nextCursor = nil
+            hasNext = false
+            return
+        }
+
+        throw DecodingError.typeMismatch(
+            RecipeSearchPageDTO.self,
+            DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Expected recipe search page object or legacy recipe array"
+            )
+        )
+    }
+}
+
+struct HomeDTO: Codable, Equatable {
+    let popularTop: [RecipeSummaryDTO]
+    let recentTop: [RecipeSummaryDTO]
 }
 
 struct TokenResponseDTO: Codable, Equatable {
@@ -247,7 +287,8 @@ enum APIClientError: Error, Equatable {
 }
 
 protocol APIClientProtocol {
-    func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO]
+    func fetchHome() async throws -> HomeDTO
+    func fetchRecipeSearchPage(query: RecipeListQuery, cursor: String?, limit: Int) async throws -> RecipeSearchPageDTO
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO
     func fetchReviews(recipeID: Int) async throws -> [RecipeReviewDTO]
     func fetchIngredients() async throws -> [IngredientDTO]

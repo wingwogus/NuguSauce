@@ -102,6 +102,20 @@ struct SearchView: View {
                     CompactRecipeRow(recipe: recipe)
                 }
                 .buttonStyle(.plain)
+                .onAppear {
+                    guard recipe.id == viewModel.results.last?.id else {
+                        return
+                    }
+                    Task {
+                        await viewModel.loadNextPage()
+                    }
+                }
+            }
+
+            if viewModel.isLoadingNextPage {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
         }
     }

@@ -4,18 +4,14 @@ import java.math.BigDecimal
 
 object RecipeCommand {
     enum class RecipeSort {
-        HOT,
         POPULAR,
-        RECENT,
-        RATING;
+        RECENT;
 
         companion object {
             fun from(value: String?): RecipeSort {
                 return when (value?.lowercase()) {
                     null, "", "popular" -> POPULAR
-                    "hot" -> HOT
                     "recent" -> RECENT
-                    "rating" -> RATING
                     else -> throw IllegalArgumentException("unsupported recipe sort: $value")
                 }
             }
@@ -39,6 +35,12 @@ object RecipeCommand {
         val tagIds: List<Long> = emptyList(),
         val ingredientIds: List<Long> = emptyList(),
         val sort: RecipeSort = RecipeSort.POPULAR,
+        val viewerMemberId: Long? = null,
+        val limit: Int? = null,
+        val cursor: String? = null
+    )
+
+    data class HomeFeed(
         val viewerMemberId: Long? = null
     )
 

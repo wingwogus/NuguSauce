@@ -12,6 +12,7 @@ import com.nugusauce.application.recipe.RecipeReviewService
 import com.nugusauce.application.recipe.RecipeWriteService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -40,18 +41,34 @@ class RecipeController(
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) tagIds: List<String>?,
         @RequestParam(required = false) ingredientIds: List<String>?,
-        @RequestParam(required = false) sort: String?
-    ): ResponseEntity<ApiResponse<List<RecipeResponses.RecipeSummaryResponse>>> {
+        @RequestParam(required = false) sort: String?,
+        @RequestParam(required = false) limit: String?,
+        @RequestParam(required = false) cursor: String?
+    ): ResponseEntity<ApiResponse<RecipeResponses.RecipeSearchPageResponse>> {
         val results = recipeQueryService.search(
             RecipeCommand.SearchRecipes(
                 q = q,
                 tagIds = parseIds("tagIds", tagIds),
                 ingredientIds = parseIds("ingredientIds", ingredientIds),
                 sort = parseSort(sort),
+                viewerMemberId = userId?.toLongOrNull(),
+                limit = parseLimit(limit),
+                cursor = cursor
+            )
+        )
+        return personalizedOk(RecipeResponses.RecipeSearchPageResponse.from(results))
+    }
+
+    @GetMapping("/home")
+    fun home(
+        @AuthenticationPrincipal userId: String?
+    ): ResponseEntity<ApiResponse<RecipeResponses.HomeResponse>> {
+        val result = recipeQueryService.home(
+            RecipeCommand.HomeFeed(
                 viewerMemberId = userId?.toLongOrNull()
             )
         )
-        return ResponseEntity.ok(ApiResponse.ok(results.map(RecipeResponses.RecipeSummaryResponse::from)))
+        return personalizedOk(RecipeResponses.HomeResponse.from(result))
     }
 
     @GetMapping("/recipes/{recipeId}")
@@ -60,7 +77,7 @@ class RecipeController(
         @PathVariable recipeId: Long
     ): ResponseEntity<ApiResponse<RecipeResponses.RecipeDetailResponse>> {
         val result = recipeQueryService.getDetail(recipeId, userId?.toLongOrNull())
-        return ResponseEntity.ok(ApiResponse.ok(RecipeResponses.RecipeDetailResponse.from(result)))
+        return personalizedOk(RecipeResponses.RecipeDetailResponse.from(result))
     }
 
     @PostMapping("/recipes")
@@ -297,5 +314,37 @@ class RecipeController(
                     detail = mapOf("field" to field, "reason" to "must contain numeric IDs")
                 )
             }
+    }
+
+    private fun parseLimit(limit: String?): Int? {
+        val raw = limit?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val parsed = raw.toIntOrNull() ?: throw BusinessException(
+            ErrorCode.INVALID_INPUT,
+            detail = mapOf("field" to "limit", "reason" to "must be numeric")
+        )
+        if (parsed <= 0) {
+            throw BusinessException(
+                ErrorCode.INVALID_INPUT,
+                detail = mapOf("field" to "limit", "reason" to "must be positive")
+            )
+        }
+        if (parsed > MAX_RECIPE_LIST_LIMIT) {
+            throw BusinessException(
+                ErrorCode.INVALID_INPUT,
+                detail = mapOf("field" to "limit", "reason" to "must be at most $MAX_RECIPE_LIST_LIMIT")
+            )
+        }
+        return parsed
+    }
+
+    private fun <T> personalizedOk(data: T): ResponseEntity<ApiResponse<T>> {
+        return ResponseEntity
+            .ok()
+            .header(HttpHeaders.VARY, HttpHeaders.AUTHORIZATION)
+            .body(ApiResponse.ok(data))
+    }
+
+    private companion object {
+        const val MAX_RECIPE_LIST_LIMIT = 50
     }
 }

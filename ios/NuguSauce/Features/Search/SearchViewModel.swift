@@ -16,8 +16,12 @@ final class SearchViewModel: ObservableObject {
     @Published private(set) var tags: [TagDTO] = []
     @Published private(set) var ingredients: [IngredientDTO] = []
     @Published private(set) var results: [RecipeSummaryDTO] = []
+    @Published private(set) var hasNext = false
+    @Published private(set) var isLoadingNextPage = false
 
     private let apiClient: APIClientProtocol
+    private var nextCursor: String?
+    private var searchGeneration = 0
 
     init(apiClient: APIClientProtocol) {
         self.apiClient = apiClient
@@ -99,6 +103,56 @@ final class SearchViewModel: ObservableObject {
     }
 
     func search() async throws {
-        results = try await apiClient.fetchRecipes(query: queryModel)
+        searchGeneration += 1
+        let generation = searchGeneration
+        nextCursor = nil
+        hasNext = false
+        isLoadingNextPage = false
+        results = []
+
+        let page = try await apiClient.fetchRecipeSearchPage(
+            query: queryModel,
+            cursor: nil,
+            limit: Self.pageLimit
+        )
+        guard generation == searchGeneration else {
+            return
+        }
+        results = page.items
+        nextCursor = page.nextCursor
+        hasNext = page.hasNext
     }
+
+    func loadNextPage() async {
+        guard hasNext, !isLoadingNextPage, let cursor = nextCursor else {
+            return
+        }
+
+        isLoadingNextPage = true
+        let generation = searchGeneration
+        defer {
+            isLoadingNextPage = false
+        }
+
+        do {
+            let page = try await apiClient.fetchRecipeSearchPage(
+                query: queryModel,
+                cursor: cursor,
+                limit: Self.pageLimit
+            )
+            guard generation == searchGeneration else {
+                return
+            }
+            results.append(contentsOf: page.items)
+            nextCursor = page.nextCursor
+            hasNext = page.hasNext
+        } catch {
+            guard generation == searchGeneration else {
+                return
+            }
+            hasNext = false
+        }
+    }
+
+    private static let pageLimit = 20
 }

@@ -4,12 +4,24 @@ struct HomeView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     let openProfile: () -> Void
+    let openCreate: () -> Void
+    let openSearch: () -> Void
     @StateObject private var viewModel: HomeViewModel
+    @State private var selectedBannerID: HomeBanner.ID? = HomeBanner.allCases.first?.id
+    @Environment(\.openURL) private var openURL
 
-    init(apiClient: APIClientProtocol, authStore: AuthSessionStore, openProfile: @escaping () -> Void) {
+    init(
+        apiClient: APIClientProtocol,
+        authStore: AuthSessionStore,
+        openProfile: @escaping () -> Void,
+        openCreate: @escaping () -> Void,
+        openSearch: @escaping () -> Void
+    ) {
         self.apiClient = apiClient
         self.authStore = authStore
         self.openProfile = openProfile
+        self.openCreate = openCreate
+        self.openSearch = openSearch
         _viewModel = StateObject(wrappedValue: HomeViewModel(apiClient: apiClient))
     }
 
@@ -17,8 +29,9 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SauceSpacing.section) {
                 homeTopBar
+                homeBannerCarousel
 
-                if viewModel.isLoading && !hasContent {
+                if viewModel.isLoading && !hasRecipeContent {
                     loadingState
                 } else {
                     if let errorMessage = viewModel.errorMessage {
@@ -27,13 +40,8 @@ struct HomeView: View {
                             .accessibilityIdentifier("home.error")
                     }
 
-                    if !hasContent {
-                        emptyState
-                    } else {
-                        hotHeroCard
-                        popularRankingSection
-                        latestSourceRailSection
-                    }
+                    popularRankingSection
+                    latestSourceRailSection
                 }
             }
             .padding(.bottom, 34)
@@ -45,10 +53,8 @@ struct HomeView: View {
         }
     }
 
-    private var hasContent: Bool {
-        viewModel.hotHeroRecipe != nil ||
-            !viewModel.popularRankingRecipes.isEmpty ||
-            !viewModel.latestSourceRecipes.isEmpty
+    private var hasRecipeContent: Bool {
+        !viewModel.popularRankingRecipes.isEmpty || !viewModel.latestSourceRecipes.isEmpty
     }
 
     private var homeContentRefreshID: String {
@@ -87,81 +93,41 @@ struct HomeView: View {
         .padding(.horizontal, SauceSpacing.screen)
     }
 
-    @ViewBuilder
-    private var hotHeroCard: some View {
-        if let recipe = viewModel.hotHeroRecipe {
-            NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                ZStack(alignment: .bottomLeading) {
-                    RecipeImage(imageURL: recipe.imageUrl, recipeID: recipe.id, height: 340)
+    private var homeBannerCarousel: some View {
+        GeometryReader { proxy in
+            let cardSpacing: CGFloat = 18
+            let sidePeek = min(44, max(34, proxy.size.width * 0.09))
+            let cardWidth = max(292, proxy.size.width - sidePeek * 2)
+            let cardHeight = min(304, max(272, cardWidth * 0.9))
+            let banners = HomeBanner.allCases
 
-                    LinearGradient(
-                        colors: [
-                            .black.opacity(0.0),
-                            .black.opacity(0.36),
-                            .black.opacity(0.78)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("🔥 HOT")
-                            .font(SauceTypography.badge(.black))
-                            .foregroundStyle(SauceColor.onPrimary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(SauceColor.primaryContainer)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                        Text(recipe.title)
-                            .font(SauceTypography.heroTitle())
-                            .foregroundStyle(SauceColor.onPrimary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.75)
-
-                        Text(recipe.description)
-                            .font(SauceTypography.supporting(.semibold))
-                            .foregroundStyle(SauceColor.onPrimary.opacity(0.9))
-                            .lineLimit(2)
-
-                        RecipeCardMetricRow(
-                            recipe: recipe,
-                            favoriteColor: SauceColor.onPrimary.opacity(0.92)
-                        )
-                            .font(SauceTypography.badge(.bold))
-                            .foregroundStyle(SauceColor.onPrimary.opacity(0.92))
-
-                        tagRow(for: recipe)
-                    }
-                    .padding(18)
-                    .padding(.trailing, 58)
-
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            RecipeFavoriteStateBadge(
-                                isFavorite: recipe.isFavorited,
-                                foreground: SauceColor.primaryContainer,
-                                inactiveForeground: SauceColor.onPrimary.opacity(0.86)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: cardSpacing) {
+                    ForEach(Array(banners.enumerated()), id: \.element.id) { index, banner in
+                        Button {
+                            open(banner)
+                        } label: {
+                            HomeBannerCard(
+                                banner: banner,
+                                position: index + 1,
+                                totalCount: banners.count
                             )
+                                .frame(width: cardWidth, height: cardHeight)
                         }
-                        .padding(18)
+                        .buttonStyle(.plain)
+                        .id(banner.id)
+                        .accessibilityIdentifier("home.banner.\(banner.id)")
+                        .accessibilityValue("\(index + 1) / \(banners.count)")
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .scrollTargetLayout()
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, SauceSpacing.screen)
-            .accessibilityIdentifier("home.hero")
-        } else {
-            Text("핫한 소스를 준비 중이에요.")
-                .font(SauceTypography.body(.semibold))
-                .foregroundStyle(SauceColor.onSurfaceVariant)
-                .padding(.horizontal, SauceSpacing.screen)
-                .accessibilityIdentifier("home.hero.empty")
+            .safeAreaPadding(.horizontal, sidePeek)
+            .scrollPosition(id: $selectedBannerID)
+            .scrollTargetBehavior(.viewAligned)
         }
+        .frame(height: 304)
+        .accessibilityIdentifier("home.bannerCarousel")
     }
 
     private var popularRankingSection: some View {
@@ -255,26 +221,74 @@ struct HomeView: View {
             .accessibilityIdentifier("home.loading")
     }
 
-    private var emptyState: some View {
-        Text("불러올 소스 조합이 아직 없어요.")
-            .font(SauceTypography.body(.semibold))
-            .foregroundStyle(SauceColor.onSurfaceVariant)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .background(SauceColor.surfaceContainerLow)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(.horizontal, SauceSpacing.screen)
-            .accessibilityIdentifier("home.empty")
+    private func open(_ banner: HomeBanner) {
+        switch banner {
+        case .openFeedback:
+            if let url = URL(string: "https://docs.google.com/forms/d/e/1FAIpQLSeFu5sd3NgrCeVP_GvCKXvU2HyL8gJAnOWjtsxelD2E5AYjaA/viewform?usp=header") {
+                openURL(url)
+            }
+        case .createRecipe:
+            openCreate()
+        case .searchRecipe:
+            openSearch()
+        }
     }
+}
 
-    @ViewBuilder
-    private func tagRow(for recipe: RecipeSummaryDTO) -> some View {
-        if !recipe.tags.isEmpty {
-            HStack(spacing: 7) {
-                ForEach(recipe.tags.prefix(2)) { tag in
-                    RecipeTasteTag(title: tag.name)
+private struct HomeBannerCard: View {
+    let banner: HomeBanner
+    let position: Int
+    let totalCount: Int
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .bottom) {
+                Image(banner.imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+
+                LinearGradient(
+                    colors: [
+                        .black.opacity(0.02),
+                        .black.opacity(0.12),
+                        .black.opacity(0.74)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .center, spacing: 8) {
+                    Text(banner.title)
+                        .font(SauceTypography.heroTitle())
+                        .foregroundStyle(SauceColor.onPrimary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
+
+                    Text(banner.message)
+                        .font(SauceTypography.body(.semibold))
+                        .foregroundStyle(SauceColor.onPrimary.opacity(0.92))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.82)
+
+                    Text("\(Self.twoDigit(position)) | \(Self.twoDigit(totalCount))")
+                        .font(SauceTypography.badge(.bold))
+                        .foregroundStyle(SauceColor.onPrimary.opacity(0.95))
+                        .monospacedDigit()
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private static func twoDigit(_ value: Int) -> String {
+        String(format: "%02d", value)
     }
 }

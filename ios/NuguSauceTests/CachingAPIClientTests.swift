@@ -7,20 +7,33 @@ final class CachingAPIClientTests: XCTestCase {
         let upstream = CountingAPIClient(authStore: authStore)
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
 
-        let first = try await client.fetchRecipes(
-            query: RecipeListQuery(keyword: "  마라 ", tagIDs: [2, 1], ingredientIDs: [3], sort: .popular)
+        let first = try await client.fetchRecipeSearchPage(
+            query: RecipeListQuery(keyword: "  마라 ", tagIDs: [2, 1], ingredientIDs: [3], sort: .popular),
+            cursor: nil,
+            limit: 20
         )
-        let second = try await client.fetchRecipes(
-            query: RecipeListQuery(keyword: "마라", tagIDs: [1, 2], ingredientIDs: [3], sort: .popular)
+        let second = try await client.fetchRecipeSearchPage(
+            query: RecipeListQuery(keyword: "마라", tagIDs: [1, 2], ingredientIDs: [3], sort: .popular),
+            cursor: nil,
+            limit: 20
         )
 
         XCTAssertEqual(first, second)
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 1)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 1)
 
-        _ = try await client.fetchRecipes(
-            query: RecipeListQuery(keyword: "마라", tagIDs: [1, 2], ingredientIDs: [3], sort: .recent)
+        _ = try await client.fetchRecipeSearchPage(
+            query: RecipeListQuery(keyword: "마라", tagIDs: [1, 2], ingredientIDs: [3], sort: .recent),
+            cursor: nil,
+            limit: 20
         )
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
+
+        _ = try await client.fetchRecipeSearchPage(
+            query: RecipeListQuery(keyword: "마라", tagIDs: [1, 2], ingredientIDs: [3], sort: .popular),
+            cursor: nil,
+            limit: 10
+        )
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 3)
     }
 
     @MainActor
@@ -61,15 +74,15 @@ final class CachingAPIClientTests: XCTestCase {
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
         let query = RecipeListQuery(sort: .popular)
 
-        let anonymousRecipes = try await client.fetchRecipes(query: query)
-        XCTAssertFalse(anonymousRecipes.first?.isFavorite == true)
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 1)
+        let anonymousPage = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
+        XCTAssertFalse(anonymousPage.items.first?.isFavorite == true)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 1)
 
         authStore.setMemberID(7)
-        let memberRecipes = try await client.fetchRecipes(query: query)
+        let memberPage = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
 
-        XCTAssertTrue(memberRecipes.first?.isFavorite == true)
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertTrue(memberPage.items.first?.isFavorite == true)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
     }
 
     func testMasterDataCacheSurvivesBucketChanges() async throws {
@@ -130,7 +143,7 @@ final class CachingAPIClientTests: XCTestCase {
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
         let query = RecipeListQuery(sort: .popular)
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         upstream.favoriteAddError = ApiError(code: ApiErrorCode.duplicateFavorite, message: "duplicate", detail: nil)
@@ -142,11 +155,11 @@ final class CachingAPIClientTests: XCTestCase {
             XCTAssertEqual(error.code, ApiErrorCode.duplicateFavorite)
         }
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
 
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
         XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
         XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
     }
@@ -157,7 +170,7 @@ final class CachingAPIClientTests: XCTestCase {
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
         let query = RecipeListQuery(sort: .popular)
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         upstream.favoriteDeleteError = ApiError(code: ApiErrorCode.favoriteNotFound, message: "missing", detail: nil)
@@ -169,11 +182,11 @@ final class CachingAPIClientTests: XCTestCase {
             XCTAssertEqual(error.code, ApiErrorCode.favoriteNotFound)
         }
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
 
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
         XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
         XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
     }
@@ -184,7 +197,7 @@ final class CachingAPIClientTests: XCTestCase {
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
         let query = RecipeListQuery(sort: .popular)
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         _ = try await client.fetchMyRecipes()
@@ -203,13 +216,13 @@ final class CachingAPIClientTests: XCTestCase {
             )
         )
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         _ = try await client.fetchMyRecipes()
         _ = try await client.fetchMyMember()
 
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
         XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
         XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
         XCTAssertEqual(upstream.fetchMyRecipesCallCount, 2)
@@ -222,7 +235,7 @@ final class CachingAPIClientTests: XCTestCase {
         let client = CachingAPIClient(upstream: upstream, authStore: authStore)
         let query = RecipeListQuery(sort: .popular)
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         _ = try await client.fetchMyRecipes()
@@ -230,13 +243,13 @@ final class CachingAPIClientTests: XCTestCase {
 
         try await client.deleteRecipe(id: 10)
 
-        _ = try await client.fetchRecipes(query: query)
+        _ = try await client.fetchRecipeSearchPage(query: query, cursor: nil, limit: 20)
         _ = try await client.fetchRecipeDetail(id: 10)
         _ = try await client.fetchFavoriteRecipes()
         _ = try await client.fetchMyRecipes()
         _ = try await client.fetchMyMember()
 
-        XCTAssertEqual(upstream.fetchRecipesCallCount, 2)
+        XCTAssertEqual(upstream.fetchRecipeSearchPageCallCount, 2)
         XCTAssertEqual(upstream.fetchRecipeDetailCallCount, 2)
         XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
         XCTAssertEqual(upstream.fetchMyRecipesCallCount, 2)
@@ -348,7 +361,8 @@ private final class CountingAPIClient: APIClientProtocol {
     var favoriteAddError: Error?
     var favoriteDeleteError: Error?
 
-    private(set) var fetchRecipesCallCount = 0
+    private(set) var fetchHomeCallCount = 0
+    private(set) var fetchRecipeSearchPageCallCount = 0
     private(set) var fetchRecipeDetailCallCount = 0
     private(set) var fetchReviewsCallCount = 0
     private(set) var fetchIngredientsCallCount = 0
@@ -363,15 +377,33 @@ private final class CountingAPIClient: APIClientProtocol {
         self.authStore = authStore
     }
 
-    func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
-        fetchRecipesCallCount += 1
+    func fetchHome() async throws -> HomeDTO {
+        fetchHomeCallCount += 1
         let memberID = authStore.currentSession?.memberId
-        return [
-            CachingAPIClientTests.recipe(
-                id: memberID ?? query.sort.rawValue.count,
-                isFavorite: memberID != nil
-            )
-        ]
+        let recipe = CachingAPIClientTests.recipe(
+            id: memberID ?? RecipeSort.popular.rawValue.count,
+            isFavorite: memberID != nil
+        )
+        return HomeDTO(popularTop: [recipe], recentTop: [recipe])
+    }
+
+    func fetchRecipeSearchPage(
+        query: RecipeListQuery,
+        cursor: String?,
+        limit: Int
+    ) async throws -> RecipeSearchPageDTO {
+        fetchRecipeSearchPageCallCount += 1
+        let memberID = authStore.currentSession?.memberId
+        return RecipeSearchPageDTO(
+            items: [
+                CachingAPIClientTests.recipe(
+                    id: memberID ?? query.sort.rawValue.count,
+                    isFavorite: memberID != nil
+                )
+            ],
+            nextCursor: nil,
+            hasNext: false
+        )
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {

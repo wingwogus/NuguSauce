@@ -40,7 +40,41 @@ final class BackendAPIClient: APIClientProtocol {
         self.encoder = encoder
     }
 
-    func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
+    func fetchHome() async throws -> HomeDTO {
+        do {
+            return try await send(
+                path: "/api/v1/home",
+                includesAuthenticationIfAvailable: true
+            )
+        } catch {
+            guard shouldFallbackToRecipeSearchForHome(error) else {
+                throw error
+            }
+
+            async let popularPage = fetchRecipeSearchPage(
+                query: RecipeListQuery(sort: .popular),
+                cursor: nil,
+                limit: Self.homePopularFallbackLimit
+            )
+            async let recentPage = fetchRecipeSearchPage(
+                query: RecipeListQuery(sort: .recent),
+                cursor: nil,
+                limit: Self.homeRecentFallbackLimit
+            )
+            let (popular, recent) = try await (popularPage, recentPage)
+
+            return HomeDTO(
+                popularTop: Array(popular.items.prefix(Self.homePopularFallbackLimit)),
+                recentTop: Array(recent.items.prefix(Self.homeRecentFallbackLimit))
+            )
+        }
+    }
+
+    func fetchRecipeSearchPage(
+        query: RecipeListQuery,
+        cursor: String?,
+        limit: Int
+    ) async throws -> RecipeSearchPageDTO {
         var queryItems: [URLQueryItem] = []
         let keyword = query.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         if !keyword.isEmpty {
@@ -49,6 +83,10 @@ final class BackendAPIClient: APIClientProtocol {
         queryItems.append(contentsOf: query.tagIDs.sorted().map { URLQueryItem(name: "tagIds", value: "\($0)") })
         queryItems.append(contentsOf: query.ingredientIDs.sorted().map { URLQueryItem(name: "ingredientIds", value: "\($0)") })
         queryItems.append(URLQueryItem(name: "sort", value: query.sort.rawValue))
+        queryItems.append(URLQueryItem(name: "limit", value: "\(limit)"))
+        if let cursor, !cursor.isEmpty {
+            queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+        }
 
         return try await send(
             path: "/api/v1/recipes",
@@ -381,6 +419,25 @@ final class BackendAPIClient: APIClientProtocol {
         throw APIClientError.missingData
     }
 
+    private func shouldFallbackToRecipeSearchForHome(_ error: Error) -> Bool {
+        if let apiError = error as? ApiError {
+            switch apiError.code {
+            case ApiErrorCode.resourceNotFound, ApiErrorCode.recipeNotFound:
+                return true
+            case ApiErrorCode.unauthorized:
+                return authStore.accessToken?.isEmpty ?? true
+            default:
+                return false
+            }
+        }
+
+        if case APIClientError.httpStatus(404) = error {
+            return true
+        }
+
+        return false
+    }
+
     private func multipartBody(
         fields: [String: String],
         fileField: String,
@@ -402,6 +459,11 @@ final class BackendAPIClient: APIClientProtocol {
         body.append("\r\n--\(boundary)--\r\n")
         return body
     }
+}
+
+private extension BackendAPIClient {
+    static let homePopularFallbackLimit = 5
+    static let homeRecentFallbackLimit = 10
 }
 
 private extension Data {

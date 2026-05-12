@@ -51,6 +51,17 @@ object RecipeResult {
         val createdAt: Instant
     )
 
+    data class RecipeSearchPage(
+        val items: List<RecipeSummary>,
+        val nextCursor: String?,
+        val hasNext: Boolean
+    )
+
+    data class HomeFeed(
+        val popularTop: List<RecipeSummary>,
+        val recentTop: List<RecipeSummary>
+    )
+
     data class RecipeDetail(
         val id: Long,
         val title: String,

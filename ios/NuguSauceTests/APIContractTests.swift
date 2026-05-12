@@ -298,24 +298,28 @@ final class APIContractTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(KakaoLoginResponseDTO.self, from: json))
     }
 
-    func testBackendClientBuildsRecipeListRequest() async throws {
+    func testBackendClientBuildsRecipeSearchPageRequest() async throws {
         URLProtocolTestTransport.responseData = """
         {
           "success": true,
-          "data": [
-            {
-              "id": 1,
-              "title": "건희 소스",
-              "description": "고소하고 매콤한 인기 조합",
-              "imageUrl": null,
-              "visibility": "VISIBLE",
-              "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
-              "tags": [{ "id": 1, "name": "고소함" }],
-              "favoriteCount": 9,
-              "isFavorite": true,
-              "createdAt": "2026-04-25T00:00:00Z"
-            }
-          ],
+          "data": {
+            "items": [
+              {
+                "id": 1,
+                "title": "건희 소스",
+                "description": "고소하고 매콤한 인기 조합",
+                "imageUrl": null,
+                "visibility": "VISIBLE",
+                "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+                "tags": [{ "id": 1, "name": "고소함" }],
+                "favoriteCount": 9,
+                "isFavorite": true,
+                "createdAt": "2026-04-25T00:00:00Z"
+              }
+            ],
+            "nextCursor": "cursor-1",
+            "hasNext": true
+          },
           "error": null
         }
         """.data(using: .utf8)!
@@ -332,12 +336,16 @@ final class APIContractTests: XCTestCase {
             authStore: authStore
         )
 
-        let recipes = try await client.fetchRecipes(
-            query: RecipeListQuery(keyword: "건희", tagIDs: [2, 1], ingredientIDs: [13], sort: .rating)
+        let page = try await client.fetchRecipeSearchPage(
+            query: RecipeListQuery(keyword: "건희", tagIDs: [2, 1], ingredientIDs: [13], sort: .recent),
+            cursor: "cursor-0",
+            limit: 20
         )
 
-        XCTAssertEqual(recipes.first?.title, "건희 소스")
-        XCTAssertEqual(recipes.first?.isFavorited, true)
+        XCTAssertEqual(page.items.first?.title, "건희 소스")
+        XCTAssertEqual(page.items.first?.isFavorited, true)
+        XCTAssertEqual(page.nextCursor, "cursor-1")
+        XCTAssertEqual(page.hasNext, true)
         let requestURL = try XCTUnwrap(URLProtocolTestTransport.lastRequest?.url)
         XCTAssertEqual(requestURL.path, "/api/v1/recipes")
         let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
@@ -347,7 +355,166 @@ final class APIContractTests: XCTestCase {
         XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "tagIds", value: "1")) == true)
         XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "tagIds", value: "2")) == true)
         XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "ingredientIds", value: "13")) == true)
-        XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "sort", value: "rating")) == true)
+        XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "sort", value: "recent")) == true)
+        XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "limit", value: "20")) == true)
+        XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "cursor", value: "cursor-0")) == true)
+    }
+
+    func testRecipeSearchPageDecodesLegacyArrayEnvelope() throws {
+        let json = """
+        {
+          "success": true,
+          "data": [
+            {
+              "id": 1,
+              "title": "건희 소스",
+              "description": "고소하고 매콤한 인기 조합",
+              "imageUrl": null,
+              "visibility": "VISIBLE",
+              "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+              "tags": [{ "id": 1, "name": "고소함" }],
+              "favoriteCount": 9,
+              "isFavorite": false,
+              "createdAt": "2026-04-25T00:00:00Z"
+            }
+          ],
+          "error": null
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(ApiEnvelope<RecipeSearchPageDTO>.self, from: json)
+
+        let page = try XCTUnwrap(envelope.data)
+        XCTAssertEqual(page.items.map(\.title), ["건희 소스"])
+        XCTAssertNil(page.nextCursor)
+        XCTAssertFalse(page.hasNext)
+    }
+
+    func testBackendClientFetchesHomeFeed() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "popularTop": [],
+            "recentTop": []
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolTestTransport.self]
+        let session = URLSession(configuration: configuration)
+        let authStore = ContractTestAuthSessionStore()
+        let client = BackendAPIClient(
+            configuration: APIConfiguration(baseURL: URL(string: "http://127.0.0.1:8080")!),
+            session: session,
+            authStore: authStore
+        )
+
+        let home = try await client.fetchHome()
+
+        XCTAssertEqual(home.popularTop, [])
+        XCTAssertEqual(home.recentTop, [])
+        let requestURL = try XCTUnwrap(URLProtocolTestTransport.lastRequest?.url)
+        XCTAssertEqual(requestURL.path, "/api/v1/home")
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
+    func testBackendClientFetchHomeFallsBackToRecipeSearchWhenAnonymousHomeRequiresAuth() async throws {
+        URLProtocolTestTransport.queuedResponses = [
+            (
+                statusCode: 401,
+                data: """
+                {
+                  "success": false,
+                  "data": null,
+                  "error": {
+                    "code": "AUTH_001",
+                    "message": "error.unauthorized",
+                    "detail": "Authorization header missing or invalid"
+                  }
+                }
+                """.data(using: .utf8)!
+            ),
+            (
+                statusCode: 200,
+                data: """
+                {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 1,
+                      "title": "운영 인기 소스",
+                      "description": "구버전 운영 응답",
+                      "imageUrl": null,
+                      "visibility": "VISIBLE",
+                      "ratingSummary": { "averageRating": 4.7, "reviewCount": 18 },
+                      "tags": [{ "id": 1, "name": "고소함" }],
+                      "favoriteCount": 9,
+                      "isFavorite": false,
+                      "createdAt": "2026-04-25T00:00:00Z"
+                    }
+                  ],
+                  "error": null
+                }
+                """.data(using: .utf8)!
+            ),
+            (
+                statusCode: 200,
+                data: """
+                {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 2,
+                      "title": "운영 최신 소스",
+                      "description": "구버전 운영 응답",
+                      "imageUrl": null,
+                      "visibility": "VISIBLE",
+                      "ratingSummary": { "averageRating": 0.0, "reviewCount": 0 },
+                      "tags": [{ "id": 2, "name": "매콤함" }],
+                      "favoriteCount": 1,
+                      "isFavorite": false,
+                      "createdAt": "2026-05-02T00:00:00Z"
+                    }
+                  ],
+                  "error": null
+                }
+                """.data(using: .utf8)!
+            )
+        ]
+        URLProtocolTestTransport.requests = []
+        URLProtocolTestTransport.lastRequest = nil
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolTestTransport.self]
+        let session = URLSession(configuration: configuration)
+        let client = BackendAPIClient(
+            configuration: APIConfiguration(baseURL: URL(string: "http://127.0.0.1:8080")!),
+            session: session,
+            authStore: ContractTestAuthSessionStore(currentSession: nil)
+        )
+
+        let home = try await client.fetchHome()
+
+        XCTAssertFalse(home.popularTop.isEmpty)
+        XCTAssertFalse(home.recentTop.isEmpty)
+        let requests = URLProtocolTestTransport.requests
+        XCTAssertEqual(requests.first?.url?.path, "/api/v1/home")
+        XCTAssertNil(requests.first?.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(requests.filter { $0.url?.path == "/api/v1/recipes" }.count, 2)
+        let requestedSorts = Set(requests.compactMap { request -> String? in
+            URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "sort" })?
+                .value
+        })
+        XCTAssertTrue(requestedSorts.contains("popular"))
+        XCTAssertTrue(requestedSorts.contains("recent"))
     }
 
     func testBackendClientDecodesKakaoLoginEnvelopeWithMemberProfile() async throws {
@@ -865,11 +1032,17 @@ final class APIContractTests: XCTestCase {
 }
 
 private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
-    private(set) var currentSession: AuthSession? = AuthSession(
-        displayName: "테스터",
-        accessToken: "real-access-token",
-        refreshToken: "real-refresh-token"
-    )
+    private(set) var currentSession: AuthSession?
+
+    init(
+        currentSession: AuthSession? = AuthSession(
+            displayName: "테스터",
+            accessToken: "real-access-token",
+            refreshToken: "real-refresh-token"
+        )
+    ) {
+        self.currentSession = currentSession
+    }
 
     var isAuthenticated: Bool { currentSession?.profileSetupRequired == false }
     var accessToken: String? { isAuthenticated ? currentSession?.accessToken : nil }
@@ -905,8 +1078,11 @@ private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
 private final class URLProtocolTestTransport: URLProtocol {
     static var responseData = Data()
     static var statusCode = 200
+    static var queuedResponses: [(statusCode: Int, data: Data)] = []
+    static var requests: [URLRequest] = []
     static var lastRequest: URLRequest?
     static var lastRequestBody: Data?
+    private static let lock = NSLock()
 
     override class func canInit(with request: URLRequest) -> Bool {
         true
@@ -917,16 +1093,28 @@ private final class URLProtocolTestTransport: URLProtocol {
     }
 
     override func startLoading() {
+        let requestBody = request.httpBody ?? request.httpBodyStream?.readAllData()
+        let stub: (statusCode: Int, data: Data)
+
+        Self.lock.lock()
         Self.lastRequest = request
-        Self.lastRequestBody = request.httpBody ?? request.httpBodyStream?.readAllData()
+        Self.lastRequestBody = requestBody
+        Self.requests.append(request)
+        if Self.queuedResponses.isEmpty {
+            stub = (statusCode: Self.statusCode, data: Self.responseData)
+        } else {
+            stub = Self.queuedResponses.removeFirst()
+        }
+        Self.lock.unlock()
+
         let response = HTTPURLResponse(
             url: request.url!,
-            statusCode: Self.statusCode,
+            statusCode: stub.statusCode,
             httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.responseData)
+        client?.urlProtocol(self, didLoad: stub.data)
         client?.urlProtocolDidFinishLoading(self)
     }
 

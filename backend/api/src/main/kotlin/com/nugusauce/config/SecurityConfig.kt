@@ -43,6 +43,7 @@ class SecurityConfig(
         )
 
         private val PUBLIC_GET_ENDPOINTS = listOf(
+            "/api/v1/home",
             "/api/v1/recipes",
             "/api/v1/recipes/*",
             "/api/v1/recipes/*/reviews",

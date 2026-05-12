@@ -21,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
@@ -29,6 +30,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
@@ -69,28 +71,46 @@ class RecipeControllerValidationTest(
     }
 
     @Test
-    fun `search accepts hot sort`() {
-        `when`(recipeQueryService.search(RecipeCommand.SearchRecipes(sort = RecipeCommand.RecipeSort.HOT)))
-            .thenReturn(emptyList())
-
+    fun `search rejects removed hot sort`() {
         mockMvc.perform(get("/api/v1/recipes?sort=hot"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
     }
 
     @Test
     fun `search includes favorite state for authenticated principal`() {
         `when`(recipeQueryService.search(RecipeCommand.SearchRecipes(viewerMemberId = 1L)))
-            .thenReturn(listOf(recipeSummary(isFavorite = true)))
+            .thenReturn(recipeSearchPage(listOf(recipeSummary(isFavorite = true))))
 
         SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken("1", null)
         try {
             mockMvc.perform(get("/api/v1/recipes"))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data[0].isFavorite").value(true))
+                .andExpect(header().string(HttpHeaders.VARY, HttpHeaders.AUTHORIZATION))
+                .andExpect(jsonPath("$.data.items[0].isFavorite").value(true))
         } finally {
             SecurityContextHolder.clearContext()
         }
+    }
+
+    @Test
+    fun `home returns fixed section envelope`() {
+        `when`(recipeQueryService.home(RecipeCommand.HomeFeed()))
+            .thenReturn(
+                RecipeResult.HomeFeed(
+                    popularTop = listOf(recipeSummary(isFavorite = false)),
+                    recentTop = emptyList()
+                )
+            )
+
+        mockMvc.perform(get("/api/v1/home"))
+            .andExpect(status().isOk)
+            .andExpect(header().string(HttpHeaders.VARY, HttpHeaders.AUTHORIZATION))
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.hotHero").doesNotExist())
+            .andExpect(jsonPath("$.data.popularTop[0].id", equalTo(10)))
+            .andExpect(jsonPath("$.data.recentTop").isArray)
     }
 
     @Test
@@ -400,6 +420,18 @@ class RecipeControllerValidationTest(
             tags = emptyList(),
             isFavorite = isFavorite,
             createdAt = Instant.parse("2026-04-25T00:00:00Z")
+        )
+    }
+
+    private fun recipeSearchPage(
+        items: List<RecipeResult.RecipeSummary>,
+        nextCursor: String? = null,
+        hasNext: Boolean = false
+    ): RecipeResult.RecipeSearchPage {
+        return RecipeResult.RecipeSearchPage(
+            items = items,
+            nextCursor = nextCursor,
+            hasNext = hasNext
         )
     }
 }

@@ -16,7 +16,8 @@ final class NuguSauceUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["home.brand"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["home.profileButton"].exists)
-        XCTAssertTrue(existsAny(app, identifiers: ["home.hero", "home.hero.empty", "home.loading", "home.error"]))
+        XCTAssertTrue(existsAny(app, identifiers: ["home.bannerCarousel", "home.loading", "home.error"]))
+        XCTAssertTrue(existsAny(app, identifiers: ["home.banner.openFeedback", "home.loading", "home.error"]))
         XCTAssertTrue(existsAny(app, identifiers: ["home.popularRanking", "home.popularRanking.empty", "home.loading", "home.error"]))
         XCTAssertTrue(existsAny(app, identifiers: ["home.latest", "home.latest.empty", "home.loading", "home.error"]))
     }

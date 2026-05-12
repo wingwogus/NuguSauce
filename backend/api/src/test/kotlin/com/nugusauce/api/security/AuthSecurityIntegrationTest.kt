@@ -93,6 +93,9 @@ class AuthSecurityIntegrationTest(
 
     @Test
     fun `recipe public read endpoints are accessible without jwt`() {
+        mockMvc.perform(get("/api/v1/home"))
+            .andExpect(status().isOk)
+
         mockMvc.perform(get("/api/v1/recipes"))
             .andExpect(status().isOk)
 

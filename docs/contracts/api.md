@@ -491,10 +491,8 @@ Recipe APIs use the shared response envelope above.
 
 Recipe list supports `sort` values:
 
-- `hot`: visible recipes ordered by recent review/favorite engagement velocity plus rating quality guard, then engagement score and recency fallback.
 - `popular`: visible recipes ordered by engagement score (`reviewCount * 2 + favoriteCount`) descending, then `averageRating` descending, then newest review/creation.
 - `recent`: visible recipes ordered by `createdAt` descending.
-- `rating`: visible recipes ordered by `averageRating` descending, then `reviewCount` descending.
 
 ### `GET /api/v1/recipes`
 
@@ -503,7 +501,9 @@ Query parameters:
 - `q`: optional keyword matched against title, description, and tips.
 - `tagIds`: optional repeated or comma-compatible recipe taste tag IDs. Matching is based on source tags derived from the recipe's ingredient composition.
 - `ingredientIds`: optional repeated or comma-compatible ingredient IDs.
-- `sort`: optional `hot|popular|recent|rating`, default `popular`.
+- `sort`: optional `popular|recent`, default `popular`.
+- `limit`: optional positive result cap from `1` to `50`; default is `20`.
+- `cursor`: optional opaque continuation token returned from the previous response.
 
 When a valid JWT is supplied, each summary is personalized with the current
 member's favorite state. Anonymous public list requests return
@@ -517,27 +517,66 @@ ratio/amount composition; review text and rating never change these tags.
 Success data:
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "건희 소스",
-    "description": "고소하고 매콤한 인기 조합",
-    "imageUrl": null,
-    "visibility": "VISIBLE",
-    "ratingSummary": {
-      "averageRating": 4.7,
-      "reviewCount": 18
-    },
-    "tags": [
-      { "id": 2, "name": "매콤함" },
-      { "id": 3, "name": "달달함" },
-      { "id": 1, "name": "고소함" }
-    ],
-    "favoriteCount": 42,
-    "isFavorite": true,
-    "createdAt": "2026-04-25T00:00:00Z"
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "건희 소스",
+      "description": "고소하고 매콤한 인기 조합",
+      "imageUrl": null,
+      "visibility": "VISIBLE",
+      "ratingSummary": {
+        "averageRating": 4.7,
+        "reviewCount": 18
+      },
+      "tags": [
+        { "id": 2, "name": "매콤함" },
+        { "id": 3, "name": "달달함" },
+        { "id": 1, "name": "고소함" }
+      ],
+      "favoriteCount": 42,
+      "isFavorite": true,
+      "createdAt": "2026-04-25T00:00:00Z"
+    }
+  ],
+  "nextCursor": "opaque-cursor",
+  "hasNext": true
+}
+```
+
+`cursor` is tied to the normalized query, tag IDs, ingredient IDs, sort, and
+limit. Reusing it with different search parameters fails with `COMMON_001`.
+
+### `GET /api/v1/home`
+
+Public home feed endpoint. When a valid JWT is supplied, recipe summaries are
+personalized with the current member's favorite state.
+
+Success data:
+
+```json
+{
+  "popularTop": [
+    {
+      "id": 1,
+      "title": "건희 소스",
+      "description": "고소하고 매콤한 인기 조합",
+      "imageUrl": null,
+      "visibility": "VISIBLE",
+      "ratingSummary": {
+        "averageRating": 4.7,
+        "reviewCount": 18
+      },
+      "tags": [
+        { "id": 1, "name": "고소함" }
+      ],
+      "favoriteCount": 42,
+      "isFavorite": true,
+      "createdAt": "2026-04-25T00:00:00Z"
+    }
+  ],
+  "recentTop": []
+}
 ```
 
 ### `GET /api/v1/recipes/{recipeId}`

@@ -99,6 +99,36 @@ object RecipeResponses {
         }
     }
 
+    data class RecipeSearchPageResponse(
+        val items: List<RecipeSummaryResponse>,
+        val nextCursor: String?,
+        val hasNext: Boolean
+    ) {
+        companion object {
+            fun from(result: RecipeResult.RecipeSearchPage): RecipeSearchPageResponse {
+                return RecipeSearchPageResponse(
+                    items = result.items.map(RecipeSummaryResponse::from),
+                    nextCursor = result.nextCursor,
+                    hasNext = result.hasNext
+                )
+            }
+        }
+    }
+
+    data class HomeResponse(
+        val popularTop: List<RecipeSummaryResponse>,
+        val recentTop: List<RecipeSummaryResponse>
+    ) {
+        companion object {
+            fun from(result: RecipeResult.HomeFeed): HomeResponse {
+                return HomeResponse(
+                    popularTop = result.popularTop.map(RecipeSummaryResponse::from),
+                    recentTop = result.recentTop.map(RecipeSummaryResponse::from)
+                )
+            }
+        }
+    }
+
     data class RecipeDetailResponse(
         val id: Long,
         val title: String,

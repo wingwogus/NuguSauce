@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -48,7 +47,7 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     private val entityManager: TestEntityManager
 ) {
     @Test
-    fun `searchVisibleRecipes filters keyword recipe tag ingredient and visibility in query`() {
+    fun `searchRecipePage filters keyword recipe tag ingredient and visibility in query`() {
         val garlic = ingredient("마늘")
         val honey = ingredient("꿀")
         val spicy = tag("매콤함")
@@ -71,91 +70,30 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         }
         flushAndClear()
 
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(
+        val results = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(
                 keyword = "마라",
                 tagIds = setOf(spicy.id),
-                ingredientIds = setOf(garlic.id)
+                ingredientIds = setOf(garlic.id),
+                limit = 20
             )
         )
 
-        assertEquals(listOf(target.id), results.map { it.id })
+        assertEquals(listOf(target.id), results.recipes.map { it.id })
     }
 
     @Test
-    fun `searchVisibleRecipes hot sort ranks recent engagement above older popularity`() {
-        val since = Instant.parse("2026-04-22T00:00:00Z")
-        val olderPopular = recipe(
-            title = "누적 인기 소스",
-            reviewCount = 80,
-            averageRating = 4.9,
-            lastReviewedAt = since.minus(10, ChronoUnit.DAYS)
-        )
-        val hotRecipe = recipe(
-            title = "요즘 핫한 소스",
-            reviewCount = 2,
-            averageRating = 4.0,
-            lastReviewedAt = since.plus(1, ChronoUnit.DAYS)
-        )
-        review(hotRecipe, createdAt = since.plus(1, ChronoUnit.DAYS))
-        flushAndClear()
-
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(
-                sort = SauceRecipeSort.HOT,
-                hotSince = since
-            )
-        )
-
-        assertEquals(listOf(hotRecipe.id, olderPopular.id), results.map { it.id })
-    }
-
-    @Test
-    fun `searchVisibleRecipes hot sort falls back to popular order without recent engagement`() {
-        val since = Instant.parse("2026-04-22T00:00:00Z")
-        val lessReviewed = recipe(title = "적은 리뷰", reviewCount = 3, averageRating = 5.0)
-        val moreReviewed = recipe(title = "많은 리뷰", reviewCount = 20, averageRating = 4.0)
-        flushAndClear()
-
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(
-                sort = SauceRecipeSort.HOT,
-                hotSince = since
-            )
-        )
-
-        assertEquals(listOf(moreReviewed.id, lessReviewed.id), results.map { it.id })
-    }
-
-    @Test
-    fun `searchVisibleRecipes hot sort uses favorite count as fallback tie breaker`() {
-        val since = Instant.parse("2026-04-22T00:00:00Z")
-        recipe(title = "덜 찜한 소스", reviewCount = 5, favoriteCount = 1, averageRating = 4.5)
-        recipe(title = "많이 찜한 소스", reviewCount = 5, favoriteCount = 7, averageRating = 4.5)
-        flushAndClear()
-
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(
-                sort = SauceRecipeSort.HOT,
-                hotSince = since
-            )
-        )
-
-        assertEquals(listOf("많이 찜한 소스", "덜 찜한 소스"), results.map { it.title })
-    }
-
-    @Test
-    fun `searchVisibleRecipes popular sort uses review and favorite engagement score`() {
+    fun `searchRecipePage popular sort uses review and favorite engagement score`() {
         recipe(title = "리뷰만 많은 소스", reviewCount = 5, favoriteCount = 0, averageRating = 4.9)
         recipe(title = "찜이 많은 소스", reviewCount = 2, favoriteCount = 8, averageRating = 4.0)
         recipe(title = "낮은 참여 소스", reviewCount = 3, favoriteCount = 1, averageRating = 5.0)
         flushAndClear()
 
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(sort = SauceRecipeSort.POPULAR)
+        val results = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(sort = SauceRecipeSort.POPULAR, limit = 20)
         )
 
-        assertEquals(listOf("찜이 많은 소스", "리뷰만 많은 소스", "낮은 참여 소스"), results.map { it.title })
+        assertEquals(listOf("찜이 많은 소스", "리뷰만 많은 소스", "낮은 참여 소스"), results.recipes.map { it.title })
     }
 
     @Test
@@ -216,25 +154,7 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
     }
 
     @Test
-    fun `searchVisibleRecipes hot sort uses recent favorites as engagement`() {
-        val since = Instant.parse("2026-04-22T00:00:00Z")
-        val noRecentActivity = recipe(title = "오래된 고평점 소스", reviewCount = 30, averageRating = 5.0)
-        val recentlyFavorited = recipe(title = "찜이 붙는 소스", reviewCount = 1, averageRating = 3.5, favoriteCount = 1)
-        favorite(recentlyFavorited, createdAt = since.plus(2, ChronoUnit.DAYS))
-        flushAndClear()
-
-        val results = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(
-                sort = SauceRecipeSort.HOT,
-                hotSince = since
-            )
-        )
-
-        assertEquals(listOf(recentlyFavorited.id, noRecentActivity.id), results.map { it.id })
-    }
-
-    @Test
-    fun `searchVisibleRecipes orders popular recent and rating sorts in query`() {
+    fun `searchRecipePage orders popular and recent sorts in query`() {
         recipe(
             title = "많은 리뷰",
             reviewCount = 10,
@@ -255,19 +175,66 @@ class SauceRecipeRepositoryImplTest @Autowired constructor(
         )
         flushAndClear()
 
-        val popular = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(sort = SauceRecipeSort.POPULAR)
+        val popular = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(sort = SauceRecipeSort.POPULAR, limit = 20)
         )
-        val recent = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(sort = SauceRecipeSort.RECENT)
+        val recent = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(sort = SauceRecipeSort.RECENT, limit = 20)
         )
-        val rating = sauceRecipeRepository.searchVisibleRecipes(
-            SauceRecipeSearchCondition(sort = SauceRecipeSort.RATING)
+        assertEquals(listOf("많은 리뷰", "높은 평점", "최신 소스"), popular.recipes.map { it.title })
+        assertEquals(listOf("최신 소스", "높은 평점", "많은 리뷰"), recent.recipes.map { it.title })
+    }
+
+    @Test
+    fun `searchHomeSections loads ranked sections with shared graph fetch`() {
+        val olderPopular = recipe(
+            title = "누적 인기 소스",
+            reviewCount = 40,
+            averageRating = 4.5,
+            createdAt = Instant.parse("2026-04-01T00:00:00Z")
+        )
+        val middle = recipe(title = "중간 소스", reviewCount = 1, createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        val newest = recipe(
+            title = "최신 소스",
+            reviewCount = 2,
+            averageRating = 3.0,
+            createdAt = Instant.parse("2026-04-03T00:00:00Z")
+        )
+        flushAndClear()
+
+        val sections = sauceRecipeRepository.searchHomeSections(
+            SauceRecipeHomeCondition(
+                popularLimit = 2,
+                recentLimit = 2
+            )
         )
 
-        assertEquals(listOf("많은 리뷰", "높은 평점", "최신 소스"), popular.map { it.title })
-        assertEquals(listOf("최신 소스", "높은 평점", "많은 리뷰"), recent.map { it.title })
-        assertEquals(listOf("높은 평점", "많은 리뷰", "최신 소스"), rating.map { it.title })
+        assertEquals(olderPopular.id, sections.popular.first().id)
+        assertEquals(listOf(newest.id, middle.id), sections.recent.map { it.id })
+    }
+
+    @Test
+    fun `searchRecipePage recent sort continues after cursor`() {
+        val oldest = recipe(title = "가장 오래된 소스", createdAt = Instant.parse("2026-04-01T00:00:00Z"))
+        val middle = recipe(title = "중간 소스", createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        val newest = recipe(title = "최신 소스", createdAt = Instant.parse("2026-04-03T00:00:00Z"))
+        flushAndClear()
+
+        val firstPage = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(sort = SauceRecipeSort.RECENT, limit = 2)
+        )
+        val secondPage = sauceRecipeRepository.searchRecipePage(
+            SauceRecipePageCondition(
+                sort = SauceRecipeSort.RECENT,
+                limit = 2,
+                offset = firstPage.recipes.size.toLong()
+            )
+        )
+
+        assertEquals(true, firstPage.hasNext)
+        assertEquals(listOf(newest.id, middle.id), firstPage.recipes.map { it.id })
+        assertEquals(false, secondPage.hasNext)
+        assertEquals(listOf(oldest.id), secondPage.recipes.map { it.id })
     }
 
     @Test

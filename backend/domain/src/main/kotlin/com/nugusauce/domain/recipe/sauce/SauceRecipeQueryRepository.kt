@@ -1,22 +1,35 @@
 package com.nugusauce.domain.recipe.sauce
 
-import java.time.Instant
-
 interface SauceRecipeQueryRepository {
-    fun searchVisibleRecipes(condition: SauceRecipeSearchCondition): List<SauceRecipe>
+    fun searchRecipePage(condition: SauceRecipePageCondition): SauceRecipePageSlice
+    fun searchHomeSections(condition: SauceRecipeHomeCondition): SauceRecipeHomeSections
 }
 
-data class SauceRecipeSearchCondition(
+data class SauceRecipePageCondition(
     val keyword: String? = null,
     val tagIds: Set<Long> = emptySet(),
     val ingredientIds: Set<Long> = emptySet(),
     val sort: SauceRecipeSort = SauceRecipeSort.POPULAR,
-    val hotSince: Instant? = null
+    val limit: Int,
+    val offset: Long = 0
+)
+
+data class SauceRecipePageSlice(
+    val recipes: List<SauceRecipe>,
+    val hasNext: Boolean
+)
+
+data class SauceRecipeHomeCondition(
+    val popularLimit: Int,
+    val recentLimit: Int
+)
+
+data class SauceRecipeHomeSections(
+    val popular: List<SauceRecipe>,
+    val recent: List<SauceRecipe>
 )
 
 enum class SauceRecipeSort {
-    HOT,
     POPULAR,
-    RECENT,
-    RATING
+    RECENT
 }

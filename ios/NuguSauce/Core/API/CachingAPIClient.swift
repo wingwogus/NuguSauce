@@ -7,6 +7,7 @@ protocol CacheControllingAPIClient: AnyObject {
 enum CacheInvalidationScope: Equatable {
     case all
     case viewerRelative
+    case home
     case recipeLists
     case recipeDetail(Int)
     case reviews(Int)
@@ -20,13 +21,18 @@ struct RecipeListCacheKey: Hashable {
     let tagIDs: [Int]
     let ingredientIDs: [Int]
     let sort: RecipeSort
+    let cursor: String?
+    let limit: Int
 
-    init(query: RecipeListQuery) {
+    init(query: RecipeListQuery, cursor: String?, limit: Int) {
         let trimmedKeyword = query.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         keyword = trimmedKeyword.isEmpty ? nil : trimmedKeyword
         tagIDs = query.tagIDs.sorted()
         ingredientIDs = query.ingredientIDs.sorted()
         sort = query.sort
+        let trimmedCursor = cursor?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.cursor = trimmedCursor?.isEmpty == true ? nil : trimmedCursor
+        self.limit = limit
     }
 }
 
@@ -57,23 +63,49 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         await cache.invalidate(scope: scope)
     }
 
-    func fetchRecipes(query: RecipeListQuery) async throws -> [RecipeSummaryDTO] {
+    func fetchHome() async throws -> HomeDTO {
         let capturedBucket = await prepareBucketForAccess()
-        let cacheKey = APIResponseCacheKey.recipes(capturedBucket, RecipeListCacheKey(query: query))
+        let cacheKey = APIResponseCacheKey.home(capturedBucket)
         if shouldCacheViewerRelative(bucket: capturedBucket),
-           let cached: [RecipeSummaryDTO] = await cache.value(for: cacheKey) {
+           let cached: HomeDTO = await cache.value(for: cacheKey) {
             return cached
         }
 
-        let recipes = try await upstream.fetchRecipes(query: query)
+        let home = try await upstream.fetchHome()
         await storeIfBucketStillMatches(
-            recipes,
+            home,
             for: cacheKey,
             ttl: CacheTTL.recipeList,
             capturedBucket: capturedBucket,
             cacheable: shouldCacheViewerRelative(bucket: capturedBucket)
         )
-        return recipes
+        return home
+    }
+
+    func fetchRecipeSearchPage(
+        query: RecipeListQuery,
+        cursor: String?,
+        limit: Int
+    ) async throws -> RecipeSearchPageDTO {
+        let capturedBucket = await prepareBucketForAccess()
+        let cacheKey = APIResponseCacheKey.recipeSearchPage(
+            capturedBucket,
+            RecipeListCacheKey(query: query, cursor: cursor, limit: limit)
+        )
+        if shouldCacheViewerRelative(bucket: capturedBucket),
+           let cached: RecipeSearchPageDTO = await cache.value(for: cacheKey) {
+            return cached
+        }
+
+        let page = try await upstream.fetchRecipeSearchPage(query: query, cursor: cursor, limit: limit)
+        await storeIfBucketStillMatches(
+            page,
+            for: cacheKey,
+            ttl: CacheTTL.recipeList,
+            capturedBucket: capturedBucket,
+            cacheable: shouldCacheViewerRelative(bucket: capturedBucket)
+        )
+        return page
     }
 
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO {
@@ -152,7 +184,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
 
     func createRecipe(_ request: CreateRecipeRequestDTO) async throws -> RecipeDetailDTO {
         let recipe = try await upstream.createRecipe(request)
-        await invalidate(scopes: [.recipeLists, .profile])
+        await invalidate(scopes: [.home, .recipeLists, .profile])
         return recipe
     }
 
@@ -169,7 +201,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
 
     func createReview(recipeID: Int, request: CreateReviewRequestDTO) async throws -> RecipeReviewDTO {
         let review = try await upstream.createReview(recipeID: recipeID, request: request)
-        await invalidate(scopes: [.reviews(recipeID), .recipeDetail(recipeID), .recipeLists])
+        await invalidate(scopes: [.reviews(recipeID), .recipeDetail(recipeID), .home, .recipeLists])
         return review
     }
 
@@ -257,7 +289,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
 
     func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO {
         let member = try await upstream.updateMyMember(nickname: nickname, profileImageId: profileImageId)
-        await invalidate(scopes: [.profile, .recipeLists, .favorites])
+        await invalidate(scopes: [.profile, .home, .recipeLists, .favorites])
         return member
     }
 
@@ -267,7 +299,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
             profileImageId: profileImageId,
             accessToken: accessToken
         )
-        await invalidate(scopes: [.profile, .recipeLists, .favorites])
+        await invalidate(scopes: [.profile, .home, .recipeLists, .favorites])
         return member
     }
 
@@ -296,11 +328,11 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
     }
 
     private func invalidateFavoriteAffectedReads(recipeID: Int) async {
-        await invalidate(scopes: [.recipeDetail(recipeID), .recipeLists, .favorites, .profile])
+        await invalidate(scopes: [.recipeDetail(recipeID), .home, .recipeLists, .favorites, .profile])
     }
 
     private func invalidateRecipeMutationAffectedReads(recipeID: Int) async {
-        await invalidate(scopes: [.recipeDetail(recipeID), .recipeLists, .favorites, .profile])
+        await invalidate(scopes: [.recipeDetail(recipeID), .home, .recipeLists, .favorites, .profile])
     }
 
     private func invalidate(scopes: [CacheInvalidationScope]) async {
@@ -374,7 +406,8 @@ private enum MasterDataCacheKey: Hashable {
 
 private enum APIResponseCacheKey: Hashable {
     case masterData(MasterDataCacheKey)
-    case recipes(CacheBucket, RecipeListCacheKey)
+    case home(CacheBucket)
+    case recipeSearchPage(CacheBucket, RecipeListCacheKey)
     case recipeDetail(CacheBucket, Int)
     case reviews(Int)
     case favorites(CacheBucket)
@@ -434,12 +467,21 @@ private actor APIResponseCache {
             lastBucket = nil
         case .viewerRelative:
             removeViewerRelativeAndPrivateEntries()
-        case .recipeLists:
+        case .home:
             removeEntries { key in
-                if case .recipes = key {
+                if case .home = key {
                     return true
                 }
                 return false
+            }
+        case .recipeLists:
+            removeEntries { key in
+                switch key {
+                case .home, .recipeSearchPage:
+                    return true
+                default:
+                    return false
+                }
             }
         case .recipeDetail(let id):
             removeEntries { key in
@@ -479,7 +521,7 @@ private actor APIResponseCache {
     private func removeViewerRelativeAndPrivateEntries() {
         removeEntries { key in
             switch key {
-            case .recipes, .recipeDetail, .favorites, .myRecipes, .myMember:
+            case .home, .recipeSearchPage, .recipeDetail, .favorites, .myRecipes, .myMember:
                 return true
             case .masterData, .reviews:
                 return false
