@@ -11,6 +11,7 @@ Required backend prerequisites before production rollout:
 
 - build the backend API jar with `./gradlew --no-daemon clean :api:bootJar`
 - apply `ops/docs/consent-rollout.sql` to the target PostgreSQL database before deploying any backend image that enforces `CONSENT_001`
+- apply `ops/sql/external-identity-apple-provider.sql` before deploying any backend image that writes Apple `external_identity` rows
 - build and push `docker.io/vantagac/nugusauce-api:<git-sha>`
 - expose actuator health and Prometheus endpoints on management port `9090`
 - allow actuator health and Prometheus routes through Spring Security
@@ -32,6 +33,7 @@ External platform changes:
 
 - Cloudflare Tunnel/DNS: route `nugusauce.jaehyuns.com` to the existing ingress/LB target.
 - Kakao native app settings: register the iOS bundle ID and keep the backend OIDC audience equal to `KAKAO_NATIVE_APP_KEY`.
+- Apple Sign in settings: keep the backend OIDC audience equal to `APPLE_CLIENT_ID`, currently the iOS client id `com.nugusauce.ios`.
 
 Argo CD source path:
 

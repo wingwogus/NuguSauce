@@ -57,6 +57,7 @@ The imported OIDC branch expects these auth schema capabilities:
 * `member.profile_image_asset_id` optionally references the current profile image media asset.
 * `media_asset.attached_profile_member_id` optionally records profile-image attachment ownership.
 * `external_identity` stores `member_id`, `provider`, `provider_subject`, and `email_at_link_time`.
+* `external_identity.provider` must allow both `KAKAO` and `APPLE`.
 * `(provider, provider_subject)` must be unique.
 
 Profile image replacement detaches the previously referenced profile media row
@@ -88,6 +89,13 @@ ALTER TABLE member
 ALTER TABLE media_asset
     ADD CONSTRAINT fk_media_asset_attached_profile_member
     FOREIGN KEY (attached_profile_member_id) REFERENCES member(id);
+```
+
+Existing PostgreSQL environments that created `external_identity` before Apple
+login must also widen the provider check:
+
+```bash
+psql "$PROD_DB_URL" -f ops/sql/external-identity-apple-provider.sql
 ```
 
 Rollback:
