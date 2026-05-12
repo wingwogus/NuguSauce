@@ -9,6 +9,7 @@ struct LoginView: View {
 
     @StateObject private var viewModel: LoginViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     init(
         apiClient: APIClientProtocol,
@@ -84,7 +85,7 @@ struct LoginView: View {
                         GeometryReader { proxy in
                             let buttonWidth = min(proxy.size.width, Self.socialLoginButtonMaxWidth)
 
-                            Image("KakaoLoginLargeWide")
+                            Image(kakaoLoginButtonAssetName)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(
@@ -98,7 +99,7 @@ struct LoginView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.isLoggingIn)
-                    .accessibilityLabel(viewModel.isLoggingIn ? "카카오 로그인 중" : "카카오로 시작하기")
+                    .accessibilityLabel(kakaoLoginAccessibilityLabel)
                 }
 
                 if let errorMessage = viewModel.errorMessage {
@@ -115,6 +116,21 @@ struct LoginView: View {
         .navigationTitle(viewModel.flowStep.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("login-screen")
+    }
+
+    private var kakaoLoginButtonAssetName: String {
+        usesKoreanKakaoLoginButton ? "KakaoLoginLargeWide" : "KakaoLoginLargeWideEnglish"
+    }
+
+    private var kakaoLoginAccessibilityLabel: String {
+        if viewModel.isLoggingIn {
+            return usesKoreanKakaoLoginButton ? "카카오 로그인 중" : "Logging in with Kakao"
+        }
+        return usesKoreanKakaoLoginButton ? "카카오로 시작하기" : "Login with Kakao"
+    }
+
+    private var usesKoreanKakaoLoginButton: Bool {
+        locale.language.languageCode?.identifier == "ko"
     }
 }
 
