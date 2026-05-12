@@ -514,6 +514,8 @@ struct LoginFlowNotice: View {
 }
 
 private struct AppleLoginButton: UIViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
     let isEnabled: Bool
     let action: () -> Void
 
@@ -521,26 +523,60 @@ private struct AppleLoginButton: UIViewRepresentable {
         Coordinator(action: action)
     }
 
-    func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
-        let button = ASAuthorizationAppleIDButton(
-            authorizationButtonType: .continue,
-            authorizationButtonStyle: .black
-        )
-        button.cornerRadius = 8
-        button.addTarget(context.coordinator, action: #selector(Coordinator.didTap), for: .touchUpInside)
-        return button
+    func makeUIView(context: Context) -> UIView {
+        let container = UIView()
+        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
+        return container
     }
 
-    func updateUIView(_ button: ASAuthorizationAppleIDButton, context: Context) {
-        button.isEnabled = isEnabled
-        button.alpha = isEnabled ? 1 : 0.65
+    func updateUIView(_ container: UIView, context: Context) {
+        context.coordinator.update(action: action)
+        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
+        context.coordinator.button?.isEnabled = isEnabled
+        context.coordinator.button?.alpha = isEnabled ? 1 : 0.65
+    }
+
+    private var authorizationButtonStyle: ASAuthorizationAppleIDButton.Style {
+        colorScheme == .dark ? .white : .black
     }
 
     final class Coordinator: NSObject {
-        private let action: () -> Void
+        private(set) weak var button: ASAuthorizationAppleIDButton?
+        private var buttonStyle: ASAuthorizationAppleIDButton.Style?
+        private var action: () -> Void
 
         init(action: @escaping () -> Void) {
             self.action = action
+        }
+
+        func update(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        func configureButton(in container: UIView, style: ASAuthorizationAppleIDButton.Style) {
+            guard button == nil || buttonStyle != style else {
+                return
+            }
+
+            button?.removeFromSuperview()
+
+            let button = ASAuthorizationAppleIDButton(
+                authorizationButtonType: .continue,
+                authorizationButtonStyle: style
+            )
+            button.cornerRadius = 8
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
+            container.addSubview(button)
+            NSLayoutConstraint.activate([
+                button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                button.topAnchor.constraint(equalTo: container.topAnchor),
+                button.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            ])
+
+            self.button = button
+            buttonStyle = style
         }
 
         @objc func didTap() {
