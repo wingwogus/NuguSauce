@@ -1,23 +1,28 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
     private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
-    private static let kakaoLoginButtonMaxWidth: CGFloat = 300
-    private static let kakaoLoginButtonMaxHeight: CGFloat = 45
+    private static let socialLoginButtonMaxWidth: CGFloat = 300
+    private static let appleLoginButtonHeight: CGFloat = 52
+    private static let socialLoginButtonMaxHeight: CGFloat = 45
 
     @StateObject private var viewModel: LoginViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     init(
         apiClient: APIClientProtocol,
         authStore: AuthSessionStore,
-        kakaoLoginService: KakaoLoginServicing = KakaoLoginService()
+        kakaoLoginService: KakaoLoginServicing = KakaoLoginService(),
+        appleLoginService: AppleLoginServicing = AppleLoginService()
     ) {
         _viewModel = StateObject(
             wrappedValue: LoginViewModel(
                 apiClient: apiClient,
                 authStore: authStore,
-                kakaoLoginService: kakaoLoginService
+                kakaoLoginService: kakaoLoginService,
+                appleLoginService: appleLoginService
             )
         )
     }
@@ -58,6 +63,18 @@ struct LoginView: View {
                     LoginBrandHeader()
                     LoginFlowNotice()
 
+                    AppleLoginButton(isEnabled: !viewModel.isLoggingIn) {
+                        Task {
+                            if await viewModel.loginWithApple() {
+                                dismiss()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: Self.socialLoginButtonMaxWidth)
+                    .frame(height: Self.appleLoginButtonHeight)
+                    .accessibilityIdentifier("apple-login-button")
+                    .accessibilityLabel(viewModel.isLoggingIn ? "Apple 로그인 중" : "Apple로 계속하기")
+
                     Button {
                         Task {
                             if await viewModel.loginWithKakao() {
@@ -66,9 +83,9 @@ struct LoginView: View {
                         }
                     } label: {
                         GeometryReader { proxy in
-                            let buttonWidth = min(proxy.size.width, Self.kakaoLoginButtonMaxWidth)
+                            let buttonWidth = min(proxy.size.width, Self.socialLoginButtonMaxWidth)
 
-                            Image("KakaoLoginLargeWide")
+                            Image(kakaoLoginButtonAssetName)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(
@@ -78,11 +95,11 @@ struct LoginView: View {
                                 .opacity(viewModel.isLoggingIn ? 0.65 : 1)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         }
-                        .frame(height: Self.kakaoLoginButtonMaxHeight)
+                        .frame(height: Self.socialLoginButtonMaxHeight)
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.isLoggingIn)
-                    .accessibilityLabel(viewModel.isLoggingIn ? "카카오 로그인 중" : "카카오로 시작하기")
+                    .accessibilityLabel(kakaoLoginAccessibilityLabel)
                 }
 
                 if let errorMessage = viewModel.errorMessage {
@@ -99,6 +116,21 @@ struct LoginView: View {
         .navigationTitle(viewModel.flowStep.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("login-screen")
+    }
+
+    private var kakaoLoginButtonAssetName: String {
+        usesKoreanKakaoLoginButton ? "KakaoLoginLargeWide" : "KakaoLoginLargeWideEnglish"
+    }
+
+    private var kakaoLoginAccessibilityLabel: String {
+        if viewModel.isLoggingIn {
+            return usesKoreanKakaoLoginButton ? "카카오 로그인 중" : "Logging in with Kakao"
+        }
+        return usesKoreanKakaoLoginButton ? "카카오로 시작하기" : "Login with Kakao"
+    }
+
+    private var usesKoreanKakaoLoginButton: Bool {
+        locale.language.languageCode?.identifier == "ko"
     }
 }
 
@@ -126,6 +158,13 @@ protocol KakaoLoginServicing {
 extension KakaoLoginService: KakaoLoginServicing {}
 
 @MainActor
+protocol AppleLoginServicing {
+    func login() async throws -> AppleOIDCCredential
+}
+
+extension AppleLoginService: AppleLoginServicing {}
+
+@MainActor
 final class LoginViewModel: ObservableObject {
     @Published private(set) var isLoggingIn = false
     @Published private(set) var isLoadingConsentStatus = false
@@ -140,16 +179,19 @@ final class LoginViewModel: ObservableObject {
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStore
     private let kakaoLoginService: KakaoLoginServicing
+    private let appleLoginService: AppleLoginServicing
     private var pendingLogin: PendingLoginSession?
 
     init(
         apiClient: APIClientProtocol,
         authStore: AuthSessionStore,
-        kakaoLoginService: KakaoLoginServicing
+        kakaoLoginService: KakaoLoginServicing,
+        appleLoginService: AppleLoginServicing = AppleLoginService()
     ) {
         self.apiClient = apiClient
         self.authStore = authStore
         self.kakaoLoginService = kakaoLoginService
+        self.appleLoginService = appleLoginService
     }
 
     @MainActor
@@ -166,7 +208,7 @@ final class LoginViewModel: ObservableObject {
 
         do {
             let credential = try await kakaoLoginService.login()
-            let tokens: KakaoLoginResponseDTO
+            let tokens: SocialLoginResponseDTO
             do {
                 tokens = try await apiClient.authenticateWithKakao(
                     idToken: credential.idToken,
@@ -179,21 +221,62 @@ final class LoginViewModel: ObservableObject {
                 return false
             }
 
-            let login = PendingLoginSession(
-                accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
-                member: tokens.member,
-                requiredActions: tokens.onboarding.requiredActions
-            )
-            pendingLogin = login
-            nicknameDraft = tokens.member.nickname ?? ""
-
-            return await routePendingLogin(using: login)
+            return await handleSocialLoginResponse(tokens)
         } catch {
             resetPendingLogin()
             errorMessage = KakaoLoginErrorMessage.message(for: error)
             return false
         }
+    }
+
+    @MainActor
+    func loginWithApple() async -> Bool {
+        guard !isLoggingIn else {
+            return false
+        }
+
+        isLoggingIn = true
+        errorMessage = nil
+        defer {
+            isLoggingIn = false
+        }
+
+        do {
+            let credential = try await appleLoginService.login()
+            let tokens: SocialLoginResponseDTO
+            do {
+                tokens = try await apiClient.authenticateWithApple(
+                    identityToken: credential.identityToken,
+                    nonce: credential.nonce,
+                    authorizationCode: credential.authorizationCode,
+                    userIdentifier: credential.userIdentifier
+                )
+            } catch {
+                resetPendingLogin()
+                errorMessage = AppleLoginErrorMessage.message(for: error)
+                return false
+            }
+
+            return await handleSocialLoginResponse(tokens)
+        } catch {
+            resetPendingLogin()
+            errorMessage = AppleLoginErrorMessage.message(for: error)
+            return false
+        }
+    }
+
+    @MainActor
+    private func handleSocialLoginResponse(_ tokens: SocialLoginResponseDTO) async -> Bool {
+        let login = PendingLoginSession(
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            member: tokens.member,
+            requiredActions: tokens.onboarding.requiredActions
+        )
+        pendingLogin = login
+        nicknameDraft = tokens.member.nickname ?? ""
+
+        return await routePendingLogin(using: login)
     }
 
     @MainActor
@@ -385,13 +468,13 @@ private struct PendingLoginSession {
     let accessToken: String
     let refreshToken: String?
     var member: MemberProfileDTO
-    var requiredActions: [KakaoOnboardingRequiredActionDTO]
+    var requiredActions: [LoginOnboardingRequiredActionDTO]
 
-    func requires(_ action: KakaoOnboardingRequiredActionDTO) -> Bool {
+    func requires(_ action: LoginOnboardingRequiredActionDTO) -> Bool {
         requiredActions.contains(action)
     }
 
-    func removing(_ action: KakaoOnboardingRequiredActionDTO) -> PendingLoginSession {
+    func removing(_ action: LoginOnboardingRequiredActionDTO) -> PendingLoginSession {
         var copy = self
         copy.requiredActions.removeAll { $0 == action }
         return copy
@@ -424,7 +507,7 @@ struct LoginBrandHeader: View {
                 .font(SauceTypography.sectionTitle())
                 .foregroundStyle(SauceColor.onSurface)
                 .multilineTextAlignment(.center)
-            Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
+            Text("소셜 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
                 .font(SauceTypography.body())
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -437,11 +520,83 @@ struct LoginBrandHeader: View {
 struct LoginFlowNotice: View {
     var body: some View {
         VStack(spacing: 8) {
-            Text("카카오 인증 후 필수 약관 동의와 닉네임 설정을 완료해야 시작할 수 있어요.")
+            Text("소셜 인증 후 필수 약관 동의와 닉네임 설정을 완료해야 시작할 수 있어요.")
                 .font(SauceTypography.badge(.bold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct AppleLoginButton: UIViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let isEnabled: Bool
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let container = UIView()
+        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
+        return container
+    }
+
+    func updateUIView(_ container: UIView, context: Context) {
+        context.coordinator.update(action: action)
+        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
+        context.coordinator.button?.isEnabled = isEnabled
+        context.coordinator.button?.alpha = isEnabled ? 1 : 0.65
+    }
+
+    private var authorizationButtonStyle: ASAuthorizationAppleIDButton.Style {
+        colorScheme == .dark ? .white : .black
+    }
+
+    final class Coordinator: NSObject {
+        private(set) weak var button: ASAuthorizationAppleIDButton?
+        private var buttonStyle: ASAuthorizationAppleIDButton.Style?
+        private var action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        func update(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        func configureButton(in container: UIView, style: ASAuthorizationAppleIDButton.Style) {
+            guard button == nil || buttonStyle != style else {
+                return
+            }
+
+            button?.removeFromSuperview()
+
+            let button = ASAuthorizationAppleIDButton(
+                authorizationButtonType: .continue,
+                authorizationButtonStyle: style
+            )
+            button.cornerRadius = 8
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
+            container.addSubview(button)
+            NSLayoutConstraint.activate([
+                button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                button.topAnchor.constraint(equalTo: container.topAnchor),
+                button.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            ])
+
+            self.button = button
+            buttonStyle = style
+        }
+
+        @objc func didTap() {
+            action()
         }
     }
 }

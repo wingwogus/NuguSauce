@@ -1,6 +1,7 @@
 package com.nugusauce.api.auth
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.auth.AppleLoginService
 import com.nugusauce.application.auth.AuthService
 import com.nugusauce.application.auth.KakaoLoginService
 import com.nugusauce.application.security.TokenProvider
@@ -29,6 +30,9 @@ class AuthControllerValidationTest(
 
     @MockBean
     private lateinit var kakaoLoginService: KakaoLoginService
+
+    @MockBean
+    private lateinit var appleLoginService: AppleLoginService
 
     @MockBean
     private lateinit var tokenProvider: TokenProvider
@@ -75,6 +79,30 @@ class AuthControllerValidationTest(
             post("/api/v1/auth/kakao/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"idToken":"id-token","nonce":"nonce","kakaoAccessToken":""}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `apple login rejects missing identity token`() {
+        mockMvc.perform(
+            post("/api/v1/auth/apple/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"identityToken":"","nonce":"raw-nonce"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("COMMON_001")))
+    }
+
+    @Test
+    fun `apple login rejects missing nonce`() {
+        mockMvc.perform(
+            post("/api/v1/auth/apple/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"identityToken":"identity-token","nonce":""}""")
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.success").value(false))

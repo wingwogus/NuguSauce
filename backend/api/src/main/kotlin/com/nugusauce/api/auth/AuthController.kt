@@ -1,6 +1,7 @@
 package com.nugusauce.api.auth
 
 import com.nugusauce.api.common.ApiResponse
+import com.nugusauce.application.auth.AppleLoginService
 import com.nugusauce.application.auth.AuthCommand
 import com.nugusauce.application.auth.AuthService
 import com.nugusauce.application.auth.KakaoLoginService
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController(
     private val authService: AuthService,
     private val kakaoLoginService: KakaoLoginService,
+    private val appleLoginService: AppleLoginService,
     private val tokenProvider: TokenProvider
 ) {
 
@@ -64,7 +66,7 @@ class AuthController(
     @PostMapping("/kakao/login")
     fun kakaoLogin(
         @Valid @RequestBody request: AuthRequests.KakaoLoginRequest
-    ): ResponseEntity<ApiResponse<AuthResponses.KakaoLoginResponse>> {
+    ): ResponseEntity<ApiResponse<AuthResponses.SocialLoginResponse>> {
         val result = kakaoLoginService.login(
             AuthCommand.KakaoLogin(
                 idToken = request.idToken,
@@ -72,7 +74,22 @@ class AuthController(
                 kakaoAccessToken = request.kakaoAccessToken
             )
         )
-        return ResponseEntity.ok(ApiResponse.ok(AuthResponses.KakaoLoginResponse.from(result)))
+        return ResponseEntity.ok(ApiResponse.ok(AuthResponses.SocialLoginResponse.from(result)))
+    }
+
+    @PostMapping("/apple/login")
+    fun appleLogin(
+        @Valid @RequestBody request: AuthRequests.AppleLoginRequest
+    ): ResponseEntity<ApiResponse<AuthResponses.SocialLoginResponse>> {
+        val result = appleLoginService.login(
+            AuthCommand.AppleLogin(
+                identityToken = request.identityToken,
+                nonce = request.nonce,
+                authorizationCode = request.authorizationCode,
+                userIdentifier = request.userIdentifier
+            )
+        )
+        return ResponseEntity.ok(ApiResponse.ok(AuthResponses.SocialLoginResponse.from(result)))
     }
 
     @PostMapping("/reissue")

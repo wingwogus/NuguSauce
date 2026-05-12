@@ -33,12 +33,12 @@ Do not add new feature APIs under generic `api/controller` plus `api/dto` packag
 
 ## Auth Boundary
 
-The mobile-first Kakao flow is:
+The mobile-first social login flow is:
 
-1. iOS creates a nonce before Kakao login.
-2. iOS uses the Kakao SDK to obtain an OIDC ID token.
-3. iOS calls `POST /api/v1/auth/kakao/login`.
-4. Backend verifies Kakao issuer, audience, signature, expiry, issued-at, and nonce.
+1. iOS creates a nonce before provider login.
+2. iOS uses the Kakao SDK or native Sign in with Apple to obtain an OIDC token.
+3. iOS calls `POST /api/v1/auth/kakao/login` or `POST /api/v1/auth/apple/login`.
+4. Backend verifies provider issuer, audience, signature, expiry, issued-at, and nonce.
 5. Backend returns NuguSauce access and refresh tokens.
 
 The backend does not depend on Spring Security `oauth2Login` for the iOS app flow.

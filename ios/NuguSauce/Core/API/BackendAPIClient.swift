@@ -250,11 +250,31 @@ final class BackendAPIClient: APIClientProtocol {
         )
     }
 
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO {
         try await send(
             path: "/api/v1/auth/kakao/login",
             method: "POST",
             body: AnyEncodable(KakaoLoginRequest(idToken: idToken, nonce: nonce, kakaoAccessToken: kakaoAccessToken))
+        )
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String,
+        authorizationCode: String?,
+        userIdentifier: String?
+    ) async throws -> SocialLoginResponseDTO {
+        try await send(
+            path: "/api/v1/auth/apple/login",
+            method: "POST",
+            body: AnyEncodable(
+                AppleLoginRequest(
+                    identityToken: identityToken,
+                    nonce: nonce,
+                    authorizationCode: authorizationCode,
+                    userIdentifier: userIdentifier
+                )
+            )
         )
     }
 
@@ -476,6 +496,13 @@ private struct KakaoLoginRequest: Encodable {
     let idToken: String
     let nonce: String
     let kakaoAccessToken: String
+}
+
+private struct AppleLoginRequest: Encodable {
+    let identityToken: String
+    let nonce: String
+    let authorizationCode: String?
+    let userIdentifier: String?
 }
 
 private struct ReissueRequest: Encodable {

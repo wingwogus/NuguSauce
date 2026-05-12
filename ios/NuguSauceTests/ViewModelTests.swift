@@ -1108,6 +1108,83 @@ final class ViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testLoginViewModelCompletesExistingUserWithAppleLogin() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            kakaoLoginOnboarding: .complete,
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileSetupRequired: false
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService(),
+            appleLoginService: TestAppleLoginService()
+        )
+
+        let didComplete = await viewModel.loginWithApple()
+
+        XCTAssertTrue(didComplete)
+        XCTAssertTrue(authStore.isAuthenticated)
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "real-access-token")
+        XCTAssertEqual(client.fetchConsentStatusAccessTokens, [])
+        XCTAssertEqual(client.appleLoginRequests.count, 1)
+        XCTAssertEqual(client.appleLoginRequests.first?.identityToken, "apple-id-token")
+        XCTAssertEqual(client.appleLoginRequests.first?.nonce, "apple-raw-nonce")
+        XCTAssertEqual(client.appleLoginRequests.first?.authorizationCode, "apple-authorization-code")
+        XCTAssertEqual(client.appleLoginRequests.first?.userIdentifier, "apple-user-id")
+    }
+
+    @MainActor
+    func testLoginViewModelRoutesAppleLoginThroughConsentAndNickname() async {
+        let tokenStore = MemoryAuthTokenStore()
+        let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        let client = TestAPIClient(
+            consentStatus: Self.missingConsentStatus(),
+            kakaoLoginOnboarding: KakaoLoginOnboardingDTO(
+                status: .required,
+                requiredActions: [.acceptRequiredPolicies, .setupProfile]
+            ),
+            memberProfile: MemberProfileDTO(
+                id: 7,
+                nickname: nil,
+                displayName: "사용자 7",
+                profileSetupRequired: true
+            )
+        )
+        let viewModel = LoginViewModel(
+            apiClient: client,
+            authStore: authStore,
+            kakaoLoginService: TestKakaoLoginService(),
+            appleLoginService: TestAppleLoginService()
+        )
+
+        let didCompleteAfterApple = await viewModel.loginWithApple()
+
+        XCTAssertFalse(didCompleteAfterApple)
+        XCTAssertFalse(authStore.isAuthenticated)
+        XCTAssertEqual(client.fetchConsentStatusAccessTokens, ["real-access-token"])
+        XCTAssertEqual(viewModel.flowStep, .consent)
+
+        let didCompleteAfterConsent = await viewModel.acceptRequiredConsents()
+        XCTAssertFalse(didCompleteAfterConsent)
+        XCTAssertEqual(viewModel.flowStep, .nickname)
+
+        viewModel.nicknameDraft = "애플소스"
+        let didCompleteAfterNickname = await viewModel.saveNicknameAndCompleteLogin()
+
+        XCTAssertTrue(didCompleteAfterNickname)
+        XCTAssertTrue(authStore.isAuthenticated)
+        XCTAssertEqual(authStore.currentSession?.nickname, "애플소스")
+        XCTAssertEqual(client.updateMemberAccessTokens, ["real-access-token"])
+    }
+
+    @MainActor
     func testLoginViewModelPersistsExistingUserProfileImageImmediately() async {
         let tokenStore = MemoryAuthTokenStore()
         let authStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
@@ -2006,6 +2083,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var fetchConsentStatusAccessTokens: [String] = []
     private(set) var acceptConsentAccessTokens: [String] = []
     private(set) var updateMemberAccessTokens: [String] = []
+    private(set) var appleLoginRequests: [AppleLoginRequestRecord] = []
 
     init(
         recipes: [RecipeSummaryDTO] = [],
@@ -2320,6 +2398,27 @@ private final class TestAPIClient: APIClientProtocol {
             onboarding: kakaoLoginOnboarding
         )
     }
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String,
+        authorizationCode: String?,
+        userIdentifier: String?
+    ) async throws -> SocialLoginResponseDTO {
+        appleLoginRequests.append(
+            AppleLoginRequestRecord(
+                identityToken: identityToken,
+                nonce: nonce,
+                authorizationCode: authorizationCode,
+                userIdentifier: userIdentifier
+            )
+        )
+        return SocialLoginResponseDTO(
+            accessToken: "real-access-token",
+            refreshToken: "real-refresh-token",
+            member: memberProfile,
+            onboarding: kakaoLoginOnboarding
+        )
+    }
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         TokenResponseDTO(accessToken: "reissued-access-token", refreshToken: refreshToken)
     }
@@ -2359,6 +2458,13 @@ private final class TestAPIClient: APIClientProtocol {
     }
 }
 
+private struct AppleLoginRequestRecord: Equatable {
+    let identityToken: String
+    let nonce: String
+    let authorizationCode: String?
+    let userIdentifier: String?
+}
+
 private struct TestKakaoLoginService: KakaoLoginServicing {
     var credential = KakaoOIDCCredential(
         idToken: "kakao-id-token",
@@ -2367,6 +2473,22 @@ private struct TestKakaoLoginService: KakaoLoginServicing {
     )
 
     func login() async throws -> KakaoOIDCCredential {
+        credential
+    }
+}
+
+private struct TestAppleLoginService: AppleLoginServicing {
+    var credential = AppleOIDCCredential(
+        identityToken: "apple-id-token",
+        nonce: "apple-raw-nonce",
+        authorizationCode: "apple-authorization-code",
+        userIdentifier: "apple-user-id",
+        email: "apple@example.com",
+        fullName: "Apple User"
+    )
+
+    @MainActor
+    func login() async throws -> AppleOIDCCredential {
         credential
     }
 }

@@ -23,7 +23,7 @@ object AuthResult {
         val requiredActions: List<OnboardingRequiredAction>
     )
 
-    data class KakaoLogin(
+    data class SocialLogin(
         val accessToken: String,
         val refreshToken: String,
         val member: MemberResult.Me,

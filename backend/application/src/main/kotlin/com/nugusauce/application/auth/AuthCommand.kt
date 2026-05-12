@@ -26,6 +26,13 @@ object AuthCommand {
         val kakaoAccessToken: String?
     )
 
+    data class AppleLogin(
+        val identityToken: String,
+        val nonce: String,
+        val authorizationCode: String?,
+        val userIdentifier: String?
+    )
+
     data class Reissue(
         val refreshToken: String
     )
