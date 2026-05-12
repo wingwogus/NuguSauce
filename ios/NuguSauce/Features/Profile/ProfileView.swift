@@ -156,9 +156,9 @@ struct ProfileView: View {
                 }
             } label: {
                 Text(viewModel.isSavingNickname ? "저장 중..." : "저장")
-                    .frame(maxWidth: .infinity)
+                    .primarySauceButton()
             }
-            .primarySauceButton()
+            .buttonStyle(.plain)
             .disabled(viewModel.isSavingNickname)
 
             if let nicknameErrorMessage = viewModel.nicknameErrorMessage {
@@ -213,9 +213,9 @@ struct PublicProfileView: View {
                             }
                         } label: {
                             Text("다시 불러오기")
-                                .frame(maxWidth: .infinity)
+                                .primarySauceButton()
                         }
-                        .primarySauceButton()
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -267,6 +267,7 @@ private struct ProfileHeroCard: View {
                                 Circle()
                                     .stroke(SauceColor.surfaceContainerLow, lineWidth: 3)
                             }
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("프로필 편집")
@@ -289,13 +290,17 @@ private struct ProfileHeroCard: View {
                 }
             }
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .font(SauceTypography.body(.bold))
-                    .foregroundStyle(SauceColor.onPrimary)
-                    .padding(.horizontal, 48)
-                    .padding(.vertical, 13)
-                    .background(SauceColor.primaryContainer)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(SauceTypography.body(.bold))
+                        .foregroundStyle(SauceColor.onPrimary)
+                        .padding(.horizontal, 48)
+                        .padding(.vertical, 13)
+                        .background(SauceColor.primaryContainer)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity)
@@ -339,6 +344,7 @@ struct ProfileEditView: View {
                                         .stroke(SauceColor.surface, lineWidth: 3)
                                 }
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("프로필 사진 변경")
@@ -403,9 +409,9 @@ struct ProfileEditView: View {
                         }
                         Text(viewModel.isSaving ? "저장 중..." : "변경사항 저장")
                     }
-                    .frame(maxWidth: .infinity)
+                    .primarySauceButton()
                 }
-                .primarySauceButton()
+                .buttonStyle(.plain)
                 .disabled(!viewModel.canSave)
             }
             .padding(.horizontal, SauceSpacing.screen)
@@ -580,9 +586,9 @@ struct ProfileSetupGateView: View {
                     }
                 } label: {
                     Text(viewModel.isSavingNickname ? "저장 중..." : "닉네임 저장")
-                        .frame(maxWidth: .infinity)
+                        .primarySauceButton()
                 }
-                .primarySauceButton()
+                .buttonStyle(.plain)
                 .disabled(!canSaveNickname)
 
                 if let nicknameErrorMessage = viewModel.nicknameErrorMessage {

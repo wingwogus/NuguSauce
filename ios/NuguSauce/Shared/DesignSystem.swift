@@ -138,6 +138,7 @@ extension View {
     func sauceCard(cornerRadius: CGFloat = SauceSpacing.cardRadius) -> some View {
         background(SauceColor.surfaceLowest)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     func primarySauceButton() -> some View {
@@ -153,5 +154,6 @@ extension View {
                 )
             )
             .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
     }
 }

@@ -84,6 +84,7 @@ struct HomeView: View {
                     identityName: authStore.currentSession?.displayName,
                     fallbackSeed: authStore.currentSession?.profilePlaceholderSeed
                 )
+                .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.profileButton")

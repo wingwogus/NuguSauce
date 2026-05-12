@@ -95,7 +95,9 @@ struct LoginView: View {
                                 .opacity(viewModel.isLoggingIn ? 0.65 : 1)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         }
+                        .frame(maxWidth: Self.socialLoginButtonMaxWidth)
                         .frame(height: Self.socialLoginButtonMaxHeight)
+                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.isLoggingIn)
@@ -662,13 +664,17 @@ struct ConsentAgreementScreen: View {
                         .foregroundStyle(SauceColor.onSurfaceVariant)
                 }
             } else {
-                Button("약관 정보 다시 불러오기", action: onRetry)
-                    .font(SauceTypography.body(.bold))
-                    .foregroundStyle(SauceColor.primaryContainer)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(SauceColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+                Button(action: onRetry) {
+                    Text("약관 정보 다시 불러오기")
+                        .font(SauceTypography.body(.bold))
+                        .foregroundStyle(SauceColor.primaryContainer)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(SauceColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
 
             Button(action: onAccept) {
@@ -679,8 +685,9 @@ struct ConsentAgreementScreen: View {
                     }
                     Text(isAccepting ? "동의 저장 중..." : "필수 동의하고 계속")
                 }
+                .primarySauceButton()
             }
-            .primarySauceButton()
+            .buttonStyle(.plain)
             .disabled(isAccepting || isLoading || !canAccept(status))
         }
         .padding(18)
@@ -717,6 +724,7 @@ struct ConsentAgreementScreen: View {
             .padding(14)
             .background(SauceColor.surface)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -760,6 +768,7 @@ struct ConsentPolicyChecklistRow: View {
                         .font(SauceTypography.iconMedium(.bold))
                         .foregroundStyle(isChecked ? SauceColor.primaryContainer : SauceColor.onSurfaceVariant)
                         .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isChecked ? "\(policy.title) 동의 해제" : "\(policy.title) 동의")
@@ -832,8 +841,9 @@ struct LoginNicknameSetupPanel: View {
                     }
                     Text(isSaving ? "저장 중..." : "닉네임 저장하고 시작")
                 }
+                .primarySauceButton()
             }
-            .primarySauceButton()
+            .buttonStyle(.plain)
             .disabled(isSaving)
 
             if let errorMessage {

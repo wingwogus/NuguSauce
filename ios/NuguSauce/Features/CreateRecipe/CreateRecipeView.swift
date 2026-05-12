@@ -115,8 +115,9 @@ struct CreateRecipeView: View {
                 }
             } label: {
                 Text(submitButtonTitle)
+                    .primarySauceButton()
             }
-            .primarySauceButton()
+            .buttonStyle(.plain)
             .opacity(viewModel.canSubmit ? 1 : 0.72)
             .disabled(viewModel.isSubmitting)
             .padding(.top, 6)
@@ -210,6 +211,7 @@ struct CreateRecipeView: View {
                 }
                 .frame(height: 260)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -284,6 +286,7 @@ struct CreateRecipeView: View {
                         .frame(width: 30, height: 30)
                         .background(SauceColor.surfaceContainerLow)
                         .clipShape(Circle())
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
             }
@@ -419,6 +422,8 @@ struct CreateRecipeView: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(SauceTypography.body(.bold))
                         .foregroundStyle(SauceColor.onSurfaceVariant)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("재료 검색어 지우기")
@@ -463,6 +468,7 @@ struct CreateRecipeView: View {
                 .padding(.vertical, 12)
                 .background(SauceColor.surfaceLowest)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("quick-add-section-\(section.id)")
@@ -524,6 +530,7 @@ struct CreateRecipeView: View {
             .padding(.vertical, 4)
             .background(isSelected ? SauceColor.redTint : SauceColor.surfaceLowest)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("quick-add-ingredient-\(ingredient.id)")

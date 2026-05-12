@@ -19,6 +19,7 @@ struct SauceChip: View {
         .padding(.vertical, 9)
         .background(isSelected ? SauceColor.primaryContainer : SauceColor.chip)
         .clipShape(Capsule())
+        .contentShape(Capsule())
     }
 }
 
@@ -34,6 +35,7 @@ struct RecipeTasteTag: View {
             .padding(.vertical, 4)
             .background(SauceColor.recipeTagFill)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
 
@@ -108,6 +110,7 @@ struct SauceIconButton: View {
                 .frame(width: 42, height: 42)
                 .background(background)
                 .clipShape(Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -300,9 +303,9 @@ struct LoginGatePlaceholder: View {
 
             NavigationLink(value: AppRoute.login) {
                 Label("로그인 화면으로 이동", systemImage: "arrow.right")
-                    .frame(maxWidth: .infinity)
+                    .primarySauceButton()
             }
-            .primarySauceButton()
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 28)
@@ -526,6 +529,7 @@ struct SauceSearchBar: View {
                     .padding(.vertical, 12)
                     .background(SauceColor.primaryContainer)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -762,5 +766,6 @@ struct CompactRecipeRow: View {
         }
         .padding(14)
         .sauceCard(cornerRadius: 14)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

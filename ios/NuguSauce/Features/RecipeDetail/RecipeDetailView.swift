@@ -111,6 +111,7 @@ struct RecipeDetailView: View {
             .frame(width: 42, height: 42)
             .background(SauceColor.surfaceLowest.opacity(0.9))
             .clipShape(Circle())
+            .contentShape(Circle())
     }
 
     private var content: some View {
@@ -295,6 +296,7 @@ struct RecipeDetailView: View {
             .padding(.vertical, 9)
             .background(SauceColor.redTint)
             .clipShape(Capsule())
+            .contentShape(Capsule())
     }
 
     @ViewBuilder
@@ -338,6 +340,7 @@ struct RecipeDetailView: View {
                 .font(nameFont)
         }
         .foregroundStyle(SauceColor.onSurfaceVariant)
+        .contentShape(Rectangle())
     }
 }
 
@@ -455,6 +458,7 @@ private struct ReviewComposeView: View {
                             .font(SauceTypography.iconLarge(.bold))
                             .foregroundStyle(rating <= viewModel.selectedRating ? SauceColor.secondary : SauceColor.redTint)
                             .frame(width: 48, height: 48)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(rating)점")

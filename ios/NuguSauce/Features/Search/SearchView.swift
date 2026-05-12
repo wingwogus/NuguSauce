@@ -147,6 +147,7 @@ struct SearchView: View {
             .padding(.vertical, 10)
             .background(selectedCount > 0 ? SauceColor.primaryContainer : SauceColor.surfaceContainerLow)
             .clipShape(Capsule())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(sheet.buttonAccessibilityIdentifier)
@@ -292,6 +293,7 @@ private struct SearchFilterBottomSheet: View {
                             .frame(width: 34, height: 3)
                     }
                     .frame(minWidth: 50)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier(tab.tabAccessibilityIdentifier)
@@ -341,6 +343,7 @@ private struct SearchFilterBottomSheet: View {
                     .padding(.vertical, 18)
                     .background(SauceColor.surfaceContainerLow)
                     .clipShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: SauceSpacing.controlRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("search-filter-reset-button")
