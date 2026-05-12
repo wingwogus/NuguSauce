@@ -4,6 +4,7 @@ import SwiftUI
 struct LoginView: View {
     private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
     private static let socialLoginButtonMaxWidth: CGFloat = 300
+    private static let appleLoginButtonHeight: CGFloat = 52
     private static let socialLoginButtonMaxHeight: CGFloat = 45
 
     @StateObject private var viewModel: LoginViewModel
@@ -69,7 +70,7 @@ struct LoginView: View {
                         }
                     }
                     .frame(maxWidth: Self.socialLoginButtonMaxWidth)
-                    .frame(height: Self.socialLoginButtonMaxHeight)
+                    .frame(height: Self.appleLoginButtonHeight)
                     .accessibilityIdentifier("apple-login-button")
                     .accessibilityLabel(viewModel.isLoggingIn ? "Apple 로그인 중" : "Apple로 계속하기")
 
