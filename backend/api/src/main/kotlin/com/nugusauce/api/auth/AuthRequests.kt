@@ -46,6 +46,15 @@ object AuthRequests {
         val kakaoAccessToken: String? = null
     )
 
+    data class AppleLoginRequest(
+        @field:NotBlank(message = "Apple ID 토큰을 입력해주세요")
+        val identityToken: String,
+        @field:NotBlank(message = "nonce를 입력해주세요")
+        val nonce: String,
+        val authorizationCode: String? = null,
+        val userIdentifier: String? = null
+    )
+
     data class ReissueRequest(
         val refreshToken: String? = null
     )

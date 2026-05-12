@@ -271,8 +271,22 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         return member
     }
 
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO {
         try await upstream.authenticateWithKakao(idToken: idToken, nonce: nonce, kakaoAccessToken: kakaoAccessToken)
+    }
+
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String,
+        authorizationCode: String?,
+        userIdentifier: String?
+    ) async throws -> SocialLoginResponseDTO {
+        try await upstream.authenticateWithApple(
+            identityToken: identityToken,
+            nonce: nonce,
+            authorizationCode: authorizationCode,
+            userIdentifier: userIdentifier
+        )
     }
 
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {

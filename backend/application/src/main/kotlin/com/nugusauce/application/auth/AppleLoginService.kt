@@ -5,11 +5,10 @@ import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.application.member.MemberResult
-import com.nugusauce.application.redis.KakaoNonceReplayRepository
+import com.nugusauce.application.redis.AppleNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
-import com.nugusauce.application.security.KakaoOidcClaims
-import com.nugusauce.application.security.KakaoOidcTokenVerifier
-import com.nugusauce.application.security.KakaoUserInfoClient
+import com.nugusauce.application.security.AppleOidcClaims
+import com.nugusauce.application.security.AppleOidcTokenVerifier
 import com.nugusauce.application.security.TokenProvider
 import com.nugusauce.domain.member.AuthProvider
 import com.nugusauce.domain.member.ExternalIdentity
@@ -24,32 +23,31 @@ import java.time.Instant
 
 @Service
 @Transactional
-class KakaoLoginService(
-    private val kakaoOidcTokenVerifier: KakaoOidcTokenVerifier,
-    private val kakaoUserInfoClient: KakaoUserInfoClient,
-    private val kakaoNonceReplayRepository: KakaoNonceReplayRepository,
+class AppleLoginService(
+    private val appleOidcTokenVerifier: AppleOidcTokenVerifier,
+    private val appleNonceReplayRepository: AppleNonceReplayRepository,
     private val externalIdentityRepository: ExternalIdentityRepository,
     private val memberRepository: MemberRepository,
     private val consentService: ConsentService,
     private val tokenProvider: TokenProvider,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val imageUrlResolver: ImageUrlResolver,
-    @Value("\${auth.kakao.oidc.nonce-replay-ttl-seconds:600}")
-    nonceReplayTtlSeconds: Long,
-    @Value("\${auth.kakao.oidc.allowed-clock-skew-seconds:60}")
+    @Value("\${auth.apple.oidc.allowed-clock-skew-seconds:60}")
     allowedClockSkewSeconds: Long
 ) {
-    private val maxNonceReplayTtl = Duration.ofSeconds(nonceReplayTtlSeconds)
     private val allowedClockSkew = Duration.ofSeconds(allowedClockSkewSeconds)
 
-    fun login(command: AuthCommand.KakaoLogin): AuthResult.SocialLogin {
-        val claims = kakaoOidcTokenVerifier.verify(command.idToken, command.nonce)
+    fun login(command: AuthCommand.AppleLogin): AuthResult.SocialLogin {
+        val claims = appleOidcTokenVerifier.verify(command.identityToken, command.nonce)
+        if (!command.userIdentifier.isNullOrBlank() && command.userIdentifier != claims.subject) {
+            throw BusinessException(ErrorCode.INVALID_APPLE_TOKEN)
+        }
         reserveNonce(claims)
 
         val member = externalIdentityRepository
-            .findByProviderAndProviderSubject(AuthProvider.KAKAO, claims.subject)
+            .findByProviderAndProviderSubject(AuthProvider.APPLE, claims.subject)
             ?.member
-            ?: linkOrCreateMember(claims, command.kakaoAccessToken)
+            ?: linkOrCreateMember(claims)
 
         val consentStatus = consentService.status(member.id)
         val memberProfile = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
@@ -58,10 +56,10 @@ class KakaoLoginService(
         return issueAndStoreTokens(member, memberProfile, onboarding)
     }
 
-    private fun reserveNonce(claims: KakaoOidcClaims) {
+    private fun reserveNonce(claims: AppleOidcClaims) {
         val ttl = nonceReplayTtl(claims.expiresAt)
-        if (!kakaoNonceReplayRepository.reserve(claims.nonce, ttl)) {
-            throw BusinessException(ErrorCode.KAKAO_NONCE_REPLAY)
+        if (!appleNonceReplayRepository.reserve(claims.nonce, ttl)) {
+            throw BusinessException(ErrorCode.APPLE_NONCE_REPLAY)
         }
     }
 
@@ -69,15 +67,14 @@ class KakaoLoginService(
         val acceptedUntil = expiresAt.plus(allowedClockSkew)
         val untilExpiry = Duration.between(Instant.now(), acceptedUntil)
         if (untilExpiry <= Duration.ZERO) {
-            throw BusinessException(ErrorCode.INVALID_KAKAO_TOKEN)
+            throw BusinessException(ErrorCode.INVALID_APPLE_TOKEN)
         }
-        return if (untilExpiry < maxNonceReplayTtl) untilExpiry else maxNonceReplayTtl
+        return untilExpiry
     }
 
-    private fun linkOrCreateMember(claims: KakaoOidcClaims, accessToken: String?): Member {
-        val email = verifiedEmailFromClaims(claims)
-            ?: verifiedEmailFromUserInfo(claims, accessToken)
-            ?: throw BusinessException(ErrorCode.KAKAO_VERIFIED_EMAIL_REQUIRED)
+    private fun linkOrCreateMember(claims: AppleOidcClaims): Member {
+        val email = claims.email?.takeIf { it.isNotBlank() && claims.emailVerified }
+            ?: throw BusinessException(ErrorCode.APPLE_VERIFIED_EMAIL_REQUIRED)
 
         val member = memberRepository.findByEmail(email)
             ?: memberRepository.save(
@@ -90,27 +87,13 @@ class KakaoLoginService(
         externalIdentityRepository.save(
             ExternalIdentity(
                 member = member,
-                provider = AuthProvider.KAKAO,
+                provider = AuthProvider.APPLE,
                 providerSubject = claims.subject,
                 emailAtLinkTime = email
             )
         )
 
         return member
-    }
-
-    private fun verifiedEmailFromClaims(claims: KakaoOidcClaims): String? {
-        return claims.email?.takeIf { it.isNotBlank() && claims.emailVerified }
-    }
-
-    private fun verifiedEmailFromUserInfo(claims: KakaoOidcClaims, accessToken: String?): String? {
-        val token = accessToken?.takeIf { it.isNotBlank() }
-            ?: return null
-        val userInfo = kakaoUserInfoClient.fetch(token)
-        if (userInfo.subject != claims.subject) {
-            throw BusinessException(ErrorCode.INVALID_KAKAO_TOKEN)
-        }
-        return userInfo.email?.takeIf { it.isNotBlank() && userInfo.emailVerified }
     }
 
     private fun onboarding(

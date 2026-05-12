@@ -49,6 +49,10 @@ Auth/user:
 - `AUTH_011`: Kakao nonce replay
 - `AUTH_012`: Kakao verified email required
 - `AUTH_013`: social-only member local login forbidden
+- `AUTH_014`: invalid Apple token
+- `AUTH_015`: Apple nonce mismatch
+- `AUTH_016`: Apple verified email required
+- `AUTH_017`: Apple nonce replay
 - `USER_001`: user not found
 - `USER_002`: user already exists
 - `USER_003`: invalid nickname

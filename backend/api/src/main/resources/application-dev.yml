@@ -57,6 +57,12 @@ auth:
       user-info-uri: https://kapi.kakao.com/v1/oidc/userinfo
       allowed-clock-skew-seconds: 60
       nonce-replay-ttl-seconds: 600
+  apple:
+    oidc:
+      issuer: https://appleid.apple.com
+      audience: ${APPLE_CLIENT_ID}
+      jwks-uri: https://appleid.apple.com/auth/keys
+      allowed-clock-skew-seconds: 60
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:dyzg8xb4n}

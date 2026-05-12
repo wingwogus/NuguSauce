@@ -1,6 +1,7 @@
 package com.nugusauce.api.auth
 
 import com.nugusauce.api.exception.GlobalExceptionHandler
+import com.nugusauce.application.auth.AppleLoginService
 import com.nugusauce.application.auth.AuthCommand
 import com.nugusauce.application.auth.AuthResult
 import com.nugusauce.application.auth.AuthService
@@ -38,6 +39,9 @@ class AuthControllerBusinessTest(
 
     @MockBean
     private lateinit var kakaoLoginService: KakaoLoginService
+
+    @MockBean
+    private lateinit var appleLoginService: AppleLoginService
 
     @MockBean
     private lateinit var tokenProvider: TokenProvider
@@ -95,7 +99,7 @@ class AuthControllerBusinessTest(
     fun `kakao login returns token pair from service`() {
         `when`(kakaoLoginService.login(AuthCommand.KakaoLogin("id-token", "nonce", "kakao-access-token")))
             .thenReturn(
-                AuthResult.KakaoLogin(
+                AuthResult.SocialLogin(
                     accessToken = "access-token",
                     refreshToken = "refresh-token",
                     member = MemberResult.Me(
@@ -143,5 +147,74 @@ class AuthControllerBusinessTest(
             .andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error.code", equalTo("AUTH_009")))
+    }
+
+    @Test
+    fun `apple login returns token pair from service`() {
+        `when`(
+            appleLoginService.login(
+                AuthCommand.AppleLogin(
+                    identityToken = "identity-token",
+                    nonce = "raw-nonce",
+                    authorizationCode = "authorization-code",
+                    userIdentifier = "apple-sub"
+                )
+            )
+        )
+            .thenReturn(
+                AuthResult.SocialLogin(
+                    accessToken = "access-token",
+                    refreshToken = "refresh-token",
+                    member = MemberResult.Me(
+                        id = 1L,
+                        nickname = null,
+                        displayName = "사용자 1",
+                        profileImageUrl = null,
+                        profileSetupRequired = true
+                    ),
+                    onboarding = AuthResult.Onboarding(
+                        status = AuthResult.OnboardingStatus.REQUIRED,
+                        requiredActions = listOf(AuthResult.OnboardingRequiredAction.SETUP_PROFILE)
+                    )
+                )
+            )
+
+        mockMvc.perform(
+            post("/api/v1/auth/apple/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "identityToken":"identity-token",
+                      "nonce":"raw-nonce",
+                      "authorizationCode":"authorization-code",
+                      "userIdentifier":"apple-sub"
+                    }
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.accessToken", equalTo("access-token")))
+            .andExpect(jsonPath("$.data.refreshToken", equalTo("refresh-token")))
+            .andExpect(jsonPath("$.data.member.id", equalTo(1)))
+            .andExpect(jsonPath("$.data.onboarding.status", equalTo("required")))
+            .andExpect(jsonPath("$.data.onboarding.requiredActions[0]", equalTo("setup_profile")))
+    }
+
+    @Test
+    fun `apple login maps invalid token to unauthorized`() {
+        doThrow(object : BusinessException(ErrorCode.INVALID_APPLE_TOKEN) {})
+            .`when`(appleLoginService)
+            .login(AuthCommand.AppleLogin("bad-token", "raw-nonce", null, null))
+
+        mockMvc.perform(
+            post("/api/v1/auth/apple/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"identityToken":"bad-token","nonce":"raw-nonce"}""")
+        )
+            .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error.code", equalTo("AUTH_014")))
     }
 }

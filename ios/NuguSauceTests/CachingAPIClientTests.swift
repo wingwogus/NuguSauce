@@ -521,6 +521,15 @@ private final class CountingAPIClient: APIClientProtocol {
         throw APIClientError.missingData
     }
 
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String,
+        authorizationCode: String?,
+        userIdentifier: String?
+    ) async throws -> SocialLoginResponseDTO {
+        throw APIClientError.missingData
+    }
+
     func reissue(refreshToken: String) async throws -> TokenResponseDTO {
         throw APIClientError.missingData
     }

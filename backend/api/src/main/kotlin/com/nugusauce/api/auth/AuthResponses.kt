@@ -18,15 +18,15 @@ object AuthResponses {
         }
     }
 
-    data class KakaoLoginResponse(
+    data class SocialLoginResponse(
         val accessToken: String,
         val refreshToken: String,
         val member: MemberResponses.MeResponse,
         val onboarding: OnboardingResponse
     ) {
         companion object {
-            fun from(result: AuthResult.KakaoLogin): KakaoLoginResponse {
-                return KakaoLoginResponse(
+            fun from(result: AuthResult.SocialLogin): SocialLoginResponse {
+                return SocialLoginResponse(
                     accessToken = result.accessToken,
                     refreshToken = result.refreshToken,
                     member = MemberResponses.MeResponse.from(result.member),

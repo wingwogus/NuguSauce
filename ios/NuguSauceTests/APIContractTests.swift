@@ -397,6 +397,55 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(request.httpMethod, "POST")
     }
 
+    func testBackendClientPostsAppleLoginRequestAndDecodesEnvelope() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": {
+            "accessToken": "access-token",
+            "refreshToken": "refresh-token",
+            "member": {
+              "id": 1,
+              "nickname": "소스장인",
+              "displayName": "소스장인",
+              "profileImageUrl": null,
+              "profileSetupRequired": false
+            },
+            "onboarding": {
+              "status": "complete",
+              "requiredActions": []
+            }
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+        URLProtocolTestTransport.lastRequestBody = nil
+
+        let client = makeBackendClient()
+
+        let response = try await client.authenticateWithApple(
+            identityToken: "apple-id-token",
+            nonce: "apple-raw-nonce",
+            authorizationCode: "apple-authorization-code",
+            userIdentifier: "apple-user-id"
+        )
+
+        XCTAssertEqual(response.accessToken, "access-token")
+        XCTAssertEqual(response.member.displayName, "소스장인")
+        XCTAssertEqual(response.onboarding.status, .complete)
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/auth/apple/login")
+        XCTAssertEqual(request.httpMethod, "POST")
+        let body = try XCTUnwrap(URLProtocolTestTransport.lastRequestBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(json["identityToken"], "apple-id-token")
+        XCTAssertEqual(json["nonce"], "apple-raw-nonce")
+        XCTAssertEqual(json["authorizationCode"], "apple-authorization-code")
+        XCTAssertEqual(json["userIdentifier"], "apple-user-id")
+    }
+
     func testConsentStatusDecodesMissingPolicies() throws {
         let json = """
         {

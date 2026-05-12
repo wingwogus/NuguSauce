@@ -46,6 +46,10 @@ enum ApiErrorCode {
     static let kakaoNonceMismatch = "AUTH_010"
     static let kakaoNonceReplay = "AUTH_011"
     static let kakaoVerifiedEmailRequired = "AUTH_012"
+    static let invalidAppleToken = "AUTH_014"
+    static let appleNonceMismatch = "AUTH_015"
+    static let appleVerifiedEmailRequired = "AUTH_016"
+    static let appleNonceReplay = "AUTH_017"
     static let invalidNickname = "USER_003"
     static let duplicateNickname = "USER_004"
     static let invalidInput = "COMMON_001"
@@ -167,17 +171,17 @@ struct MemberProfileDTO: Codable, Equatable, Identifiable {
     }
 }
 
-struct KakaoLoginResponseDTO: Codable, Equatable {
+struct SocialLoginResponseDTO: Codable, Equatable {
     let accessToken: String
     let refreshToken: String
     let member: MemberProfileDTO
-    let onboarding: KakaoLoginOnboardingDTO
+    let onboarding: LoginOnboardingDTO
 
     init(
         accessToken: String,
         refreshToken: String,
         member: MemberProfileDTO,
-        onboarding: KakaoLoginOnboardingDTO
+        onboarding: LoginOnboardingDTO
     ) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
@@ -186,26 +190,34 @@ struct KakaoLoginResponseDTO: Codable, Equatable {
     }
 }
 
-struct KakaoLoginOnboardingDTO: Codable, Equatable {
-    let status: KakaoOnboardingStatusDTO
-    let requiredActions: [KakaoOnboardingRequiredActionDTO]
+typealias KakaoLoginResponseDTO = SocialLoginResponseDTO
 
-    static let complete = KakaoLoginOnboardingDTO(status: .complete, requiredActions: [])
+struct LoginOnboardingDTO: Codable, Equatable {
+    let status: LoginOnboardingStatusDTO
+    let requiredActions: [LoginOnboardingRequiredActionDTO]
 
-    func requires(_ action: KakaoOnboardingRequiredActionDTO) -> Bool {
+    static let complete = LoginOnboardingDTO(status: .complete, requiredActions: [])
+
+    func requires(_ action: LoginOnboardingRequiredActionDTO) -> Bool {
         requiredActions.contains(action)
     }
 }
 
-enum KakaoOnboardingStatusDTO: String, Codable, Equatable {
+typealias KakaoLoginOnboardingDTO = LoginOnboardingDTO
+
+enum LoginOnboardingStatusDTO: String, Codable, Equatable {
     case complete
     case required
 }
 
-enum KakaoOnboardingRequiredActionDTO: String, Codable, Equatable {
+typealias KakaoOnboardingStatusDTO = LoginOnboardingStatusDTO
+
+enum LoginOnboardingRequiredActionDTO: String, Codable, Equatable {
     case acceptRequiredPolicies = "accept_required_policies"
     case setupProfile = "setup_profile"
 }
+
+typealias KakaoOnboardingRequiredActionDTO = LoginOnboardingRequiredActionDTO
 
 struct ConsentStatusDTO: Codable, Equatable {
     let policies: [ConsentPolicyDTO]
@@ -272,7 +284,13 @@ protocol APIClientProtocol {
     func fetchMember(id: Int) async throws -> MemberProfileDTO
     func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO
     func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO
-    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO
+    func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO
+    func authenticateWithApple(
+        identityToken: String,
+        nonce: String,
+        authorizationCode: String?,
+        userIdentifier: String?
+    ) async throws -> SocialLoginResponseDTO
     func reissue(refreshToken: String) async throws -> TokenResponseDTO
     func fetchConsentStatus() async throws -> ConsentStatusDTO
     func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO

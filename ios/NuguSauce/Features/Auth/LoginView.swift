@@ -1,9 +1,10 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
     private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
-    private static let kakaoLoginButtonMaxWidth: CGFloat = 300
-    private static let kakaoLoginButtonMaxHeight: CGFloat = 45
+    private static let socialLoginButtonMaxWidth: CGFloat = 300
+    private static let socialLoginButtonMaxHeight: CGFloat = 45
 
     @StateObject private var viewModel: LoginViewModel
     @Environment(\.dismiss) private var dismiss
@@ -11,13 +12,15 @@ struct LoginView: View {
     init(
         apiClient: APIClientProtocol,
         authStore: AuthSessionStore,
-        kakaoLoginService: KakaoLoginServicing = KakaoLoginService()
+        kakaoLoginService: KakaoLoginServicing = KakaoLoginService(),
+        appleLoginService: AppleLoginServicing = AppleLoginService()
     ) {
         _viewModel = StateObject(
             wrappedValue: LoginViewModel(
                 apiClient: apiClient,
                 authStore: authStore,
-                kakaoLoginService: kakaoLoginService
+                kakaoLoginService: kakaoLoginService,
+                appleLoginService: appleLoginService
             )
         )
     }
@@ -58,6 +61,18 @@ struct LoginView: View {
                     LoginBrandHeader()
                     LoginFlowNotice()
 
+                    AppleLoginButton(isEnabled: !viewModel.isLoggingIn) {
+                        Task {
+                            if await viewModel.loginWithApple() {
+                                dismiss()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: Self.socialLoginButtonMaxWidth)
+                    .frame(height: Self.socialLoginButtonMaxHeight)
+                    .accessibilityIdentifier("apple-login-button")
+                    .accessibilityLabel(viewModel.isLoggingIn ? "Apple 로그인 중" : "Apple로 계속하기")
+
                     Button {
                         Task {
                             if await viewModel.loginWithKakao() {
@@ -66,7 +81,7 @@ struct LoginView: View {
                         }
                     } label: {
                         GeometryReader { proxy in
-                            let buttonWidth = min(proxy.size.width, Self.kakaoLoginButtonMaxWidth)
+                            let buttonWidth = min(proxy.size.width, Self.socialLoginButtonMaxWidth)
 
                             Image("KakaoLoginLargeWide")
                                 .resizable()
@@ -78,7 +93,7 @@ struct LoginView: View {
                                 .opacity(viewModel.isLoggingIn ? 0.65 : 1)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         }
-                        .frame(height: Self.kakaoLoginButtonMaxHeight)
+                        .frame(height: Self.socialLoginButtonMaxHeight)
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.isLoggingIn)
@@ -126,6 +141,13 @@ protocol KakaoLoginServicing {
 extension KakaoLoginService: KakaoLoginServicing {}
 
 @MainActor
+protocol AppleLoginServicing {
+    func login() async throws -> AppleOIDCCredential
+}
+
+extension AppleLoginService: AppleLoginServicing {}
+
+@MainActor
 final class LoginViewModel: ObservableObject {
     @Published private(set) var isLoggingIn = false
     @Published private(set) var isLoadingConsentStatus = false
@@ -140,16 +162,19 @@ final class LoginViewModel: ObservableObject {
     private let apiClient: APIClientProtocol
     private let authStore: AuthSessionStore
     private let kakaoLoginService: KakaoLoginServicing
+    private let appleLoginService: AppleLoginServicing
     private var pendingLogin: PendingLoginSession?
 
     init(
         apiClient: APIClientProtocol,
         authStore: AuthSessionStore,
-        kakaoLoginService: KakaoLoginServicing
+        kakaoLoginService: KakaoLoginServicing,
+        appleLoginService: AppleLoginServicing = AppleLoginService()
     ) {
         self.apiClient = apiClient
         self.authStore = authStore
         self.kakaoLoginService = kakaoLoginService
+        self.appleLoginService = appleLoginService
     }
 
     @MainActor
@@ -166,7 +191,7 @@ final class LoginViewModel: ObservableObject {
 
         do {
             let credential = try await kakaoLoginService.login()
-            let tokens: KakaoLoginResponseDTO
+            let tokens: SocialLoginResponseDTO
             do {
                 tokens = try await apiClient.authenticateWithKakao(
                     idToken: credential.idToken,
@@ -179,21 +204,62 @@ final class LoginViewModel: ObservableObject {
                 return false
             }
 
-            let login = PendingLoginSession(
-                accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
-                member: tokens.member,
-                requiredActions: tokens.onboarding.requiredActions
-            )
-            pendingLogin = login
-            nicknameDraft = tokens.member.nickname ?? ""
-
-            return await routePendingLogin(using: login)
+            return await handleSocialLoginResponse(tokens)
         } catch {
             resetPendingLogin()
             errorMessage = KakaoLoginErrorMessage.message(for: error)
             return false
         }
+    }
+
+    @MainActor
+    func loginWithApple() async -> Bool {
+        guard !isLoggingIn else {
+            return false
+        }
+
+        isLoggingIn = true
+        errorMessage = nil
+        defer {
+            isLoggingIn = false
+        }
+
+        do {
+            let credential = try await appleLoginService.login()
+            let tokens: SocialLoginResponseDTO
+            do {
+                tokens = try await apiClient.authenticateWithApple(
+                    identityToken: credential.identityToken,
+                    nonce: credential.nonce,
+                    authorizationCode: credential.authorizationCode,
+                    userIdentifier: credential.userIdentifier
+                )
+            } catch {
+                resetPendingLogin()
+                errorMessage = AppleLoginErrorMessage.message(for: error)
+                return false
+            }
+
+            return await handleSocialLoginResponse(tokens)
+        } catch {
+            resetPendingLogin()
+            errorMessage = AppleLoginErrorMessage.message(for: error)
+            return false
+        }
+    }
+
+    @MainActor
+    private func handleSocialLoginResponse(_ tokens: SocialLoginResponseDTO) async -> Bool {
+        let login = PendingLoginSession(
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            member: tokens.member,
+            requiredActions: tokens.onboarding.requiredActions
+        )
+        pendingLogin = login
+        nicknameDraft = tokens.member.nickname ?? ""
+
+        return await routePendingLogin(using: login)
     }
 
     @MainActor
@@ -385,13 +451,13 @@ private struct PendingLoginSession {
     let accessToken: String
     let refreshToken: String?
     var member: MemberProfileDTO
-    var requiredActions: [KakaoOnboardingRequiredActionDTO]
+    var requiredActions: [LoginOnboardingRequiredActionDTO]
 
-    func requires(_ action: KakaoOnboardingRequiredActionDTO) -> Bool {
+    func requires(_ action: LoginOnboardingRequiredActionDTO) -> Bool {
         requiredActions.contains(action)
     }
 
-    func removing(_ action: KakaoOnboardingRequiredActionDTO) -> PendingLoginSession {
+    func removing(_ action: LoginOnboardingRequiredActionDTO) -> PendingLoginSession {
         var copy = self
         copy.requiredActions.removeAll { $0 == action }
         return copy
@@ -424,7 +490,7 @@ struct LoginBrandHeader: View {
                 .font(SauceTypography.sectionTitle())
                 .foregroundStyle(SauceColor.onSurface)
                 .multilineTextAlignment(.center)
-            Text("카카오 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
+            Text("소셜 계정으로 계속하면 찜, 프로필, 소스 등록과 리뷰 작성 기능을 사용할 수 있어요.")
                 .font(SauceTypography.body())
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -437,11 +503,47 @@ struct LoginBrandHeader: View {
 struct LoginFlowNotice: View {
     var body: some View {
         VStack(spacing: 8) {
-            Text("카카오 인증 후 필수 약관 동의와 닉네임 설정을 완료해야 시작할 수 있어요.")
+            Text("소셜 인증 후 필수 약관 동의와 닉네임 설정을 완료해야 시작할 수 있어요.")
                 .font(SauceTypography.badge(.bold))
                 .foregroundStyle(SauceColor.onSurfaceVariant)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct AppleLoginButton: UIViewRepresentable {
+    let isEnabled: Bool
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
+        let button = ASAuthorizationAppleIDButton(
+            authorizationButtonType: .continue,
+            authorizationButtonStyle: .black
+        )
+        button.cornerRadius = 8
+        button.addTarget(context.coordinator, action: #selector(Coordinator.didTap), for: .touchUpInside)
+        return button
+    }
+
+    func updateUIView(_ button: ASAuthorizationAppleIDButton, context: Context) {
+        button.isEnabled = isEnabled
+        button.alpha = isEnabled ? 1 : 0.65
+    }
+
+    final class Coordinator: NSObject {
+        private let action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        @objc func didTap() {
+            action()
         }
     }
 }

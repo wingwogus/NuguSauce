@@ -1,10 +1,10 @@
 # NuguSauce Security Rules
 
-Security-sensitive work includes auth, token handling, Kakao OIDC, user identity, review/report moderation, cookies, secrets, and personal data.
+Security-sensitive work includes auth, token handling, Kakao/Apple OIDC, user identity, review/report moderation, cookies, secrets, and personal data.
 
 ## Auth Rules
 
-- iOS Kakao login must use nonce-backed OIDC ID token verification.
+- iOS Kakao and Apple login must use nonce-backed OIDC ID token verification.
 - Backend must verify issuer, audience, signature, expiry, issued-at, and nonce replay.
 - Do not replace the mobile OIDC flow with web `oauth2Login` unless a new architecture decision is written.
 - Refresh token handling must preserve replay and logout semantics.
@@ -18,7 +18,7 @@ Security-sensitive work includes auth, token handling, Kakao OIDC, user identity
 
 ## Secret Rules
 
-- Do not commit real Kakao keys, JWT secrets, SMTP credentials, DB passwords, or Redis credentials.
+- Do not commit real Kakao keys, Apple service/client secrets, JWT secrets, SMTP credentials, DB passwords, or Redis credentials.
 - Use placeholders in docs and local examples.
 - Treat `.env`, local YAML overrides, and deployment manifests as secret-adjacent files.
 
@@ -30,9 +30,9 @@ Security-sensitive work includes auth, token handling, Kakao OIDC, user identity
 
 ## Consent Rules
 
-- Kakao login is identity proof only; it must not be treated as service-policy acceptance unless the current required policy versions are recorded for the member.
-- iOS must not persist the Kakao-issued NuguSauce session until required policy acceptance and required profile setup are both complete.
+- Kakao and Apple login are identity proof only; they must not be treated as service-policy acceptance unless the current required policy versions are recorded for the member.
+- iOS must not persist social-login issued NuguSauce sessions until required policy acceptance and required profile setup are both complete.
 - Required consent evidence must store member id, policy version id, accepted timestamp, and source.
 - Privacy, service terms, and content/photo rights policies gate image upload intent, recipe create, review create, report create, and profile image update.
-- Public reads, Kakao login, token reissue/logout, `GET /api/v1/members/me`, and consent status/accept endpoints must stay reachable before service-policy acceptance.
+- Public reads, Kakao login, Apple login, token reissue/logout, `GET /api/v1/members/me`, and consent status/accept endpoints must stay reachable before service-policy acceptance.
 - When a required policy version changes, older acceptances do not satisfy the gate for that policy type.

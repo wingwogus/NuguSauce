@@ -114,7 +114,28 @@ and `email_verified` is true before linking or creating a local member. iOS must
 request `openid` and `account_email` scopes so the access token can read the
 verified email claim.
 
-Success data:
+### `POST /api/v1/auth/apple/login`
+
+Request:
+
+```json
+{
+  "identityToken": "<apple_oidc_identity_token>",
+  "nonce": "<client_generated_raw_nonce>",
+  "authorizationCode": "<apple_authorization_code>",
+  "userIdentifier": "<apple_user_identifier>"
+}
+```
+
+`authorizationCode` and `userIdentifier` are optional transport fields, but iOS
+should send them when Apple returns them. Backend verification uses the Apple ID
+token as the authority: it validates the signature, issuer, audience, timestamps,
+subject, and nonce. iOS sends the raw client nonce; the Apple request must use
+the SHA-256 hex digest of that nonce so the backend can compare the raw nonce to
+the token's `nonce` claim. Backend links or creates the local member only from a
+verified Apple subject and verified Apple email claim.
+
+Success data for social login endpoints:
 
 ```json
 {
@@ -137,8 +158,9 @@ Success data:
 }
 ```
 
-`member.email` is never returned from this endpoint. Kakao identity data proves
-login only; the public NuguSauce nickname is a service profile field.
+`member.email` is never returned from social login endpoints. Provider identity
+data proves login only; the public NuguSauce nickname is a service profile
+field.
 
 iOS must treat the returned token pair as pending login state until required
 policy acceptance and required profile setup are complete. The token pair must
@@ -186,9 +208,9 @@ Success data:
 
 ## Consent API
 
-Kakao login proves identity only. It does not count as NuguSauce service-policy
-acceptance until the backend records the current required policy versions for
-that member.
+Kakao and Apple login prove identity only. They do not count as NuguSauce
+service-policy acceptance until the backend records the current required policy
+versions for that member.
 
 Required policies are versioned by backend data:
 
@@ -213,7 +235,7 @@ These endpoints require JWT and all current required consents:
 
 These endpoints must remain usable without service-policy acceptance:
 
-- Kakao login, token reissue, and logout
+- Kakao login, Apple login, token reissue, and logout
 - `GET /api/v1/members/me`
 - `GET /api/v1/consents/status`
 - `POST /api/v1/consents/accept`
