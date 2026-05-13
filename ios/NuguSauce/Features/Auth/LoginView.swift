@@ -1,12 +1,6 @@
-import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
-    private static let kakaoLoginButtonAspectRatio: CGFloat = 600.0 / 90.0
-    private static let socialLoginButtonMaxWidth: CGFloat = 300
-    private static let appleLoginButtonHeight: CGFloat = 52
-    private static let socialLoginButtonMaxHeight: CGFloat = 45
-
     @StateObject private var viewModel: LoginViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -63,45 +57,24 @@ struct LoginView: View {
                     LoginBrandHeader()
                     LoginFlowNotice()
 
-                    AppleLoginButton(isEnabled: !viewModel.isLoggingIn) {
+                    SocialLoginIconRow(
+                        isLoggingIn: viewModel.isLoggingIn,
+                        kakaoLabel: kakaoLoginProviderLabel,
+                        kakaoAccessibilityLabel: kakaoLoginAccessibilityLabel,
+                        appleAccessibilityLabel: appleLoginAccessibilityLabel
+                    ) {
+                        Task {
+                            if await viewModel.loginWithKakao() {
+                                dismiss()
+                            }
+                        }
+                    } appleAction: {
                         Task {
                             if await viewModel.loginWithApple() {
                                 dismiss()
                             }
                         }
                     }
-                    .frame(maxWidth: Self.socialLoginButtonMaxWidth)
-                    .frame(height: Self.appleLoginButtonHeight)
-                    .accessibilityIdentifier("apple-login-button")
-                    .accessibilityLabel(viewModel.isLoggingIn ? "Apple 로그인 중" : "Apple로 계속하기")
-
-                    Button {
-                        Task {
-                            if await viewModel.loginWithKakao() {
-                                dismiss()
-                            }
-                        }
-                    } label: {
-                        GeometryReader { proxy in
-                            let buttonWidth = min(proxy.size.width, Self.socialLoginButtonMaxWidth)
-
-                            Image(kakaoLoginButtonAssetName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: buttonWidth,
-                                    height: buttonWidth / Self.kakaoLoginButtonAspectRatio
-                                )
-                                .opacity(viewModel.isLoggingIn ? 0.65 : 1)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        }
-                        .frame(maxWidth: Self.socialLoginButtonMaxWidth)
-                        .frame(height: Self.socialLoginButtonMaxHeight)
-                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isLoggingIn)
-                    .accessibilityLabel(kakaoLoginAccessibilityLabel)
                 }
 
                 if let errorMessage = viewModel.errorMessage {
@@ -120,18 +93,22 @@ struct LoginView: View {
         .accessibilityIdentifier("login-screen")
     }
 
-    private var kakaoLoginButtonAssetName: String {
-        usesKoreanKakaoLoginButton ? "KakaoLoginLargeWide" : "KakaoLoginLargeWideEnglish"
+    private var kakaoLoginProviderLabel: String {
+        usesKoreanKakaoLoginText ? "카카오" : "Kakao"
     }
 
     private var kakaoLoginAccessibilityLabel: String {
         if viewModel.isLoggingIn {
-            return usesKoreanKakaoLoginButton ? "카카오 로그인 중" : "Logging in with Kakao"
+            return usesKoreanKakaoLoginText ? "카카오 로그인 중" : "Logging in with Kakao"
         }
-        return usesKoreanKakaoLoginButton ? "카카오로 시작하기" : "Login with Kakao"
+        return usesKoreanKakaoLoginText ? "카카오로 시작하기" : "Login with Kakao"
     }
 
-    private var usesKoreanKakaoLoginButton: Bool {
+    private var appleLoginAccessibilityLabel: String {
+        viewModel.isLoggingIn ? "Apple 로그인 중" : "Apple로 계속하기"
+    }
+
+    private var usesKoreanKakaoLoginText: Bool {
         locale.language.languageCode?.identifier == "ko"
     }
 }
@@ -531,75 +508,85 @@ struct LoginFlowNotice: View {
     }
 }
 
-private struct AppleLoginButton: UIViewRepresentable {
-    @Environment(\.colorScheme) private var colorScheme
+private struct SocialLoginIconRow: View {
+    let isLoggingIn: Bool
+    let kakaoLabel: String
+    let kakaoAccessibilityLabel: String
+    let appleAccessibilityLabel: String
+    let kakaoAction: () -> Void
+    let appleAction: () -> Void
 
-    let isEnabled: Bool
-    let action: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-
-    func makeUIView(context: Context) -> UIView {
-        let container = UIView()
-        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
-        return container
-    }
-
-    func updateUIView(_ container: UIView, context: Context) {
-        context.coordinator.update(action: action)
-        context.coordinator.configureButton(in: container, style: authorizationButtonStyle)
-        context.coordinator.button?.isEnabled = isEnabled
-        context.coordinator.button?.alpha = isEnabled ? 1 : 0.65
-    }
-
-    private var authorizationButtonStyle: ASAuthorizationAppleIDButton.Style {
-        colorScheme == .dark ? .white : .black
-    }
-
-    final class Coordinator: NSObject {
-        private(set) weak var button: ASAuthorizationAppleIDButton?
-        private var buttonStyle: ASAuthorizationAppleIDButton.Style?
-        private var action: () -> Void
-
-        init(action: @escaping () -> Void) {
-            self.action = action
-        }
-
-        func update(action: @escaping () -> Void) {
-            self.action = action
-        }
-
-        func configureButton(in container: UIView, style: ASAuthorizationAppleIDButton.Style) {
-            guard button == nil || buttonStyle != style else {
-                return
+    var body: some View {
+        HStack(spacing: 30) {
+            SocialLoginIconButton(
+                title: kakaoLabel,
+                background: Color(red: 0.998, green: 0.907, blue: 0),
+                isEnabled: !isLoggingIn,
+                accessibilityIdentifier: "kakao-login-button",
+                accessibilityLabel: kakaoAccessibilityLabel,
+                action: kakaoAction
+            ) {
+                Image("KakaoTalkLogo")
+                    .renderingMode(.original)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 29, height: 29)
             }
 
-            button?.removeFromSuperview()
-
-            let button = ASAuthorizationAppleIDButton(
-                authorizationButtonType: .continue,
-                authorizationButtonStyle: style
-            )
-            button.cornerRadius = 8
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.addTarget(self, action: #selector(didTap), for: .touchUpInside)
-            container.addSubview(button)
-            NSLayoutConstraint.activate([
-                button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                button.topAnchor.constraint(equalTo: container.topAnchor),
-                button.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-            ])
-
-            self.button = button
-            buttonStyle = style
+            SocialLoginIconButton(
+                title: "Apple",
+                background: .black,
+                isEnabled: !isLoggingIn,
+                accessibilityIdentifier: "apple-login-button",
+                accessibilityLabel: appleAccessibilityLabel,
+                action: appleAction
+            ) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 23, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58, alignment: .center)
+            }
         }
+        .frame(maxWidth: .infinity)
+    }
+}
 
-        @objc func didTap() {
-            action()
+private struct SocialLoginIconButton<Icon: View>: View {
+    private static var iconDiameter: CGFloat { 58 }
+
+    let title: String
+    let background: Color
+    let isEnabled: Bool
+    let accessibilityIdentifier: String
+    let accessibilityLabel: String
+    let action: () -> Void
+    @ViewBuilder let icon: () -> Icon
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(background)
+                    icon()
+                }
+                .frame(width: Self.iconDiameter, height: Self.iconDiameter)
+
+                Text(title)
+                    .font(SauceTypography.badge(.bold))
+                    .foregroundStyle(SauceColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .frame(width: 70)
+            }
+            .opacity(isEnabled ? 1 : 0.65)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(accessibilityIdentifier)
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
