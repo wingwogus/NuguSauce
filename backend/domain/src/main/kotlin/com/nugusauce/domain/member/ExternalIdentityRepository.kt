@@ -7,4 +7,6 @@ interface ExternalIdentityRepository : JpaRepository<ExternalIdentity, Long> {
         provider: AuthProvider,
         providerSubject: String
     ): ExternalIdentity?
+
+    fun findAllByMemberId(memberId: Long): List<ExternalIdentity>
 }

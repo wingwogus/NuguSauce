@@ -18,4 +18,6 @@ interface MemberPolicyAcceptanceRepository : JpaRepository<MemberPolicyAcceptanc
         @Param("memberId") memberId: Long,
         @Param("policyVersionIds") policyVersionIds: Collection<Long>
     ): List<MemberPolicyAcceptance>
+
+    fun findAllByMemberId(memberId: Long): List<MemberPolicyAcceptance>
 }

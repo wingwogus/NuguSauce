@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import java.time.Instant
 
 @Entity
 @Table(
@@ -39,5 +40,33 @@ class ExternalIdentity(
     val providerSubject: String,
 
     @Column(name = "email_at_link_time", nullable = false)
-    val emailAtLinkTime: String
-)
+    val emailAtLinkTime: String,
+
+    @Column(name = "apple_refresh_token_ciphertext", nullable = true, length = 2048)
+    var appleRefreshTokenCiphertext: String? = null,
+
+    @Column(name = "apple_refresh_token_nonce", nullable = true, length = 128)
+    var appleRefreshTokenNonce: String? = null,
+
+    @Column(name = "apple_refresh_token_updated_at", nullable = true)
+    var appleRefreshTokenUpdatedAt: Instant? = null
+) {
+    fun storeAppleRefreshToken(
+        ciphertext: String,
+        nonce: String,
+        updatedAt: Instant = Instant.now()
+    ) {
+        require(provider == AuthProvider.APPLE) {
+            "apple refresh tokens can only be stored for Apple identities"
+        }
+        require(ciphertext.isNotBlank()) {
+            "apple refresh token ciphertext must not be blank"
+        }
+        require(nonce.isNotBlank()) {
+            "apple refresh token nonce must not be blank"
+        }
+        appleRefreshTokenCiphertext = ciphertext
+        appleRefreshTokenNonce = nonce
+        appleRefreshTokenUpdatedAt = updatedAt
+    }
+}

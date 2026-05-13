@@ -1,15 +1,22 @@
 package com.nugusauce.application.member
 
+import com.nugusauce.application.auth.AppleTokenPort
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
 import com.nugusauce.application.media.ImageUrlResolver
+import com.nugusauce.application.redis.RefreshTokenRepository
+import com.nugusauce.application.security.AppleRefreshTokenCipher
+import com.nugusauce.domain.consent.MemberPolicyAcceptanceRepository
 import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.media.MediaAssetRepository
 import com.nugusauce.domain.media.MediaProvider
+import com.nugusauce.domain.member.ExternalIdentityRepository
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
+import com.nugusauce.domain.recipe.report.RecipeReportRepository
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,6 +37,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 import org.springframework.transaction.support.AbstractPlatformTransactionManager
 import org.springframework.transaction.support.DefaultTransactionStatus
 import java.time.Instant
+import java.util.Base64
 import java.util.Optional
 
 @ExtendWith(SpringExtension::class)
@@ -107,6 +115,32 @@ class MemberServiceTransactionTest {
         open fun recipeFavoriteRepository(): RecipeFavoriteRepository = mock(RecipeFavoriteRepository::class.java)
 
         @Bean
+        open fun recipeReviewRepository(): RecipeReviewRepository = mock(RecipeReviewRepository::class.java)
+
+        @Bean
+        open fun recipeReportRepository(): RecipeReportRepository = mock(RecipeReportRepository::class.java)
+
+        @Bean
+        open fun externalIdentityRepository(): ExternalIdentityRepository = mock(ExternalIdentityRepository::class.java)
+
+        @Bean
+        open fun memberPolicyAcceptanceRepository(): MemberPolicyAcceptanceRepository =
+            mock(MemberPolicyAcceptanceRepository::class.java)
+
+        @Bean
+        open fun refreshTokenRepository(): RefreshTokenRepository = mock(RefreshTokenRepository::class.java)
+
+        @Bean
+        open fun appleTokenPort(): AppleTokenPort = mock(AppleTokenPort::class.java)
+
+        @Bean
+        open fun appleRefreshTokenCipher(): AppleRefreshTokenCipher {
+            return AppleRefreshTokenCipher(
+                Base64.getEncoder().encodeToString(ByteArray(32) { (it + 1).toByte() })
+            )
+        }
+
+        @Bean
         open fun mediaAssetRepository(): MediaAssetRepository = mock(MediaAssetRepository::class.java)
 
         @Bean
@@ -124,17 +158,31 @@ class MemberServiceTransactionTest {
             memberRepository: MemberRepository,
             sauceRecipeRepository: SauceRecipeRepository,
             recipeFavoriteRepository: RecipeFavoriteRepository,
+            recipeReviewRepository: RecipeReviewRepository,
+            recipeReportRepository: RecipeReportRepository,
+            externalIdentityRepository: ExternalIdentityRepository,
+            memberPolicyAcceptanceRepository: MemberPolicyAcceptanceRepository,
+            refreshTokenRepository: RefreshTokenRepository,
             mediaAssetRepository: MediaAssetRepository,
             imageStoragePort: ImageStoragePort,
+            appleTokenPort: AppleTokenPort,
+            appleRefreshTokenCipher: AppleRefreshTokenCipher,
             transactionManager: RecordingTransactionManager
         ): MemberService {
             return MemberService(
                 memberRepository,
                 sauceRecipeRepository,
                 recipeFavoriteRepository,
+                recipeReviewRepository,
+                recipeReportRepository,
+                externalIdentityRepository,
+                memberPolicyAcceptanceRepository,
+                refreshTokenRepository,
                 ImageUrlResolver(imageStoragePort),
                 mediaAssetRepository,
                 imageStoragePort,
+                appleTokenPort,
+                appleRefreshTokenCipher,
                 transactionManager
             )
         }

@@ -8,6 +8,7 @@ import com.nugusauce.application.member.MemberResult
 import com.nugusauce.application.redis.AppleNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
 import com.nugusauce.application.security.AppleOidcClaims
+import com.nugusauce.application.security.AppleRefreshTokenCipher
 import com.nugusauce.application.security.AppleOidcTokenVerifier
 import com.nugusauce.application.security.TokenProvider
 import com.nugusauce.domain.member.AuthProvider
@@ -15,6 +16,7 @@ import com.nugusauce.domain.member.ExternalIdentity
 import com.nugusauce.domain.member.ExternalIdentityRepository
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
+import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -32,6 +34,8 @@ class AppleLoginService(
     private val tokenProvider: TokenProvider,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val imageUrlResolver: ImageUrlResolver,
+    private val appleTokenPort: AppleTokenPort,
+    private val appleRefreshTokenCipher: AppleRefreshTokenCipher,
     @Value("\${auth.apple.oidc.allowed-clock-skew-seconds:60}")
     allowedClockSkewSeconds: Long
 ) {
@@ -44,11 +48,12 @@ class AppleLoginService(
         }
         reserveNonce(claims)
 
-        val member = externalIdentityRepository
+        val identity = externalIdentityRepository
             .findByProviderAndProviderSubject(AuthProvider.APPLE, claims.subject)
-            ?.member
-            ?: linkOrCreateMember(claims)
+            ?: linkOrCreateIdentity(claims)
+        storeAppleRefreshTokenIfAvailable(identity, command.authorizationCode)
 
+        val member = identity.member
         val consentStatus = consentService.status(member.id)
         val memberProfile = MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
         val onboarding = onboarding(consentStatus.requiredConsentsAccepted, memberProfile.profileSetupRequired)
@@ -72,7 +77,7 @@ class AppleLoginService(
         return untilExpiry
     }
 
-    private fun linkOrCreateMember(claims: AppleOidcClaims): Member {
+    private fun linkOrCreateIdentity(claims: AppleOidcClaims): ExternalIdentity {
         val email = claims.email?.takeIf { it.isNotBlank() && claims.emailVerified }
             ?: throw BusinessException(ErrorCode.APPLE_VERIFIED_EMAIL_REQUIRED)
 
@@ -84,7 +89,7 @@ class AppleLoginService(
                 )
             )
 
-        externalIdentityRepository.save(
+        return externalIdentityRepository.save(
             ExternalIdentity(
                 member = member,
                 provider = AuthProvider.APPLE,
@@ -92,8 +97,25 @@ class AppleLoginService(
                 emailAtLinkTime = email
             )
         )
+    }
 
-        return member
+    private fun storeAppleRefreshTokenIfAvailable(
+        identity: ExternalIdentity,
+        authorizationCode: String?
+    ) {
+        val code = authorizationCode?.takeIf { it.isNotBlank() } ?: return
+        val refreshToken = try {
+            appleTokenPort.exchangeAuthorizationCode(code)?.refreshToken
+        } catch (e: RuntimeException) {
+            logger.warn(e) { "Failed to exchange Apple authorization code for memberId=${identity.member.id}" }
+            null
+        }?.takeIf { it.isNotBlank() } ?: return
+
+        val encrypted = appleRefreshTokenCipher.encrypt(refreshToken)
+        identity.storeAppleRefreshToken(
+            ciphertext = encrypted.ciphertext,
+            nonce = encrypted.nonce
+        )
     }
 
     private fun onboarding(
@@ -133,5 +155,9 @@ class AppleLoginService(
             member = memberProfile,
             onboarding = onboarding
         )
+    }
+
+    private companion object {
+        private val logger = KotlinLogging.logger {}
     }
 }

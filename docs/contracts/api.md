@@ -352,6 +352,31 @@ Request:
 
 Success data matches the `GET /api/v1/members/me` shape.
 
+### `DELETE /api/v1/members/me`
+
+Requires JWT.
+
+Permanently deletes the authenticated member account and service-owned data
+associated with that account. The deletion includes provider identities, stored
+refresh token state, consent acceptances, profile/recipe media metadata,
+authored recipes, reviews, favorites, and reports. Favorite and review
+aggregates on remaining recipes are recomputed after member-owned favorites or
+reviews are removed.
+
+Sign in with Apple identities are revoked with Apple's token revocation API
+when the server has a stored Apple refresh token for the identity. Older Apple
+accounts without a stored refresh token still have local account data deleted.
+
+Success data is null:
+
+```json
+{
+  "success": true,
+  "data": null,
+  "error": null
+}
+```
+
 ### `GET /api/v1/members/{memberId}`
 
 Public endpoint for another member's safe public profile and profile-screen data.

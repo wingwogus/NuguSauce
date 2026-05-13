@@ -29,6 +29,8 @@ interface RecipeFavoriteRepository : JpaRepository<RecipeFavorite, Long> {
         @Param("memberId") memberId: Long
     ): List<RecipeFavorite>
 
+    fun findAllByMemberId(memberId: Long): List<RecipeFavorite>
+
     @Query(
         """
         select f.recipe.id

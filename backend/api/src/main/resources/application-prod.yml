@@ -84,6 +84,11 @@ auth:
       audience: ${APPLE_CLIENT_ID}
       jwks-uri: https://appleid.apple.com/auth/keys
       allowed-clock-skew-seconds: 60
+    client:
+      team-id: ${APPLE_TEAM_ID:}
+      key-id: ${APPLE_KEY_ID:}
+      private-key: ${APPLE_PRIVATE_KEY:}
+    refresh-token-encryption-key: ${APPLE_REFRESH_TOKEN_ENCRYPTION_KEY:${PROD_JWT_SECRET}}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:dyzg8xb4n}

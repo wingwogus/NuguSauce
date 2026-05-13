@@ -21,4 +21,6 @@ interface RecipeReviewRepository : JpaRepository<RecipeReview, Long> {
 
     fun findAllByRecipeId(recipeId: Long): List<RecipeReview>
 
+    fun findAllByAuthorId(authorId: Long): List<RecipeReview>
+
 }

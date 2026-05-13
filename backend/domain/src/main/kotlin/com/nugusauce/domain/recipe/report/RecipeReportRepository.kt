@@ -18,4 +18,6 @@ interface RecipeReportRepository : JpaRepository<RecipeReport, Long> {
     ): Boolean
 
     fun findAllByRecipeId(recipeId: Long): List<RecipeReport>
+
+    fun findAllByReporterId(reporterId: Long): List<RecipeReport>
 }

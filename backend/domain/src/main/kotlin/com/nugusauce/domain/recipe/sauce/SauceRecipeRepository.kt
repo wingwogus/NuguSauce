@@ -12,6 +12,7 @@ interface SauceRecipeRepository : JpaRepository<SauceRecipe, Long>, SauceRecipeQ
         authorId: Long,
         visibility: RecipeVisibility
     ): List<SauceRecipe>
+    fun findAllByAuthorId(authorId: Long): List<SauceRecipe>
     fun findByIdAndAuthorId(recipeId: Long, authorId: Long): SauceRecipe?
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)

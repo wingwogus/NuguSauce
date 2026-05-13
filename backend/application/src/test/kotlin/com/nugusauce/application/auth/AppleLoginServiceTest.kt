@@ -12,6 +12,7 @@ import com.nugusauce.application.redis.AppleNonceReplayRepository
 import com.nugusauce.application.redis.RefreshTokenRepository
 import com.nugusauce.application.security.AppleOidcClaims
 import com.nugusauce.application.security.AppleOidcTokenVerifier
+import com.nugusauce.application.security.AppleRefreshTokenCipher
 import com.nugusauce.application.security.TokenProvider
 import com.nugusauce.domain.member.AuthProvider
 import com.nugusauce.domain.member.ExternalIdentity
@@ -35,6 +36,7 @@ import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import java.time.Duration
 import java.time.Instant
+import java.util.Base64
 
 @ExtendWith(MockitoExtension::class)
 class AppleLoginServiceTest {
@@ -58,11 +60,15 @@ class AppleLoginServiceTest {
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
     private lateinit var nonceRepository: RecordingAppleNonceRepository
+    private lateinit var appleTokenPort: RecordingAppleTokenPort
+    private lateinit var appleRefreshTokenCipher: AppleRefreshTokenCipher
     private lateinit var service: AppleLoginService
 
     @BeforeEach
     fun setUp() {
         nonceRepository = RecordingAppleNonceRepository()
+        appleTokenPort = RecordingAppleTokenPort()
+        appleRefreshTokenCipher = AppleRefreshTokenCipher(TEST_ENCRYPTION_KEY)
         service = AppleLoginService(
             appleOidcTokenVerifier,
             nonceRepository,
@@ -72,6 +78,8 @@ class AppleLoginServiceTest {
             tokenProvider,
             refreshTokenRepository,
             ImageUrlResolver(TestImageStoragePort),
+            appleTokenPort,
+            appleRefreshTokenCipher,
             60L
         )
     }
@@ -95,6 +103,28 @@ class AppleLoginServiceTest {
         assertEquals(1L, result.member.id)
         assertEquals("nonce-hash", nonceRepository.lastNonceHash)
         verify(refreshTokenRepository).save(1L, "refresh-token", 120L)
+    }
+
+    @Test
+    fun `login stores encrypted apple refresh token when authorization code exchange succeeds`() {
+        val member = Member(1L, "relay@privaterelay.appleid.com", null, "ROLE_USER")
+        val identity = ExternalIdentity(1L, member, AuthProvider.APPLE, "apple-sub", "relay@privaterelay.appleid.com")
+        appleTokenPort.exchangeResult = AppleTokenResult("apple-refresh-token")
+
+        `when`(appleOidcTokenVerifier.verify("identity-token", "raw-nonce")).thenReturn(claims())
+        `when`(externalIdentityRepository.findByProviderAndProviderSubject(AuthProvider.APPLE, "apple-sub"))
+            .thenReturn(identity)
+        `when`(consentService.status(1L)).thenReturn(consentStatus(accepted = true))
+        `when`(tokenProvider.generateToken(1L, "ROLE_USER"))
+            .thenReturn(AuthResult.TokenPair("access-token", "refresh-token"))
+        `when`(tokenProvider.getRefreshTokenValiditySeconds()).thenReturn(120L)
+
+        service.login(AuthCommand.AppleLogin("identity-token", "raw-nonce", "authorization-code", "apple-sub"))
+
+        assertEquals("authorization-code", appleTokenPort.lastAuthorizationCode)
+        val ciphertext = identity.appleRefreshTokenCiphertext ?: error("Apple token ciphertext missing")
+        val nonce = identity.appleRefreshTokenNonce ?: error("Apple token nonce missing")
+        assertEquals("apple-refresh-token", appleRefreshTokenCipher.decrypt(ciphertext, nonce))
     }
 
     @Test
@@ -299,5 +329,24 @@ class AppleLoginServiceTest {
         override fun delete(providerKey: String) {
             throw UnsupportedOperationException()
         }
+    }
+
+    private class RecordingAppleTokenPort : AppleTokenPort {
+        var exchangeResult: AppleTokenResult? = null
+        var lastAuthorizationCode: String? = null
+
+        override fun exchangeAuthorizationCode(authorizationCode: String): AppleTokenResult? {
+            lastAuthorizationCode = authorizationCode
+            return exchangeResult
+        }
+
+        override fun revokeRefreshToken(refreshToken: String) {
+            throw UnsupportedOperationException()
+        }
+    }
+
+    private companion object {
+        private val TEST_ENCRYPTION_KEY = Base64.getEncoder()
+            .encodeToString(ByteArray(32) { (it + 1).toByte() })
     }
 }

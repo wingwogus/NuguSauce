@@ -1,16 +1,25 @@
 package com.nugusauce.application.member
 
+import com.nugusauce.application.auth.AppleTokenPort
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.ImageUrlResolver
 import com.nugusauce.application.recipe.RecipeResult
+import com.nugusauce.application.redis.RefreshTokenRepository
+import com.nugusauce.application.security.AppleRefreshTokenCipher
+import com.nugusauce.domain.consent.MemberPolicyAcceptanceRepository
 import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.media.MediaAssetRepository
 import com.nugusauce.domain.media.MediaAssetStatus
+import com.nugusauce.domain.member.AuthProvider
+import com.nugusauce.domain.member.ExternalIdentity
+import com.nugusauce.domain.member.ExternalIdentityRepository
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
+import com.nugusauce.domain.recipe.report.RecipeReportRepository
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
@@ -23,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.time.Instant
 import java.util.Locale
 
 @Service
@@ -31,9 +41,16 @@ class MemberService(
     private val memberRepository: MemberRepository,
     private val sauceRecipeRepository: SauceRecipeRepository,
     private val recipeFavoriteRepository: RecipeFavoriteRepository,
+    private val recipeReviewRepository: RecipeReviewRepository,
+    private val recipeReportRepository: RecipeReportRepository,
+    private val externalIdentityRepository: ExternalIdentityRepository,
+    private val memberPolicyAcceptanceRepository: MemberPolicyAcceptanceRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
     private val imageUrlResolver: ImageUrlResolver,
     private val mediaAssetRepository: MediaAssetRepository,
     private val imageStoragePort: ImageStoragePort,
+    private val appleTokenPort: AppleTokenPort,
+    private val appleRefreshTokenCipher: AppleRefreshTokenCipher,
     transactionManager: PlatformTransactionManager
 ) {
     private val profileImageCleanupTransaction = TransactionTemplate(transactionManager).apply {
@@ -96,9 +113,127 @@ class MemberService(
         return MemberResult.me(member, imageUrlResolver.memberProfileImageUrl(member))
     }
 
+    fun deleteMe(memberId: Long) {
+        val member = findMember(memberId)
+        val externalIdentities = externalIdentityRepository.findAllByMemberId(memberId)
+        val appleRefreshTokens = externalIdentities.mapNotNull(::decryptAppleRefreshToken)
+        val ownedMediaAssets = mediaAssetRepository.findAllByOwnerId(memberId)
+        val ownedMediaProviderKeys = ownedMediaAssets.map { it.providerKey }.distinct()
+
+        val authoredRecipes = sauceRecipeRepository.findAllByAuthorId(memberId)
+        authoredRecipes.forEach(::deleteAuthoredRecipeGraph)
+        if (authoredRecipes.isNotEmpty()) {
+            sauceRecipeRepository.flush()
+        }
+
+        deleteMemberReviews(memberId)
+        deleteMemberFavorites(memberId)
+        deleteMemberReports(memberId)
+        deletePolicyAcceptances(memberId)
+        externalIdentityRepository.deleteAll(externalIdentities)
+
+        member.profileImageAsset?.detachFromProfile(member.id)
+        member.profileImageAsset = null
+        memberRepository.saveAndFlush(member)
+
+        if (ownedMediaAssets.isNotEmpty()) {
+            mediaAssetRepository.deleteAll(ownedMediaAssets)
+            mediaAssetRepository.flush()
+        }
+
+        memberRepository.delete(member)
+        memberRepository.flush()
+
+        runAfterCommit {
+            deleteAccountSideEffects(
+                memberId = memberId,
+                mediaProviderKeys = ownedMediaProviderKeys,
+                appleRefreshTokens = appleRefreshTokens
+            )
+        }
+    }
+
     private fun findMember(memberId: Long): Member {
         return memberRepository.findById(memberId).orElseThrow {
             BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+    }
+
+    private fun deleteAuthoredRecipeGraph(recipe: SauceRecipe) {
+        recipe.imageAsset?.detachFromRecipe(recipe.id)
+        recipe.imageAsset = null
+        recipeReportRepository.deleteAll(recipeReportRepository.findAllByRecipeId(recipe.id))
+        recipeFavoriteRepository.deleteAll(recipeFavoriteRepository.findAllByRecipeId(recipe.id))
+        recipeReviewRepository.deleteAll(recipeReviewRepository.findAllByRecipeId(recipe.id))
+        sauceRecipeRepository.delete(recipe)
+    }
+
+    private fun deleteMemberReviews(memberId: Long) {
+        val reviews = recipeReviewRepository.findAllByAuthorId(memberId)
+        if (reviews.isEmpty()) {
+            return
+        }
+        val affectedRecipes = reviews.map { it.recipe }.distinctBy { it.id }
+        recipeReviewRepository.deleteAll(reviews)
+        recipeReviewRepository.flush()
+        affectedRecipes.forEach(::recalculateRatingSummary)
+    }
+
+    private fun deleteMemberFavorites(memberId: Long) {
+        val favorites = recipeFavoriteRepository.findAllByMemberId(memberId)
+        if (favorites.isEmpty()) {
+            return
+        }
+        val affectedRecipes = favorites.map { it.recipe }.distinctBy { it.id }
+        recipeFavoriteRepository.deleteAll(favorites)
+        recipeFavoriteRepository.flush()
+        affectedRecipes.forEach(::recalculateFavoriteCount)
+    }
+
+    private fun deleteMemberReports(memberId: Long) {
+        val reports = recipeReportRepository.findAllByReporterId(memberId)
+        if (reports.isNotEmpty()) {
+            recipeReportRepository.deleteAll(reports)
+        }
+    }
+
+    private fun deletePolicyAcceptances(memberId: Long) {
+        val acceptances = memberPolicyAcceptanceRepository.findAllByMemberId(memberId)
+        if (acceptances.isNotEmpty()) {
+            memberPolicyAcceptanceRepository.deleteAll(acceptances)
+        }
+    }
+
+    private fun recalculateRatingSummary(recipe: SauceRecipe) {
+        val remainingReviews = recipeReviewRepository.findAllByRecipeId(recipe.id)
+        recipe.reviewCount = remainingReviews.size
+        recipe.averageRating = if (remainingReviews.isEmpty()) {
+            0.0
+        } else {
+            remainingReviews.map { it.rating }.average()
+        }
+        recipe.lastReviewedAt = remainingReviews.maxOfOrNull { it.createdAt }
+        recipe.updatedAt = Instant.now()
+        sauceRecipeRepository.save(recipe)
+    }
+
+    private fun recalculateFavoriteCount(recipe: SauceRecipe) {
+        recipe.favoriteCount = recipeFavoriteRepository.countByRecipeId(recipe.id).toInt()
+        recipe.updatedAt = Instant.now()
+        sauceRecipeRepository.save(recipe)
+    }
+
+    private fun decryptAppleRefreshToken(identity: ExternalIdentity): String? {
+        if (identity.provider != AuthProvider.APPLE) {
+            return null
+        }
+        val ciphertext = identity.appleRefreshTokenCiphertext ?: return null
+        val nonce = identity.appleRefreshTokenNonce ?: return null
+        return try {
+            appleRefreshTokenCipher.decrypt(ciphertext, nonce)
+        } catch (e: RuntimeException) {
+            logger.warn(e) { "Failed to decrypt Apple refresh token for memberId=${identity.member.id}" }
+            null
         }
     }
 
@@ -126,18 +261,9 @@ class MemberService(
         val assetId = asset.id
         val providerKey = asset.providerKey
 
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(
-                object : TransactionSynchronization {
-                    override fun afterCommit() {
-                        deleteReplacedProfileImage(assetId, providerKey)
-                    }
-                }
-            )
-            return
+        runAfterCommit {
+            deleteReplacedProfileImage(assetId, providerKey)
         }
-
-        deleteReplacedProfileImage(assetId, providerKey)
     }
 
     private fun deleteReplacedProfileImage(assetId: Long, providerKey: String) {
@@ -148,6 +274,49 @@ class MemberService(
             }
         } catch (e: RuntimeException) {
             logger.warn(e) { "Failed to clean up replaced profile image asset id=$assetId providerKey=$providerKey" }
+        }
+    }
+
+    private fun runAfterCommit(action: () -> Unit) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                object : TransactionSynchronization {
+                    override fun afterCommit() {
+                        action()
+                    }
+                }
+            )
+            return
+        }
+
+        action()
+    }
+
+    private fun deleteAccountSideEffects(
+        memberId: Long,
+        mediaProviderKeys: List<String>,
+        appleRefreshTokens: List<String>
+    ) {
+        try {
+            refreshTokenRepository.delete(memberId)
+        } catch (e: RuntimeException) {
+            logger.warn(e) { "Failed to delete refresh token for deleted memberId=$memberId" }
+        }
+
+        appleRefreshTokens.forEach { token ->
+            try {
+                appleTokenPort.revokeRefreshToken(token)
+            } catch (e: RuntimeException) {
+                logger.warn(e) { "Failed to revoke Apple token for deleted memberId=$memberId" }
+            }
+        }
+
+        mediaProviderKeys.forEach { providerKey ->
+            try {
+                imageStoragePort.delete(providerKey)
+            } catch (e: RuntimeException) {
+                logger.warn(e) { "Failed to delete media provider asset for deleted memberId=$memberId providerKey=$providerKey" }
+            }
         }
     }
 

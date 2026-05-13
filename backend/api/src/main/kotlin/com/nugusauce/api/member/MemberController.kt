@@ -8,6 +8,7 @@ import com.nugusauce.application.member.MemberCommand
 import com.nugusauce.application.member.MemberService
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -46,6 +47,14 @@ class MemberController(
             )
         )
         return ResponseEntity.ok(ApiResponse.ok(MemberResponses.MeResponse.from(result)))
+    }
+
+    @DeleteMapping("/me")
+    fun deleteMe(
+        @AuthenticationPrincipal userId: String?
+    ): ResponseEntity<ApiResponse<Unit>> {
+        memberService.deleteMe(requireUserId(userId))
+        return ResponseEntity.ok(ApiResponse.empty(Unit))
     }
 
     @GetMapping("/{memberId}")

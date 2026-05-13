@@ -1,24 +1,35 @@
 package com.nugusauce.application.member
 
+import com.nugusauce.application.auth.AppleTokenPort
+import com.nugusauce.application.auth.AppleTokenResult
 import com.nugusauce.application.exception.ErrorCode
 import com.nugusauce.application.exception.business.BusinessException
 import com.nugusauce.application.media.ImageStoragePort
 import com.nugusauce.application.media.MediaResult
 import com.nugusauce.application.media.VerifiedUpload
 import com.nugusauce.application.media.ImageUrlResolver
+import com.nugusauce.application.redis.RefreshTokenRepository
+import com.nugusauce.application.security.AppleRefreshTokenCipher
+import com.nugusauce.domain.consent.MemberPolicyAcceptanceRepository
 import com.nugusauce.domain.media.MediaAsset
 import com.nugusauce.domain.media.MediaAssetRepository
 import com.nugusauce.domain.media.MediaAssetStatus
 import com.nugusauce.domain.media.MediaProvider
+import com.nugusauce.domain.member.AuthProvider
+import com.nugusauce.domain.member.ExternalIdentity
+import com.nugusauce.domain.member.ExternalIdentityRepository
 import com.nugusauce.domain.member.Member
 import com.nugusauce.domain.member.MemberRepository
 import com.nugusauce.domain.recipe.favorite.RecipeFavorite
 import com.nugusauce.domain.recipe.favorite.RecipeFavoriteRepository
+import com.nugusauce.domain.recipe.report.RecipeReportRepository
+import com.nugusauce.domain.recipe.review.RecipeReviewRepository
 import com.nugusauce.domain.recipe.sauce.RecipeVisibility
 import com.nugusauce.domain.recipe.sauce.SauceRecipe
 import com.nugusauce.domain.recipe.sauce.SauceRecipeRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -35,6 +46,7 @@ import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionStatus
 import org.springframework.transaction.support.SimpleTransactionStatus
 import java.time.Instant
+import java.util.Base64
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -49,21 +61,47 @@ class MemberServiceTest {
     private lateinit var recipeFavoriteRepository: RecipeFavoriteRepository
 
     @Mock
+    private lateinit var recipeReviewRepository: RecipeReviewRepository
+
+    @Mock
+    private lateinit var recipeReportRepository: RecipeReportRepository
+
+    @Mock
+    private lateinit var externalIdentityRepository: ExternalIdentityRepository
+
+    @Mock
+    private lateinit var memberPolicyAcceptanceRepository: MemberPolicyAcceptanceRepository
+
+    @Mock
+    private lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    @Mock
     private lateinit var mediaAssetRepository: MediaAssetRepository
 
     private lateinit var imageStoragePort: RecordingImageStoragePort
+    private lateinit var appleTokenPort: RecordingAppleTokenPort
+    private lateinit var appleRefreshTokenCipher: AppleRefreshTokenCipher
     private lateinit var service: MemberService
 
     @BeforeEach
     fun setUp() {
         imageStoragePort = RecordingImageStoragePort()
+        appleTokenPort = RecordingAppleTokenPort()
+        appleRefreshTokenCipher = AppleRefreshTokenCipher(TEST_ENCRYPTION_KEY)
         service = MemberService(
             memberRepository,
             sauceRecipeRepository,
             recipeFavoriteRepository,
+            recipeReviewRepository,
+            recipeReportRepository,
+            externalIdentityRepository,
+            memberPolicyAcceptanceRepository,
+            refreshTokenRepository,
             ImageUrlResolver(imageStoragePort),
             mediaAssetRepository,
             imageStoragePort,
+            appleTokenPort,
+            appleRefreshTokenCipher,
             TestTransactionManager
         )
     }
@@ -284,6 +322,60 @@ class MemberServiceTest {
         assertEquals(ErrorCode.DUPLICATE_NICKNAME, exception.errorCode)
     }
 
+    @Test
+    fun `deleteMe deletes member graph and runs external cleanup after commit`() {
+        val member = Member(1L, "user@example.test", null, nickname = "소스장인")
+        val profileImage = profileImageAsset(id = 10L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToProfile(member.id)
+        }
+        val recipeImage = profileImageAsset(id = 20L, owner = member).apply {
+            markVerified("image/jpeg", 2000L, width = 800, height = 600)
+            attachToRecipe(100L)
+        }
+        val authoredRecipe = recipe(id = 100L, author = member).apply {
+            imageAsset = recipeImage
+        }
+        val appleIdentity = ExternalIdentity(
+            member = member,
+            provider = AuthProvider.APPLE,
+            providerSubject = "apple-subject",
+            emailAtLinkTime = member.email
+        )
+        val encrypted = appleRefreshTokenCipher.encrypt("apple-refresh-token")
+        appleIdentity.storeAppleRefreshToken(encrypted.ciphertext, encrypted.nonce)
+        member.profileImageAsset = profileImage
+
+        `when`(memberRepository.findById(1L)).thenReturn(Optional.of(member))
+        `when`(externalIdentityRepository.findAllByMemberId(1L)).thenReturn(listOf(appleIdentity))
+        `when`(mediaAssetRepository.findAllByOwnerId(1L)).thenReturn(listOf(profileImage, recipeImage))
+        `when`(sauceRecipeRepository.findAllByAuthorId(1L)).thenReturn(listOf(authoredRecipe))
+        `when`(recipeReportRepository.findAllByRecipeId(100L)).thenReturn(emptyList())
+        `when`(recipeFavoriteRepository.findAllByRecipeId(100L)).thenReturn(emptyList())
+        `when`(recipeReviewRepository.findAllByRecipeId(100L)).thenReturn(emptyList())
+        `when`(recipeReviewRepository.findAllByAuthorId(1L)).thenReturn(emptyList())
+        `when`(recipeFavoriteRepository.findAllByMemberId(1L)).thenReturn(emptyList())
+        `when`(recipeReportRepository.findAllByReporterId(1L)).thenReturn(emptyList())
+        `when`(memberPolicyAcceptanceRepository.findAllByMemberId(1L)).thenReturn(emptyList())
+
+        service.deleteMe(1L)
+
+        assertNull(member.profileImageAsset)
+        assertNull(profileImage.attachedProfileMemberId)
+        assertNull(authoredRecipe.imageAsset)
+        assertNull(recipeImage.attachedRecipeId)
+        assertEquals(
+            listOf(profileImage.providerKey, recipeImage.providerKey),
+            imageStoragePort.deletedProviderKeys
+        )
+        assertEquals(listOf("apple-refresh-token"), appleTokenPort.revokedRefreshTokens)
+        verify(refreshTokenRepository).delete(1L)
+        verify(externalIdentityRepository).deleteAll(listOf(appleIdentity))
+        verify(mediaAssetRepository).deleteAll(listOf(profileImage, recipeImage))
+        verify(sauceRecipeRepository).delete(authoredRecipe)
+        verify(memberRepository).delete(member)
+    }
+
     private fun recipe(
         id: Long,
         author: Member? = null,
@@ -349,5 +441,22 @@ class MemberServiceTest {
         override fun commit(status: TransactionStatus) = Unit
 
         override fun rollback(status: TransactionStatus) = Unit
+    }
+
+    private class RecordingAppleTokenPort : AppleTokenPort {
+        val revokedRefreshTokens = mutableListOf<String>()
+
+        override fun exchangeAuthorizationCode(authorizationCode: String): AppleTokenResult? {
+            throw UnsupportedOperationException()
+        }
+
+        override fun revokeRefreshToken(refreshToken: String) {
+            revokedRefreshTokens.add(refreshToken)
+        }
+    }
+
+    private companion object {
+        private val TEST_ENCRYPTION_KEY = Base64.getEncoder()
+            .encodeToString(ByteArray(32) { (it + 1).toByte() })
     }
 }

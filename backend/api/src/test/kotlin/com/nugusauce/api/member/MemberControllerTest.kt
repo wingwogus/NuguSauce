@@ -24,6 +24,7 @@ import org.springframework.http.MediaType
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.RequestPostProcessor
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
@@ -141,6 +142,19 @@ class MemberControllerTest(
         )
             .andExpect(status().isConflict)
             .andExpect(jsonPath("$.error.code", equalTo("USER_004")))
+    }
+
+    @Test
+    fun `deleteMe deletes authenticated member account`() {
+        mockMvc.perform(
+            delete("/api/v1/members/me")
+                .with(authenticatedUser())
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success", equalTo(true)))
+            .andExpect(jsonPath("$.data").doesNotExist())
+
+        verify(memberService).deleteMe(1L)
     }
 
     private fun authenticatedUser(): RequestPostProcessor {
