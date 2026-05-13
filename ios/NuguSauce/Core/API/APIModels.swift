@@ -325,6 +325,7 @@ protocol APIClientProtocol {
     func fetchMember(id: Int) async throws -> MemberProfileDTO
     func updateMyMember(nickname: String, profileImageId: Int?) async throws -> MemberProfileDTO
     func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO
+    func deleteMyAccount() async throws
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO
     func authenticateWithApple(
         identityToken: String,

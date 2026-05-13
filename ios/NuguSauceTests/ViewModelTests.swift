@@ -1881,6 +1881,53 @@ final class ViewModelTests: XCTestCase {
         XCTAssertFalse(profileViewModel.profileSetupRequired)
     }
 
+    func testSettingsDeleteAccountClearsSessionAfterServerSuccess() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient()
+        let viewModel = SettingsViewModel(apiClient: client, authStore: authStore)
+        acceptAllDeletionAcknowledgements(on: viewModel)
+
+        let didDelete = await viewModel.deleteAccount()
+
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(client.deleteMyAccountCallCount, 1)
+        XCTAssertNil(authStore.currentSession)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testSettingsDeleteAccountRequiresAllAcknowledgements() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient()
+        let viewModel = SettingsViewModel(apiClient: client, authStore: authStore)
+
+        let didDelete = await viewModel.deleteAccount()
+
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(client.deleteMyAccountCallCount, 0)
+        XCTAssertNotNil(authStore.currentSession)
+        XCTAssertEqual(viewModel.errorMessage, "회원 탈퇴 안내를 모두 확인해주세요.")
+
+        viewModel.toggleDeletionAcknowledgement(viewModel.deletionAcknowledgements[0].id)
+        XCTAssertFalse(viewModel.canDeleteAccount)
+
+        acceptAllDeletionAcknowledgements(on: viewModel)
+        XCTAssertTrue(viewModel.canDeleteAccount)
+    }
+
+    func testSettingsDeleteAccountKeepsSessionOnFailure() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(deleteAccountError: APIClientError.httpStatus(500))
+        let viewModel = SettingsViewModel(apiClient: client, authStore: authStore)
+        acceptAllDeletionAcknowledgements(on: viewModel)
+
+        let didDelete = await viewModel.deleteAccount()
+
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(client.deleteMyAccountCallCount, 1)
+        XCTAssertNotNil(authStore.currentSession)
+        XCTAssertEqual(viewModel.errorMessage, "회원 탈퇴를 완료하지 못했어요.")
+    }
+
     func testPublicProfileLoadFetchesPublicMemberProfile() async {
         let client = TestAPIClient(
             memberProfile: MemberProfileDTO(
@@ -1903,6 +1950,14 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.recipes.map(\.id), [81])
         XCTAssertEqual(viewModel.favoriteRecipes.map(\.id), [82])
         XCTAssertNil(viewModel.errorMessage)
+    }
+
+    private func acceptAllDeletionAcknowledgements(on viewModel: SettingsViewModel) {
+        viewModel.deletionAcknowledgements.forEach { acknowledgement in
+            if !viewModel.acceptedDeletionAcknowledgementIDs.contains(acknowledgement.id) {
+                viewModel.toggleDeletionAcknowledgement(acknowledgement.id)
+            }
+        }
     }
 
     private static func recipe(id: Int, title: String, tags: [TagDTO] = []) -> RecipeSummaryDTO {
@@ -2052,6 +2107,7 @@ private final class TestAPIClient: APIClientProtocol {
     private let suspendFavoriteFetches: Bool
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
+    private let deleteAccountError: Error?
     private let fetchConsentStatusError: Error?
     private let kakaoLoginOnboarding: KakaoLoginOnboardingDTO
     private var consentStatus: ConsentStatusDTO
@@ -2084,6 +2140,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var acceptConsentAccessTokens: [String] = []
     private(set) var updateMemberAccessTokens: [String] = []
     private(set) var appleLoginRequests: [AppleLoginRequestRecord] = []
+    private(set) var deleteMyAccountCallCount = 0
 
     init(
         recipes: [RecipeSummaryDTO] = [],
@@ -2103,6 +2160,7 @@ private final class TestAPIClient: APIClientProtocol {
         suspendFavoriteFetches: Bool = false,
         suspendFavoriteAdd: Bool = false,
         updateMemberError: Error? = nil,
+        deleteAccountError: Error? = nil,
         fetchConsentStatusError: Error? = nil,
         consentStatus: ConsentStatusDTO = ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true),
         kakaoLoginOnboarding: KakaoLoginOnboardingDTO = .complete,
@@ -2130,6 +2188,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.suspendFavoriteFetches = suspendFavoriteFetches
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
+        self.deleteAccountError = deleteAccountError
         self.fetchConsentStatusError = fetchConsentStatusError
         self.kakaoLoginOnboarding = kakaoLoginOnboarding
         self.consentStatus = consentStatus
@@ -2389,6 +2448,12 @@ private final class TestAPIClient: APIClientProtocol {
     func updateMyMember(nickname: String, profileImageId: Int?, accessToken: String) async throws -> MemberProfileDTO {
         updateMemberAccessTokens.append(accessToken)
         return try await updateMyMember(nickname: nickname, profileImageId: profileImageId)
+    }
+    func deleteMyAccount() async throws {
+        deleteMyAccountCallCount += 1
+        if let deleteAccountError {
+            throw deleteAccountError
+        }
     }
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         KakaoLoginResponseDTO(

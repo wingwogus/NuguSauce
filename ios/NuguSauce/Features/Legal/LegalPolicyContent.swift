@@ -36,6 +36,8 @@ struct LegalPolicyDocument: Equatable, Identifiable {
 
 enum LegalPolicyContent {
     static let missingDocumentMessage = "앱에서 확인할 수 없는 약관 버전입니다. 최신 버전으로 업데이트한 뒤 다시 시도해주세요."
+    static let currentVersion = "2026-05-01"
+    static let currentActiveFrom = "2026-05-01T00:00:00Z"
 
     static func document(for policy: ConsentPolicyDTO, bundle: Bundle = .main) -> LegalPolicyDocument? {
         guard let policyType = LegalPolicyType(rawValue: policy.policyType) else {
@@ -64,6 +66,25 @@ enum LegalPolicyContent {
             effectiveDate: parsed.metadata["effective_date"] ?? policy.activeFrom,
             sourceURL: parsed.metadata["source_url"].flatMap(URL.init(string:)),
             markdownBody: parsed.body
+        )
+    }
+
+    static func currentDocuments(bundle: Bundle = .main) -> [LegalPolicyDocument] {
+        LegalPolicyType.allCases.compactMap { currentDocument(for: $0, bundle: bundle) }
+    }
+
+    static func currentDocument(for policyType: LegalPolicyType, bundle: Bundle = .main) -> LegalPolicyDocument? {
+        document(
+            for: ConsentPolicyDTO(
+                policyType: policyType.rawValue,
+                version: currentVersion,
+                title: policyType.defaultTitle,
+                url: "nugusauce://legal/\(policyType.rawValue)",
+                required: true,
+                accepted: false,
+                activeFrom: currentActiveFrom
+            ),
+            bundle: bundle
         )
     }
 

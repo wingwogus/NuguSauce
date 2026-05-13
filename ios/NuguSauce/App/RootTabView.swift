@@ -229,6 +229,8 @@ struct RootTabView: View {
             PublicProfileView(memberID: id, apiClient: apiClient)
         case .profileEdit:
             ProfileEditView(apiClient: apiClient, authStore: authStore)
+        case .settings:
+            SettingsView(apiClient: apiClient, authStore: authStore)
         case .login:
             LoginView(apiClient: apiClient, authStore: authStore)
         }

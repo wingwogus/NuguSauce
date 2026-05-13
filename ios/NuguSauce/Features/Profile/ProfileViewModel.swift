@@ -374,6 +374,105 @@ final class ProfileEditViewModel: ObservableObject {
     }
 }
 
+struct AccountDeletionAcknowledgement: Equatable, Identifiable {
+    let id: String
+    let title: String
+    let bulletPoints: [String]
+    let isFinalConsent: Bool
+
+    static let required: [AccountDeletionAcknowledgement] = [
+        AccountDeletionAcknowledgement(
+            id: "account-data",
+            title: "NuguSauce를 탈퇴하면 회원 정보와 서비스 이용 기록이 삭제됩니다.",
+            bulletPoints: [
+                "프로필, 작성한 소스, 리뷰, 찜, 신고 내역, 약관 동의 정보가 삭제되며 복구할 수 없어요.",
+                "업로드한 프로필 사진과 레시피 사진도 삭제 대상입니다."
+            ],
+            isFinalConsent: false
+        ),
+        AccountDeletionAcknowledgement(
+            id: "rejoin",
+            title: "탈퇴 후 같은 로그인 수단으로 다시 가입할 수 있습니다.",
+            bulletPoints: [
+                "다시 가입해도 이전 소스, 리뷰, 찜 기록은 복구되지 않아요.",
+                "계정 삭제가 완료되면 현재 로그인 세션도 함께 종료됩니다."
+            ],
+            isFinalConsent: false
+        ),
+        AccountDeletionAcknowledgement(
+            id: "final-consent",
+            title: "회원 탈퇴 안내를 모두 확인했으며 탈퇴에 동의합니다.",
+            bulletPoints: [],
+            isFinalConsent: true
+        )
+    ]
+}
+
+@MainActor
+final class SettingsViewModel: ObservableObject {
+    @Published private(set) var isDeletingAccount = false
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var acceptedDeletionAcknowledgementIDs: Set<String> = []
+
+    private let apiClient: APIClientProtocol
+    private let authStore: AuthSessionStoreProtocol
+    let deletionAcknowledgements: [AccountDeletionAcknowledgement]
+
+    init(
+        apiClient: APIClientProtocol,
+        authStore: AuthSessionStoreProtocol,
+        deletionAcknowledgements: [AccountDeletionAcknowledgement] = AccountDeletionAcknowledgement.required
+    ) {
+        self.apiClient = apiClient
+        self.authStore = authStore
+        self.deletionAcknowledgements = deletionAcknowledgements
+    }
+
+    var canDeleteAccount: Bool {
+        acceptedDeletionAcknowledgementIDs.isSuperset(of: deletionAcknowledgements.map(\.id))
+    }
+
+    func toggleDeletionAcknowledgement(_ id: String) {
+        guard deletionAcknowledgements.contains(where: { $0.id == id }) else {
+            return
+        }
+        if acceptedDeletionAcknowledgementIDs.contains(id) {
+            acceptedDeletionAcknowledgementIDs.remove(id)
+        } else {
+            acceptedDeletionAcknowledgementIDs.insert(id)
+        }
+        errorMessage = nil
+    }
+
+    func deleteAccount() async -> Bool {
+        guard !isDeletingAccount else {
+            return false
+        }
+        guard canDeleteAccount else {
+            errorMessage = "회원 탈퇴 안내를 모두 확인해주세요."
+            return false
+        }
+
+        isDeletingAccount = true
+        errorMessage = nil
+        defer {
+            isDeletingAccount = false
+        }
+
+        do {
+            try await apiClient.deleteMyAccount()
+            authStore.clear()
+            return true
+        } catch let error as ApiError {
+            errorMessage = error.userVisibleMessage(default: "회원 탈퇴를 완료하지 못했어요.")
+            return false
+        } catch {
+            errorMessage = "회원 탈퇴를 완료하지 못했어요."
+            return false
+        }
+    }
+}
+
 @MainActor
 final class PublicProfileViewModel: ObservableObject {
     @Published private(set) var member: MemberProfileDTO?

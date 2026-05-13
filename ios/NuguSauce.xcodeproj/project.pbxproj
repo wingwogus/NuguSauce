@@ -41,6 +41,7 @@
 		F00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */; };
 		F00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */; };
 		F00000000000000000000135 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000135 /* InfoPlist.strings */; };
+		F00000000000000000000138 /* Features/Profile/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000138 /* Features/Profile/SettingsView.swift */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
 		F00000000000000000000203 /* CachingAPIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000203 /* CachingAPIClientTests.swift */; };
@@ -102,6 +103,7 @@
 		A00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md"; sourceTree = "<group>"; };
 		A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md"; sourceTree = "<group>"; };
 		A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_content_policy_2026-05-01.md"; sourceTree = "<group>"; };
+		A00000000000000000000138 /* Features/Profile/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Profile/SettingsView.swift; sourceTree = "<group>"; };
 		A00000000000000000000136 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A00000000000000000000137 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
@@ -177,6 +179,7 @@
 				A00000000000000000000116 /* Features/Search/SearchView.swift */,
 				A00000000000000000000117 /* Features/Profile/ProfileViewModel.swift */,
 				A00000000000000000000118 /* Features/Profile/ProfileView.swift */,
+				A00000000000000000000138 /* Features/Profile/SettingsView.swift */,
 				A00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift */,
 				A00000000000000000000123 /* Features/Favorites/FavoritesView.swift */,
 				A00000000000000000000119 /* Shared/DesignSystem.swift */,
@@ -383,6 +386,7 @@
 				F00000000000000000000116 /* Features/Search/SearchView.swift in Sources */,
 				F00000000000000000000117 /* Features/Profile/ProfileViewModel.swift in Sources */,
 				F00000000000000000000118 /* Features/Profile/ProfileView.swift in Sources */,
+				F00000000000000000000138 /* Features/Profile/SettingsView.swift in Sources */,
 				F00000000000000000000122 /* Features/Favorites/FavoritesViewModel.swift in Sources */,
 				F00000000000000000000123 /* Features/Favorites/FavoritesView.swift in Sources */,
 				F00000000000000000000125 /* Features/Auth/LoginView.swift in Sources */,
@@ -509,7 +513,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				KAKAO_NATIVE_APP_KEY = 220dd123265c8d0cffcbee57f081cc9e;
 				MARKETING_VERSION = 1.0;
-				NUGUSAUCE_API_BASE_URL = "http://localhost:8080";
+				NUGUSAUCE_API_BASE_URL = "http://192.168.0.65:8080";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nugusauce.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

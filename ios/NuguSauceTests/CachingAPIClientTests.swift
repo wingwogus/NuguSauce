@@ -372,6 +372,7 @@ private final class CountingAPIClient: APIClientProtocol {
     private(set) var fetchMyMemberCallCount = 0
     private(set) var updateRecipeCallCount = 0
     private(set) var deleteRecipeCallCount = 0
+    private(set) var deleteMyAccountCallCount = 0
 
     init(authStore: CachingTestAuthStore) {
         self.authStore = authStore
@@ -547,6 +548,10 @@ private final class CountingAPIClient: APIClientProtocol {
             displayName: nickname,
             profileSetupRequired: false
         )
+    }
+
+    func deleteMyAccount() async throws {
+        deleteMyAccountCallCount += 1
     }
 
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {

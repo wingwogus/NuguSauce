@@ -303,6 +303,11 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         return member
     }
 
+    func deleteMyAccount() async throws {
+        try await upstream.deleteMyAccount()
+        await invalidate(scope: .all)
+    }
+
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO {
         try await upstream.authenticateWithKakao(idToken: idToken, nonce: nonce, kakaoAccessToken: kakaoAccessToken)
     }

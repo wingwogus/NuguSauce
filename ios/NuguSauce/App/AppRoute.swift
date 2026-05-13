@@ -5,5 +5,6 @@ enum AppRoute: Hashable {
     case recipeEdit(Int)
     case publicProfile(Int)
     case profileEdit
+    case settings
     case login
 }

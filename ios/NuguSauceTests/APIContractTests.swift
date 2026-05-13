@@ -1013,6 +1013,27 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pending-login-token")
     }
 
+    func testBackendClientDeletesMyAccount() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": null,
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.lastRequest = nil
+
+        let client = makeBackendClient()
+
+        try await client.deleteMyAccount()
+
+        let request = try XCTUnwrap(URLProtocolTestTransport.lastRequest)
+        XCTAssertEqual(request.url?.path, "/api/v1/members/me")
+        XCTAssertEqual(request.httpMethod, "DELETE")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+    }
+
     private func memberProfileEnvelope(nickname: String, profileImageId: Int?) -> Data {
         let imageURL = profileImageId.map { "\"https://cdn.example.test/profile/\($0).jpg\"" } ?? "null"
         return """

@@ -7,7 +7,6 @@ struct ProfileView: View {
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: ProfileViewModel
     @State private var hasLoadedAuthenticatedProfile = false
-    @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         self.apiClient = apiClient
@@ -19,7 +18,6 @@ struct ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 topBar
-                appearanceSettingsCard
                 if authStore.isAuthenticated {
                     ProfileHeroCard(
                         displayName: viewModel.displayName,
@@ -29,11 +27,9 @@ struct ProfileView: View {
                             ProfileHeroStat(value: "\(viewModel.myRecipes.count)", label: "내 소스"),
                             ProfileHeroStat(value: "\(viewModel.favoriteRecipes.count)", label: "찜한 소스")
                         ],
-                        editRoute: .profileEdit,
-                        actionTitle: "로그아웃",
-                        action: {
-                            authStore.clear()
-                        }
+                        editRoute: nil,
+                        actionTitle: nil,
+                        action: nil
                     )
                     if viewModel.profileSetupRequired {
                         nicknameSetupCard
@@ -89,7 +85,25 @@ struct ProfileView: View {
     }
 
     private var topBar: some View {
-        SauceScreenTitle(title: "내 프로필")
+        HStack {
+            Text("내 프로필")
+                .font(SauceTypography.sectionTitle())
+                .foregroundStyle(SauceColor.onSurface)
+            Spacer()
+            if authStore.isAuthenticated {
+                NavigationLink(value: AppRoute.settings) {
+                    Image(systemName: "gearshape")
+                        .font(SauceTypography.iconMedium(.bold))
+                        .foregroundStyle(SauceColor.onSurface)
+                        .frame(width: 42, height: 42)
+                        .background(SauceColor.surfaceContainerLow)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("설정")
+            }
+        }
+        .padding(.top, 18)
     }
 
     private var profileRefreshID: String {
@@ -103,41 +117,6 @@ struct ProfileView: View {
             session.profileImageUrl ?? "",
             String(session.profileSetupRequired)
         ].joined(separator: "|")
-    }
-
-    private var appearanceSettingsCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "circle.lefthalf.filled")
-                    .font(SauceTypography.body(.bold))
-                    .foregroundStyle(SauceColor.primaryContainer)
-                Text("화면 모드")
-                    .font(SauceTypography.body(.bold))
-                    .foregroundStyle(SauceColor.onSurface)
-            }
-
-            Picker("화면 모드", selection: themePreferenceBinding) {
-                ForEach(SauceThemePreference.allCases) { preference in
-                    Text(preference.title)
-                        .tag(preference)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding(16)
-        .background(SauceColor.surfaceContainerLow)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var themePreferenceBinding: Binding<SauceThemePreference> {
-        Binding(
-            get: {
-                SauceThemePreference(rawValue: themePreferenceRawValue) ?? .system
-            },
-            set: { preference in
-                themePreferenceRawValue = preference.rawValue
-            }
-        )
     }
 
     private var nicknameSetupCard: some View {

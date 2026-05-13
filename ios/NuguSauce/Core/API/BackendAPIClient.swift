@@ -250,6 +250,14 @@ final class BackendAPIClient: APIClientProtocol {
         )
     }
 
+    func deleteMyAccount() async throws {
+        try await sendEmpty(
+            path: "/api/v1/members/me",
+            method: "DELETE",
+            requiresAuthentication: true
+        )
+    }
+
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> SocialLoginResponseDTO {
         try await send(
             path: "/api/v1/auth/kakao/login",
