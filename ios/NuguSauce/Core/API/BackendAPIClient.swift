@@ -21,6 +21,7 @@ final class BackendAPIClient: APIClientProtocol {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
     private let authStore: AuthSessionStoreProtocol
+    private let refreshCoordinator = TokenRefreshCoordinator()
 
     init(
         configuration: APIConfiguration = .current,
@@ -47,7 +48,7 @@ final class BackendAPIClient: APIClientProtocol {
                 includesAuthenticationIfAvailable: true
             )
         } catch {
-            guard shouldFallbackToRecipeSearchForHome(error) else {
+            guard await shouldFallbackToRecipeSearchForHome(error) else {
                 throw error
             }
 
@@ -290,7 +291,16 @@ final class BackendAPIClient: APIClientProtocol {
         try await send(
             path: "/api/v1/auth/reissue",
             method: "POST",
-            body: AnyEncodable(ReissueRequest(refreshToken: refreshToken))
+            body: AnyEncodable(ReissueRequest(refreshToken: refreshToken)),
+            refreshPolicy: .never
+        )
+    }
+
+    func logout() async throws {
+        try await sendEmpty(
+            path: "/api/v1/auth/logout",
+            method: "POST",
+            requiresAuthentication: true
         )
     }
 
@@ -332,8 +342,16 @@ final class BackendAPIClient: APIClientProtocol {
         body: AnyEncodable? = nil,
         requiresAuthentication: Bool = false,
         includesAuthenticationIfAvailable: Bool = false,
-        accessTokenOverride: String? = nil
+        accessTokenOverride: String? = nil,
+        refreshPolicy: RefreshPolicy = .storedSession401
     ) async throws -> Response {
+        let credentials: CredentialSource = try await MainActor.run {
+            try credentialSource(
+                requiresAuthentication: requiresAuthentication,
+                includesAuthenticationIfAvailable: includesAuthenticationIfAvailable,
+                accessTokenOverride: accessTokenOverride
+            )
+        }
         let request = try makeRequest(
             path: path,
             method: method,
@@ -341,10 +359,65 @@ final class BackendAPIClient: APIClientProtocol {
             body: body,
             requiresAuthentication: requiresAuthentication,
             includesAuthenticationIfAvailable: includesAuthenticationIfAvailable,
-            accessTokenOverride: accessTokenOverride
+            accessToken: credentials.accessToken
         )
         let (data, response) = try await session.data(for: request)
-        return try decodeEnvelope(Response.self, from: data, response: response)
+
+        guard refreshPolicy == .storedSession401,
+              (response as? HTTPURLResponse)?.statusCode == 401,
+              case let .stored(accessToken, refreshToken) = credentials else {
+            return try decodeEnvelope(Response.self, from: data, response: response)
+        }
+
+        guard let refreshToken, !refreshToken.isEmpty else {
+            await clearSession(matching: accessToken)
+            return try decodeEnvelope(Response.self, from: data, response: response)
+        }
+
+        let rotatedTokens: TokenResponseDTO
+        do {
+            rotatedTokens = try await refreshCoordinator.refresh(for: accessToken) { [self] in
+                let tokens = try await reissueOnce(refreshToken: refreshToken)
+                let didReplace = await MainActor.run {
+                    authStore.replaceTokens(
+                        replacing: accessToken,
+                        accessToken: tokens.accessToken,
+                        refreshToken: tokens.refreshToken
+                    )
+                }
+                guard didReplace else {
+                    throw APIClientError.missingAuthentication
+                }
+                return tokens
+            }
+        } catch {
+            if isTerminalRefreshFailure(error) {
+                await clearSession(matching: accessToken)
+            }
+            if let terminalFailure = error as? TerminalRefreshFailure {
+                throw terminalFailure.underlying
+            }
+            throw error
+        }
+
+        let isCurrentRotation = await MainActor.run {
+            authStore.currentSession?.accessToken == rotatedTokens.accessToken
+        }
+        guard isCurrentRotation else {
+            throw APIClientError.missingAuthentication
+        }
+
+        let retryRequest = try makeRequest(
+            path: path,
+            method: method,
+            queryItems: queryItems,
+            body: body,
+            requiresAuthentication: requiresAuthentication,
+            includesAuthenticationIfAvailable: includesAuthenticationIfAvailable,
+            accessToken: rotatedTokens.accessToken
+        )
+        let (retryData, retryResponse) = try await session.data(for: retryRequest)
+        return try decodeEnvelope(Response.self, from: retryData, response: retryResponse)
     }
 
     private func sendEmpty(
@@ -352,17 +425,11 @@ final class BackendAPIClient: APIClientProtocol {
         method: String,
         requiresAuthentication: Bool
     ) async throws {
-        let request = try makeRequest(
+        let _: EmptyResponse = try await send(
             path: path,
             method: method,
-            queryItems: [],
-            body: nil,
-            requiresAuthentication: requiresAuthentication,
-            includesAuthenticationIfAvailable: false,
-            accessTokenOverride: nil
+            requiresAuthentication: requiresAuthentication
         )
-        let (data, response) = try await session.data(for: request)
-        _ = try decodeEnvelope(EmptyResponse.self, from: data, response: response)
     }
 
     private func makeRequest(
@@ -372,7 +439,7 @@ final class BackendAPIClient: APIClientProtocol {
         body: AnyEncodable?,
         requiresAuthentication: Bool,
         includesAuthenticationIfAvailable: Bool,
-        accessTokenOverride: String? = nil
+        accessToken: String?
     ) throws -> URLRequest {
         guard var components = URLComponents(url: url(for: path), resolvingAgainstBaseURL: false) else {
             throw APIClientError.invalidURL
@@ -393,17 +460,99 @@ final class BackendAPIClient: APIClientProtocol {
         }
 
         if requiresAuthentication {
-            guard let accessToken = accessTokenOverride ?? authStore.accessToken, !accessToken.isEmpty else {
+            guard let accessToken, !accessToken.isEmpty else {
                 throw APIClientError.missingAuthentication
             }
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         } else if includesAuthenticationIfAvailable,
-                  let accessToken = accessTokenOverride ?? authStore.accessToken,
+                  let accessToken,
                   !accessToken.isEmpty {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
 
         return request
+    }
+
+    @MainActor
+    private func credentialSource(
+        requiresAuthentication: Bool,
+        includesAuthenticationIfAvailable: Bool,
+        accessTokenOverride: String?
+    ) throws -> CredentialSource {
+        if let accessTokenOverride {
+            guard !accessTokenOverride.isEmpty else {
+                if requiresAuthentication {
+                    throw APIClientError.missingAuthentication
+                }
+                return .none
+            }
+            return .override(accessTokenOverride)
+        }
+
+        guard requiresAuthentication || includesAuthenticationIfAvailable else {
+            return .none
+        }
+
+        if let accessToken = authStore.accessToken, !accessToken.isEmpty {
+            return .stored(
+                accessToken: accessToken,
+                refreshToken: authStore.currentSession?.refreshToken
+            )
+        }
+
+        if requiresAuthentication {
+            throw APIClientError.missingAuthentication
+        }
+
+        return .none
+    }
+
+    private func reissueOnce(refreshToken: String) async throws -> TokenResponseDTO {
+        let request = try makeRequest(
+            path: "/api/v1/auth/reissue",
+            method: "POST",
+            queryItems: [],
+            body: AnyEncodable(ReissueRequest(refreshToken: refreshToken)),
+            requiresAuthentication: false,
+            includesAuthenticationIfAvailable: false,
+            accessToken: nil
+        )
+        let (data, response) = try await session.data(for: request)
+
+        if (response as? HTTPURLResponse)?.statusCode == 401 {
+            do {
+                let _: TokenResponseDTO = try decodeEnvelope(TokenResponseDTO.self, from: data, response: response)
+                throw TerminalRefreshFailure(underlying: APIClientError.httpStatus(401))
+            } catch let terminalFailure as TerminalRefreshFailure {
+                throw terminalFailure
+            } catch {
+                throw TerminalRefreshFailure(underlying: error)
+            }
+        }
+
+        return try decodeEnvelope(TokenResponseDTO.self, from: data, response: response)
+    }
+
+    private func clearSession(matching rejectedAccessToken: String) async {
+        await MainActor.run {
+            guard authStore.currentSession?.accessToken == rejectedAccessToken else {
+                return
+            }
+            authStore.clear()
+        }
+    }
+
+    private func isTerminalRefreshFailure(_ error: Error) -> Bool {
+        if error is TerminalRefreshFailure {
+            return true
+        }
+        if let apiError = error as? ApiError {
+            return apiError.code == ApiErrorCode.unauthorized
+        }
+        if case APIClientError.httpStatus(401) = error {
+            return true
+        }
+        return false
     }
 
     private func url(for path: String) -> URL {
@@ -447,13 +596,15 @@ final class BackendAPIClient: APIClientProtocol {
         throw APIClientError.missingData
     }
 
-    private func shouldFallbackToRecipeSearchForHome(_ error: Error) -> Bool {
+    private func shouldFallbackToRecipeSearchForHome(_ error: Error) async -> Bool {
         if let apiError = error as? ApiError {
             switch apiError.code {
             case ApiErrorCode.resourceNotFound, ApiErrorCode.recipeNotFound:
                 return true
             case ApiErrorCode.unauthorized:
-                return authStore.accessToken?.isEmpty ?? true
+                return await MainActor.run {
+                    authStore.accessToken?.isEmpty ?? true
+                }
             default:
                 return false
             }
@@ -486,6 +637,74 @@ final class BackendAPIClient: APIClientProtocol {
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n")
         return body
+    }
+}
+
+private struct TerminalRefreshFailure: Error {
+    let underlying: Error
+}
+
+actor TokenRefreshCoordinator {
+    private var inFlight: [String: Task<TokenResponseDTO, Error>] = [:]
+    private var completed: [String: TokenResponseDTO] = [:]
+    private var completedKeys: [String] = []
+
+    func refresh(
+        for rejectedAccessToken: String,
+        operation: @escaping () async throws -> TokenResponseDTO
+    ) async throws -> TokenResponseDTO {
+        if let cached = completed[rejectedAccessToken] {
+            return cached
+        }
+        if let task = inFlight[rejectedAccessToken] {
+            return try await task.value
+        }
+
+        let task = Task {
+            try await operation()
+        }
+        inFlight[rejectedAccessToken] = task
+
+        do {
+            let tokens = try await task.value
+            inFlight[rejectedAccessToken] = nil
+            cache(tokens, for: rejectedAccessToken)
+            return tokens
+        } catch {
+            inFlight[rejectedAccessToken] = nil
+            throw error
+        }
+    }
+
+    private func cache(_ tokens: TokenResponseDTO, for rejectedAccessToken: String) {
+        completed[rejectedAccessToken] = tokens
+        completedKeys.removeAll { $0 == rejectedAccessToken }
+        completedKeys.append(rejectedAccessToken)
+
+        if completedKeys.count > 8 {
+            let evictedKey = completedKeys.removeFirst()
+            completed[evictedKey] = nil
+        }
+    }
+}
+
+private enum RefreshPolicy: Equatable {
+    case storedSession401
+    case never
+}
+
+private enum CredentialSource: Sendable {
+    case none
+    case override(String)
+    case stored(accessToken: String, refreshToken: String?)
+
+    var accessToken: String? {
+        switch self {
+        case .none:
+            return nil
+        case let .override(accessToken), let .stored(accessToken, _):
+            return accessToken
+        }
     }
 }
 

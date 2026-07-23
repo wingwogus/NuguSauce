@@ -444,6 +444,13 @@ final class SettingsViewModel: ObservableObject {
         errorMessage = nil
     }
 
+    func logout() async {
+        defer {
+            authStore.clear()
+        }
+        try? await apiClient.logout()
+    }
+
     func deleteAccount() async -> Bool {
         guard !isDeletingAccount else {
             return false

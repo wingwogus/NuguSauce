@@ -256,6 +256,35 @@ final class CachingAPIClientTests: XCTestCase {
         XCTAssertEqual(upstream.fetchMyMemberCallCount, 2)
     }
 
+    func testLogoutForwardsToUpstream() async throws {
+        let authStore = CachingTestAuthStore(memberID: 3)
+        let upstream = CountingAPIClient(authStore: authStore)
+        let client = CachingAPIClient(upstream: upstream, authStore: authStore)
+
+        try await client.logout()
+
+        XCTAssertEqual(upstream.logoutCallCount, 1)
+    }
+
+    func testLogoutFailureStillInvalidatesPrivateCache() async throws {
+        let authStore = CachingTestAuthStore(memberID: 3)
+        let upstream = CountingAPIClient(authStore: authStore)
+        let client = CachingAPIClient(upstream: upstream, authStore: authStore)
+        _ = try await client.fetchFavoriteRecipes()
+        upstream.logoutError = APIClientError.httpStatus(503)
+
+        do {
+            try await client.logout()
+            XCTFail("Expected logout failure")
+        } catch let error as APIClientError {
+            XCTAssertEqual(error, .httpStatus(503))
+        }
+        _ = try await client.fetchFavoriteRecipes()
+
+        XCTAssertEqual(upstream.logoutCallCount, 1)
+        XCTAssertEqual(upstream.fetchFavoriteRecipesCallCount, 2)
+    }
+
     fileprivate static func recipe(id: Int, isFavorite: Bool = false) -> RecipeSummaryDTO {
         RecipeSummaryDTO(
             id: id,
@@ -323,6 +352,25 @@ private final class CachingTestAuthStore: AuthSessionStoreProtocol {
         return true
     }
 
+    func replaceTokens(replacing expectedAccessToken: String, accessToken: String, refreshToken: String) -> Bool {
+        guard let currentSession,
+              currentSession.accessToken == expectedAccessToken,
+              !accessToken.isEmpty,
+              !refreshToken.isEmpty else {
+            return false
+        }
+        self.currentSession = AuthSession(
+            displayName: currentSession.displayName,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            memberId: currentSession.memberId,
+            nickname: currentSession.nickname,
+            profileImageUrl: currentSession.profileImageUrl,
+            profileSetupRequired: currentSession.profileSetupRequired
+        )
+        return true
+    }
+
     func updateMemberProfile(_ member: MemberProfileDTO) {
         currentSession = AuthSession(
             displayName: member.displayName,
@@ -360,6 +408,7 @@ private final class CountingAPIClient: APIClientProtocol {
     var suspendNextFavoriteFetch = false
     var favoriteAddError: Error?
     var favoriteDeleteError: Error?
+    var logoutError: Error?
 
     private(set) var fetchHomeCallCount = 0
     private(set) var fetchRecipeSearchPageCallCount = 0
@@ -373,6 +422,7 @@ private final class CountingAPIClient: APIClientProtocol {
     private(set) var updateRecipeCallCount = 0
     private(set) var deleteRecipeCallCount = 0
     private(set) var deleteMyAccountCallCount = 0
+    private(set) var logoutCallCount = 0
 
     init(authStore: CachingTestAuthStore) {
         self.authStore = authStore
@@ -552,6 +602,13 @@ private final class CountingAPIClient: APIClientProtocol {
 
     func deleteMyAccount() async throws {
         deleteMyAccountCallCount += 1
+    }
+
+    func logout() async throws {
+        logoutCallCount += 1
+        if let logoutError {
+            throw logoutError
+        }
     }
 
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {

@@ -58,7 +58,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
     }
 
     func invalidate(scope: CacheInvalidationScope) async {
-        let bucket = currentBucket()
+        let bucket = await currentBucket()
         await cache.handleBucketIfChanged(bucket)
         await cache.invalidate(scope: scope)
     }
@@ -330,6 +330,16 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         try await upstream.reissue(refreshToken: refreshToken)
     }
 
+    func logout() async throws {
+        do {
+            try await upstream.logout()
+        } catch {
+            await invalidate(scope: .all)
+            throw error
+        }
+        await invalidate(scope: .all)
+    }
+
     func fetchConsentStatus() async throws -> ConsentStatusDTO {
         try await upstream.fetchConsentStatus()
     }
@@ -355,7 +365,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
     }
 
     private func invalidate(scopes: [CacheInvalidationScope]) async {
-        let bucket = currentBucket()
+        let bucket = await currentBucket()
         await cache.handleBucketIfChanged(bucket)
         for scope in scopes {
             await cache.invalidate(scope: scope)
@@ -363,19 +373,21 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
     }
 
     private func prepareBucketForAccess() async -> CacheBucket {
-        let bucket = currentBucket()
+        let bucket = await currentBucket()
         await cache.handleBucketIfChanged(bucket)
         return bucket
     }
 
-    private func currentBucket() -> CacheBucket {
-        guard let session = authStore.currentSession else {
-            return .anonymous
+    private func currentBucket() async -> CacheBucket {
+        await MainActor.run {
+            guard let session = authStore.currentSession else {
+                return .anonymous
+            }
+            guard let memberId = session.memberId else {
+                return .ephemeralAuthenticatedWithoutMember
+            }
+            return .member(memberId)
         }
-        guard let memberId = session.memberId else {
-            return .ephemeralAuthenticatedWithoutMember
-        }
-        return .member(memberId)
     }
 
     private func shouldCacheViewerRelative(bucket: CacheBucket) -> Bool {
@@ -400,7 +412,7 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
             return
         }
 
-        let latestBucket = currentBucket()
+        let latestBucket = await currentBucket()
         await cache.handleBucketIfChanged(latestBucket)
         guard latestBucket == capturedBucket else {
             return

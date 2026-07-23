@@ -3,12 +3,14 @@ import SwiftUI
 struct SettingsView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
+    @StateObject private var viewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init(apiClient: APIClientProtocol, authStore: AuthSessionStore) {
         self.apiClient = apiClient
         self.authStore = authStore
+        _viewModel = StateObject(wrappedValue: SettingsViewModel(apiClient: apiClient, authStore: authStore))
     }
 
     var body: some View {
@@ -51,8 +53,10 @@ struct SettingsView: View {
 
                 SettingsSection {
                     Button {
-                        authStore.clear()
-                        dismiss()
+                        Task {
+                            await viewModel.logout()
+                            dismiss()
+                        }
                     } label: {
                         SettingsRow(title: "로그아웃", showsChevron: false)
                     }

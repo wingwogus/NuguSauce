@@ -54,6 +54,8 @@ protocol AuthSessionStoreProtocol: AnyObject {
     func restore()
     @discardableResult
     func saveSession(accessToken: String, refreshToken: String?, displayName: String?) -> Bool
+    @discardableResult
+    func replaceTokens(replacing expectedAccessToken: String, accessToken: String, refreshToken: String) -> Bool
     func updateMemberProfile(_ member: MemberProfileDTO)
     func clear()
 }
@@ -79,6 +81,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
     private let nicknameKey = "auth.nickname"
     private let profileImageUrlKey = "auth.profileImageUrl"
     private let profileSetupRequiredKey = "auth.profileSetupRequired"
+    private let invalidatedSessionKey = "auth.sessionInvalidated"
     private let tokenStore: AuthTokenStore
     private let userDefaults: UserDefaults
 
@@ -104,6 +107,11 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
     }
 
     func restore() {
+        if userDefaults.bool(forKey: invalidatedSessionKey) {
+            discardPersistedSession()
+            return
+        }
+
         guard let accessToken = tokenStore.read(account: .accessToken) else {
             return
         }
@@ -154,6 +162,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
 
         userDefaults.set(resolvedDisplayName, forKey: displayNameKey)
         clearPersistedMemberProfile()
+        userDefaults.removeObject(forKey: invalidatedSessionKey)
         currentSession = AuthSession(displayName: resolvedDisplayName, accessToken: accessToken, refreshToken: persistedRefreshToken)
         return true
     }
@@ -168,6 +177,39 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
             return false
         }
         updateMemberProfile(member)
+        return true
+    }
+
+    @discardableResult
+    func replaceTokens(
+        replacing expectedAccessToken: String,
+        accessToken: String,
+        refreshToken: String
+    ) -> Bool {
+        guard let session = currentSession,
+              session.accessToken == expectedAccessToken,
+              !accessToken.isEmpty,
+              !refreshToken.isEmpty else {
+            return false
+        }
+
+        persistenceFailure = nil
+        guard tokenStore.save(accessToken, account: .accessToken) else {
+            return failSave(.accessTokenSaveFailed)
+        }
+        guard tokenStore.save(refreshToken, account: .refreshToken) else {
+            return failSave(.refreshTokenSaveFailed)
+        }
+
+        currentSession = AuthSession(
+            displayName: session.displayName,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            memberId: session.memberId,
+            nickname: session.nickname,
+            profileImageUrl: session.profileImageUrl,
+            profileSetupRequired: session.profileSetupRequired
+        )
         return true
     }
 
@@ -190,11 +232,7 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
 
     func clear() {
         persistenceFailure = nil
-        tokenStore.delete(account: .accessToken)
-        tokenStore.delete(account: .refreshToken)
-        userDefaults.removeObject(forKey: displayNameKey)
-        clearPersistedMemberProfile()
-        currentSession = nil
+        discardPersistedSession()
     }
 
     private func failSave(_ failure: AuthSessionPersistenceFailure) -> Bool {
@@ -204,11 +242,19 @@ final class AuthSessionStore: ObservableObject, AuthSessionStoreProtocol {
     }
 
     private func rollbackFailedSave() {
-        tokenStore.delete(account: .accessToken)
-        tokenStore.delete(account: .refreshToken)
+        discardPersistedSession()
+    }
+
+    private func discardPersistedSession() {
+        userDefaults.set(true, forKey: invalidatedSessionKey)
+        let didDeleteAccessToken = tokenStore.delete(account: .accessToken)
+        let didDeleteRefreshToken = tokenStore.delete(account: .refreshToken)
         userDefaults.removeObject(forKey: displayNameKey)
         clearPersistedMemberProfile()
         currentSession = nil
+        if didDeleteAccessToken && didDeleteRefreshToken {
+            userDefaults.removeObject(forKey: invalidatedSessionKey)
+        }
     }
 
     private func persistMemberProfile(_ member: MemberProfileDTO, profileSetupRequired: Bool) {
