@@ -206,6 +206,36 @@ Success data:
 }
 ```
 
+Reissue rotates both service tokens. iOS persists the returned pair together and
+retries the original stored-session request at most once. Concurrent or late
+unauthorized responses for the same rejected access credential must reuse the
+same successful rotation instead of issuing another refresh request. Requests
+authenticated with an explicit pending-onboarding credential do not enter this
+recovery path.
+
+An absent refresh credential or a refresh rejection with `401/AUTH_001` is a
+terminal session failure: iOS removes the matching local session and secure token
+storage. If secure-item deletion fails, a durable local invalidation marker blocks
+those stale credentials from being restored and retries deletion on the next
+restore attempt. Transport errors, decoding errors, and server `5xx` responses are
+nonterminal and must leave the local session intact so a later request can retry.
+
+### `POST /api/v1/auth/logout`
+
+Requires JWT bearer authentication and has no request body. Success uses the
+standard empty response envelope. The backend deletes the authenticated member's
+stored refresh state and expires the refresh cookie.
+
+iOS attempts this endpoint before clearing local credentials. If the current
+access credential is expired, the client may use the single reissue-and-retry flow
+above. Regardless of the logout response, a user-initiated logout always removes
+the local session and secure token storage. `AUTH_001` represents missing or
+invalid access authentication; `AUTH_007` represents absent server-side refresh
+state.
+
+Logout revokes refresh state. Already-issued stateless access JWTs remain valid
+on the server until their own expiry, so clients must discard them locally.
+
 ## Consent API
 
 Kakao and Apple login prove identity only. They do not count as NuguSauce

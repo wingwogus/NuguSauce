@@ -46,6 +46,8 @@ NuguSauce는 소셜 커뮤니티 성격과 인증 흐름이 함께 있는 앱이
 - Kakao OIDC `id_token` 검증 성공/실패 흐름
 - `POST /api/v1/auth/kakao/login` token exchange 성공/실패 흐름
 - JWT 발급 이후 인증 보호 엔드포인트 접근
+- refresh token 회전 성공과 만료·폐기된 refresh token의 `401/AUTH_001` 거절
+- 로그아웃 이후 저장된 refresh 상태 삭제와 재발급 거절
 - Postgres 저장
 - Redis 사용 시 세션 또는 캐시 동작
 
@@ -65,6 +67,9 @@ NuguSauce는 소셜 커뮤니티 성격과 인증 흐름이 함께 있는 앱이
 - 등록 폼 validation
 - 인증 세션 저장과 복원
 - Kakao 로그인 결과 수신 후 backend token exchange 상태 전이
+- 저장 세션의 access token 401에서 재발급 1회와 원 요청 1회 재시도
+- refresh terminal 실패 시 Keychain과 앱 세션 삭제, 네트워크·5xx 실패 시 세션 보존
+- 사용자 로그아웃의 서버 폐기 시도와 성공·실패 모두에서 로컬 세션 삭제
 
 ### XCUITest E2E
 

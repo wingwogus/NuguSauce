@@ -921,6 +921,168 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(restoredStore.persistenceFailure)
     }
 
+    func testAuthSessionClearPreventsRestoreWhenTokenDeletionFails() {
+        let tokenStore = MemoryAuthTokenStore(
+            failingDeleteAccounts: [.accessToken, .refreshToken]
+        )
+        let userDefaults = makeUserDefaults()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        XCTAssertTrue(
+            store.saveSession(
+                accessToken: "live-access-token",
+                refreshToken: "live-refresh-token",
+                displayName: "테스터"
+            )
+        )
+
+        store.clear()
+
+        XCTAssertNil(store.currentSession)
+        XCTAssertNotNil(tokenStore.read(account: .accessToken))
+        XCTAssertNotNil(tokenStore.read(account: .refreshToken))
+        let restoredStore = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        XCTAssertNil(restoredStore.currentSession)
+        XCTAssertFalse(restoredStore.isAuthenticated)
+    }
+
+    func testAuthSessionReplaceTokensPersistsRotationWithoutLosingMemberProfile() {
+        let tokenStore = MemoryAuthTokenStore()
+        let userDefaults = makeUserDefaults()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults)
+        XCTAssertTrue(store.saveSession(accessToken: "old-access", refreshToken: "old-refresh", displayName: "테스터"))
+        store.updateMemberProfile(
+            MemberProfileDTO(
+                id: 7,
+                nickname: "소스장인",
+                displayName: "소스장인",
+                profileImageUrl: "https://cdn.example.test/profile/7.jpg",
+                profileSetupRequired: false
+            )
+        )
+
+        XCTAssertTrue(
+            store.replaceTokens(
+                replacing: "old-access",
+                accessToken: "new-access",
+                refreshToken: "new-refresh"
+            )
+        )
+
+        let expectedSession = AuthSession(
+            displayName: "소스장인",
+            accessToken: "new-access",
+            refreshToken: "new-refresh",
+            memberId: 7,
+            nickname: "소스장인",
+            profileImageUrl: "https://cdn.example.test/profile/7.jpg",
+            profileSetupRequired: false
+        )
+        XCTAssertEqual(store.currentSession, expectedSession)
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "new-access")
+        XCTAssertEqual(tokenStore.read(account: .refreshToken), "new-refresh")
+        XCTAssertEqual(
+            AuthSessionStore(tokenStore: tokenStore, userDefaults: userDefaults).currentSession,
+            expectedSession
+        )
+    }
+
+    func testAuthSessionReplaceTokensRequiresExistingSession() {
+        let tokenStore = MemoryAuthTokenStore()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+
+        XCTAssertFalse(
+            store.replaceTokens(
+                replacing: "old-access",
+                accessToken: "new-access",
+                refreshToken: "new-refresh"
+            )
+        )
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+    }
+
+    func testAuthSessionReplaceTokensDoesNotOverwriteSessionWhenExpectedAccessTokenIsStale() {
+        let tokenStore = MemoryAuthTokenStore()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        XCTAssertTrue(store.saveSession(accessToken: "current-access", refreshToken: "current-refresh", displayName: "새 로그인"))
+
+        XCTAssertFalse(
+            store.replaceTokens(
+                replacing: "stale-access",
+                accessToken: "rotated-access",
+                refreshToken: "rotated-refresh"
+            )
+        )
+
+        XCTAssertEqual(store.currentSession?.accessToken, "current-access")
+        XCTAssertEqual(store.currentSession?.refreshToken, "current-refresh")
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "current-access")
+        XCTAssertEqual(tokenStore.read(account: .refreshToken), "current-refresh")
+        XCTAssertNil(store.persistenceFailure)
+    }
+
+    func testAuthSessionReplaceTokensRejectsEmptyAccessToken() {
+        let tokenStore = MemoryAuthTokenStore()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        XCTAssertTrue(store.saveSession(accessToken: "old-access", refreshToken: "old-refresh", displayName: "테스터"))
+
+        XCTAssertFalse(store.replaceTokens(replacing: "old-access", accessToken: "", refreshToken: "new-refresh"))
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "old-access")
+        XCTAssertEqual(tokenStore.read(account: .refreshToken), "old-refresh")
+    }
+
+    func testAuthSessionReplaceTokensRejectsEmptyRefreshToken() {
+        let tokenStore = MemoryAuthTokenStore()
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+        XCTAssertTrue(store.saveSession(accessToken: "old-access", refreshToken: "old-refresh", displayName: "테스터"))
+
+        XCTAssertFalse(store.replaceTokens(replacing: "old-access", accessToken: "new-access", refreshToken: ""))
+        XCTAssertEqual(tokenStore.read(account: .accessToken), "old-access")
+        XCTAssertEqual(tokenStore.read(account: .refreshToken), "old-refresh")
+    }
+
+    func testAuthSessionReplaceTokensFailsClosedWhenAccessTokenCannotBePersisted() {
+        let tokenStore = MemoryAuthTokenStore(
+            values: [.accessToken: "old-access", .refreshToken: "old-refresh"],
+            failingSaveAccounts: [.accessToken]
+        )
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+
+        XCTAssertFalse(
+            store.replaceTokens(
+                replacing: "old-access",
+                accessToken: "new-access",
+                refreshToken: "new-refresh"
+            )
+        )
+
+        XCTAssertNil(store.currentSession)
+        XCTAssertEqual(store.persistenceFailure, .accessTokenSaveFailed)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+    }
+
+    func testAuthSessionReplaceTokensFailsClosedWhenRefreshTokenCannotBePersisted() {
+        let tokenStore = MemoryAuthTokenStore(
+            values: [.accessToken: "old-access", .refreshToken: "old-refresh"],
+            failingSaveAccounts: [.refreshToken]
+        )
+        let store = AuthSessionStore(tokenStore: tokenStore, userDefaults: makeUserDefaults())
+
+        XCTAssertFalse(
+            store.replaceTokens(
+                replacing: "old-access",
+                accessToken: "new-access",
+                refreshToken: "new-refresh"
+            )
+        )
+
+        XCTAssertNil(store.currentSession)
+        XCTAssertEqual(store.persistenceFailure, .refreshTokenSaveFailed)
+        XCTAssertNil(tokenStore.read(account: .accessToken))
+        XCTAssertNil(tokenStore.read(account: .refreshToken))
+    }
+
     func testAuthSessionRejectsKakaoMemberUntilProfileSetupCompletes() {
         let tokenStore = MemoryAuthTokenStore()
         let userDefaults = makeUserDefaults()
@@ -1928,6 +2090,28 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, "회원 탈퇴를 완료하지 못했어요.")
     }
 
+    func testSettingsLogoutClearsSessionAfterServerSuccess() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient()
+        let viewModel = SettingsViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.logout()
+
+        XCTAssertEqual(client.logoutCallCount, 1)
+        XCTAssertNil(authStore.currentSession)
+    }
+
+    func testSettingsLogoutClearsSessionAfterServerFailure() async {
+        let authStore = TestAuthSessionStore(accessToken: "real-access-token")
+        let client = TestAPIClient(logoutError: APIClientError.httpStatus(500))
+        let viewModel = SettingsViewModel(apiClient: client, authStore: authStore)
+
+        await viewModel.logout()
+
+        XCTAssertEqual(client.logoutCallCount, 1)
+        XCTAssertNil(authStore.currentSession)
+    }
+
     func testPublicProfileLoadFetchesPublicMemberProfile() async {
         let client = TestAPIClient(
             memberProfile: MemberProfileDTO(
@@ -2108,6 +2292,7 @@ private final class TestAPIClient: APIClientProtocol {
     private let suspendFavoriteAdd: Bool
     private let updateMemberError: Error?
     private let deleteAccountError: Error?
+    private let logoutError: Error?
     private let fetchConsentStatusError: Error?
     private let kakaoLoginOnboarding: KakaoLoginOnboardingDTO
     private var consentStatus: ConsentStatusDTO
@@ -2141,6 +2326,7 @@ private final class TestAPIClient: APIClientProtocol {
     private(set) var updateMemberAccessTokens: [String] = []
     private(set) var appleLoginRequests: [AppleLoginRequestRecord] = []
     private(set) var deleteMyAccountCallCount = 0
+    private(set) var logoutCallCount = 0
 
     init(
         recipes: [RecipeSummaryDTO] = [],
@@ -2161,6 +2347,7 @@ private final class TestAPIClient: APIClientProtocol {
         suspendFavoriteAdd: Bool = false,
         updateMemberError: Error? = nil,
         deleteAccountError: Error? = nil,
+        logoutError: Error? = nil,
         fetchConsentStatusError: Error? = nil,
         consentStatus: ConsentStatusDTO = ConsentStatusDTO(policies: [], missingPolicies: [], requiredConsentsAccepted: true),
         kakaoLoginOnboarding: KakaoLoginOnboardingDTO = .complete,
@@ -2189,6 +2376,7 @@ private final class TestAPIClient: APIClientProtocol {
         self.suspendFavoriteAdd = suspendFavoriteAdd
         self.updateMemberError = updateMemberError
         self.deleteAccountError = deleteAccountError
+        self.logoutError = logoutError
         self.fetchConsentStatusError = fetchConsentStatusError
         self.kakaoLoginOnboarding = kakaoLoginOnboarding
         self.consentStatus = consentStatus
@@ -2455,6 +2643,12 @@ private final class TestAPIClient: APIClientProtocol {
             throw deleteAccountError
         }
     }
+    func logout() async throws {
+        logoutCallCount += 1
+        if let logoutError {
+            throw logoutError
+        }
+    }
     func authenticateWithKakao(idToken: String, nonce: String, kakaoAccessToken: String) async throws -> KakaoLoginResponseDTO {
         KakaoLoginResponseDTO(
             accessToken: "real-access-token",
@@ -2590,6 +2784,25 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
         return true
     }
 
+    func replaceTokens(replacing expectedAccessToken: String, accessToken: String, refreshToken: String) -> Bool {
+        guard let currentSession,
+              currentSession.accessToken == expectedAccessToken,
+              !accessToken.isEmpty,
+              !refreshToken.isEmpty else {
+            return false
+        }
+        self.currentSession = AuthSession(
+            displayName: currentSession.displayName,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            memberId: currentSession.memberId,
+            nickname: currentSession.nickname,
+            profileImageUrl: currentSession.profileImageUrl,
+            profileSetupRequired: currentSession.profileSetupRequired
+        )
+        return true
+    }
+
     func updateMemberProfile(_ member: MemberProfileDTO) {
         guard let currentSession else {
             return
@@ -2613,10 +2826,16 @@ private final class TestAuthSessionStore: AuthSessionStoreProtocol {
 private final class MemoryAuthTokenStore: AuthTokenStore {
     private var values: [KeychainAccount: String]
     private let failingSaveAccounts: Set<KeychainAccount>
+    private let failingDeleteAccounts: Set<KeychainAccount>
 
-    init(values: [KeychainAccount: String] = [:], failingSaveAccounts: Set<KeychainAccount> = []) {
+    init(
+        values: [KeychainAccount: String] = [:],
+        failingSaveAccounts: Set<KeychainAccount> = [],
+        failingDeleteAccounts: Set<KeychainAccount> = []
+    ) {
         self.values = values
         self.failingSaveAccounts = failingSaveAccounts
+        self.failingDeleteAccounts = failingDeleteAccounts
     }
 
     func save(_ value: String, account: KeychainAccount) -> Bool {
@@ -2632,6 +2851,9 @@ private final class MemoryAuthTokenStore: AuthTokenStore {
     }
 
     func delete(account: KeychainAccount) -> Bool {
+        guard !failingDeleteAccounts.contains(account) else {
+            return false
+        }
         values.removeValue(forKey: account)
         return true
     }

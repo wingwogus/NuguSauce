@@ -613,6 +613,386 @@ final class APIContractTests: XCTestCase {
         XCTAssertEqual(json["userIdentifier"], "apple-user-id")
     }
 
+    func testBackendClientReissuesExpiredStoredSessionAndRetriesOnce() async throws {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 200, data: tokenEnvelope(accessToken: "rotated-access", refreshToken: "rotated-refresh")),
+            (statusCode: 200, data: memberProfileEnvelope(nickname: "소스장인", profileImageId: nil))
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        let member = try await client.fetchMyMember()
+
+        XCTAssertEqual(member.nickname, "소스장인")
+        XCTAssertEqual(authStore.currentSession?.accessToken, "rotated-access")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "rotated-refresh")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+        XCTAssertEqual(URLProtocolTestTransport.requests.map(\.url?.path), [
+            "/api/v1/members/me",
+            "/api/v1/auth/reissue",
+            "/api/v1/members/me"
+        ])
+        XCTAssertEqual(
+            URLProtocolTestTransport.requests.map { $0.value(forHTTPHeaderField: "Authorization") },
+            ["Bearer real-access-token", nil, "Bearer rotated-access"]
+        )
+    }
+
+    func testBackendClientClearsMatchingSessionWhenRefreshIsUnauthorized() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected refresh rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(authStore.currentSession)
+        XCTAssertEqual(authStore.clearCallCount, 1)
+        XCTAssertEqual(URLProtocolTestTransport.requests.map(\.url?.path), [
+            "/api/v1/members/me",
+            "/api/v1/auth/reissue"
+        ])
+    }
+
+    func testBackendClientClearsMatchingSessionForAnyRefreshHTTPUnauthorizedResponse() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 401, data: unauthorizedEnvelope(code: "AUTH_999"))
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected refresh rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, "AUTH_999")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(authStore.currentSession)
+        XCTAssertEqual(authStore.clearCallCount, 1)
+        XCTAssertEqual(URLProtocolTestTransport.requests.map(\.url?.path), [
+            "/api/v1/members/me",
+            "/api/v1/auth/reissue"
+        ])
+    }
+
+    func testBackendClientPreservesSessionWhenRefreshFailsTransiently() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 503, data: serviceUnavailableEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected transient refresh failure")
+        } catch let error as APIClientError {
+            XCTAssertEqual(error, .httpStatus(503))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(authStore.currentSession?.accessToken, "real-access-token")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "real-refresh-token")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientPreservesSessionWhenRefreshTransportFails() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.queuedErrors = [
+            nil,
+            URLError(.networkConnectionLost)
+        ]
+        URLProtocolTestTransport.requests = []
+        defer {
+            URLProtocolTestTransport.queuedErrors = []
+        }
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected refresh transport failure")
+        } catch {
+            XCTAssertEqual((error as? URLError)?.code, .networkConnectionLost)
+        }
+
+        XCTAssertEqual(authStore.currentSession?.accessToken, "real-access-token")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "real-refresh-token")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientPreservesSessionWhenRefreshResponseCannotDecode() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 200, data: Data("not-json".utf8))
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected refresh decoding failure")
+        } catch is DecodingError {
+            // Expected.
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(authStore.currentSession?.accessToken, "real-access-token")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "real-refresh-token")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientDoesNotRecoverPendingLoginOverride() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchConsentStatus(accessToken: "pending-login-token")
+            XCTFail("Expected pending token rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(URLProtocolTestTransport.requests.count, 1)
+        XCTAssertEqual(URLProtocolTestTransport.requests.first?.url?.path, "/api/v1/consents/status")
+        XCTAssertEqual(authStore.currentSession?.accessToken, "real-access-token")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientDoesNotRetryTwiceWhenRetriedRequestIsUnauthorized() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 200, data: tokenEnvelope(accessToken: "rotated-access", refreshToken: "rotated-refresh")),
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected retried request rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(URLProtocolTestTransport.requests.count, 3)
+        XCTAssertEqual(URLProtocolTestTransport.requests.filter { $0.url?.path == "/api/v1/auth/reissue" }.count, 1)
+        XCTAssertEqual(authStore.currentSession?.accessToken, "rotated-access")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testTokenRefreshCoordinatorCachesSuccessfulRotationForLateUnauthorizedResponse() async throws {
+        let coordinator = TokenRefreshCoordinator()
+        let counter = RefreshOperationCounter()
+
+        let first = try await coordinator.refresh(for: "rejected-access") {
+            await counter.increment()
+            return TokenResponseDTO(accessToken: "rotated-access", refreshToken: "rotated-refresh")
+        }
+        let second = try await coordinator.refresh(for: "rejected-access") {
+            await counter.increment()
+            return TokenResponseDTO(accessToken: "unexpected-access", refreshToken: "unexpected-refresh")
+        }
+
+        XCTAssertEqual(first, second)
+        let operationCount = await counter.value
+        XCTAssertEqual(operationCount, 1)
+    }
+
+    func testTokenRefreshCoordinatorSharesInFlightRotation() async throws {
+        let coordinator = TokenRefreshCoordinator()
+        let gate = RefreshOperationGate()
+        let duplicateCounter = RefreshOperationCounter()
+
+        let firstTask = Task {
+            try await coordinator.refresh(for: "rejected-access") {
+                await gate.waitForRelease()
+                return TokenResponseDTO(accessToken: "rotated-access", refreshToken: "rotated-refresh")
+            }
+        }
+        await gate.waitUntilStarted()
+        let secondTask = Task {
+            try await coordinator.refresh(for: "rejected-access") {
+                await duplicateCounter.increment()
+                return TokenResponseDTO(accessToken: "unexpected-access", refreshToken: "unexpected-refresh")
+            }
+        }
+        await Task.yield()
+        await gate.release()
+
+        let first = try await firstTask.value
+        let second = try await secondTask.value
+        let duplicateOperationCount = await duplicateCounter.value
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(duplicateOperationCount, 0)
+    }
+
+    func testBackendClientSharesOneRefreshAcrossConcurrentUnauthorizedRequests() async throws {
+        ConcurrentRefreshURLProtocol.reset()
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(
+            authStore: authStore,
+            protocolClass: ConcurrentRefreshURLProtocol.self
+        )
+
+        async let firstMember = client.fetchMyMember()
+        async let secondMember = client.fetchMyMember()
+        let members = try await [firstMember, secondMember]
+        let counts = ConcurrentRefreshURLProtocol.requestCounts()
+
+        XCTAssertEqual(members.map(\.nickname), ["동시 사용자", "동시 사용자"])
+        XCTAssertEqual(counts.rejected, 2)
+        XCTAssertEqual(counts.reissue, 1)
+        XCTAssertEqual(counts.retried, 2)
+        XCTAssertEqual(authStore.currentSession?.accessToken, "rotated-access")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "rotated-refresh")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientLateTerminalRefreshDoesNotClearNewerSession() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope()),
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        URLProtocolTestTransport.requestObserver = { request in
+            guard request.url?.path == "/api/v1/auth/reissue" else {
+                return
+            }
+            authStore.setCurrentSession(
+                AuthSession(
+                    displayName: "새 로그인",
+                    accessToken: "new-login-access",
+                    refreshToken: "new-login-refresh"
+                )
+            )
+        }
+        defer {
+            URLProtocolTestTransport.requestObserver = nil
+        }
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected stale refresh rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(authStore.currentSession?.accessToken, "new-login-access")
+        XCTAssertEqual(authStore.currentSession?.refreshToken, "new-login-refresh")
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientClearsSessionWhenRefreshCredentialIsMissing() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore(
+            currentSession: AuthSession(
+                displayName: "테스터",
+                accessToken: "real-access-token",
+                refreshToken: nil
+            )
+        )
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.fetchMyMember()
+            XCTFail("Expected missing refresh rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(authStore.currentSession)
+        XCTAssertEqual(authStore.clearCallCount, 1)
+        XCTAssertEqual(URLProtocolTestTransport.requests.count, 1)
+    }
+
+    func testBackendClientDirectReissueDoesNotRecursivelyRecoverOrClearStoredSession() async {
+        URLProtocolTestTransport.queuedResponses = [
+            (statusCode: 401, data: unauthorizedEnvelope())
+        ]
+        URLProtocolTestTransport.requests = []
+        let authStore = ContractTestAuthSessionStore()
+        let client = makeBackendClient(authStore: authStore)
+
+        do {
+            _ = try await client.reissue(refreshToken: "rejected-refresh")
+            XCTFail("Expected direct reissue rejection")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, ApiErrorCode.unauthorized)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(URLProtocolTestTransport.requests.count, 1)
+        XCTAssertEqual(URLProtocolTestTransport.requests.first?.url?.path, "/api/v1/auth/reissue")
+        XCTAssertNotNil(authStore.currentSession)
+        XCTAssertEqual(authStore.clearCallCount, 0)
+    }
+
+    func testBackendClientLogoutPostsWithCurrentBearerCredential() async throws {
+        URLProtocolTestTransport.responseData = """
+        {
+          "success": true,
+          "data": null,
+          "error": null
+        }
+        """.data(using: .utf8)!
+        URLProtocolTestTransport.statusCode = 200
+        URLProtocolTestTransport.queuedResponses = []
+        URLProtocolTestTransport.requests = []
+        URLProtocolTestTransport.lastRequestBody = nil
+        let client = makeBackendClient()
+
+        try await client.logout()
+
+        let request = try XCTUnwrap(URLProtocolTestTransport.requests.last)
+        XCTAssertEqual(request.url?.path, "/api/v1/auth/logout")
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer real-access-token")
+        XCTAssertNil(URLProtocolTestTransport.lastRequestBody)
+    }
+
     func testConsentStatusDecodesMissingPolicies() throws {
         let json = """
         {
@@ -1089,20 +1469,61 @@ final class APIContractTests: XCTestCase {
         """.data(using: .utf8)!
     }
 
-    private func makeBackendClient() -> BackendAPIClient {
+    private func unauthorizedEnvelope(code: String = ApiErrorCode.unauthorized) -> Data {
+        """
+        {
+          "success": false,
+          "data": null,
+          "error": {
+            "code": "\(code)",
+            "message": "auth.unauthorized",
+            "detail": null
+          }
+        }
+        """.data(using: .utf8)!
+    }
+
+    private func serviceUnavailableEnvelope() -> Data {
+        """
+        {
+          "success": false,
+          "data": null,
+          "error": null
+        }
+        """.data(using: .utf8)!
+    }
+
+    private func tokenEnvelope(accessToken: String, refreshToken: String) -> Data {
+        """
+        {
+          "success": true,
+          "data": {
+            "accessToken": "\(accessToken)",
+            "refreshToken": "\(refreshToken)"
+          },
+          "error": null
+        }
+        """.data(using: .utf8)!
+    }
+
+    private func makeBackendClient(
+        authStore: ContractTestAuthSessionStore = ContractTestAuthSessionStore(),
+        protocolClass: URLProtocol.Type = URLProtocolTestTransport.self
+    ) -> BackendAPIClient {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [URLProtocolTestTransport.self]
+        configuration.protocolClasses = [protocolClass]
         let session = URLSession(configuration: configuration)
         return BackendAPIClient(
             configuration: APIConfiguration(baseURL: URL(string: "http://127.0.0.1:8080")!),
             session: session,
-            authStore: ContractTestAuthSessionStore()
+            authStore: authStore
         )
     }
 }
 
 private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
     private(set) var currentSession: AuthSession?
+    private(set) var clearCallCount = 0
 
     init(
         currentSession: AuthSession? = AuthSession(
@@ -1125,6 +1546,25 @@ private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
         return true
     }
 
+    func replaceTokens(replacing expectedAccessToken: String, accessToken: String, refreshToken: String) -> Bool {
+        guard let currentSession,
+              currentSession.accessToken == expectedAccessToken,
+              !accessToken.isEmpty,
+              !refreshToken.isEmpty else {
+            return false
+        }
+        self.currentSession = AuthSession(
+            displayName: currentSession.displayName,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            memberId: currentSession.memberId,
+            nickname: currentSession.nickname,
+            profileImageUrl: currentSession.profileImageUrl,
+            profileSetupRequired: currentSession.profileSetupRequired
+        )
+        return true
+    }
+
     func updateMemberProfile(_ member: MemberProfileDTO) {
         guard let currentSession else {
             return
@@ -1141,7 +1581,49 @@ private final class ContractTestAuthSessionStore: AuthSessionStoreProtocol {
     }
 
     func clear() {
+        clearCallCount += 1
         currentSession = nil
+    }
+
+    func setCurrentSession(_ session: AuthSession) {
+        currentSession = session
+    }
+}
+
+private actor RefreshOperationCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
+}
+
+private actor RefreshOperationGate {
+    private var started = false
+    private var startedContinuations: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func waitForRelease() async {
+        started = true
+        startedContinuations.forEach { $0.resume() }
+        startedContinuations = []
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilStarted() async {
+        guard !started else {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            startedContinuations.append(continuation)
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
@@ -1149,9 +1631,11 @@ private final class URLProtocolTestTransport: URLProtocol {
     static var responseData = Data()
     static var statusCode = 200
     static var queuedResponses: [(statusCode: Int, data: Data)] = []
+    static var queuedErrors: [Error?] = []
     static var requests: [URLRequest] = []
     static var lastRequest: URLRequest?
     static var lastRequestBody: Data?
+    static var requestObserver: ((URLRequest) -> Void)?
     private static let lock = NSLock()
 
     override class func canInit(with request: URLRequest) -> Bool {
@@ -1165,6 +1649,7 @@ private final class URLProtocolTestTransport: URLProtocol {
     override func startLoading() {
         let requestBody = request.httpBody ?? request.httpBodyStream?.readAllData()
         let stub: (statusCode: Int, data: Data)
+        let queuedError: Error?
 
         Self.lock.lock()
         Self.lastRequest = request
@@ -1175,7 +1660,18 @@ private final class URLProtocolTestTransport: URLProtocol {
         } else {
             stub = Self.queuedResponses.removeFirst()
         }
+        if Self.queuedErrors.isEmpty {
+            queuedError = nil
+        } else {
+            queuedError = Self.queuedErrors.removeFirst()
+        }
         Self.lock.unlock()
+        Self.requestObserver?(request)
+
+        if let queuedError {
+            client?.urlProtocol(self, didFailWithError: queuedError)
+            return
+        }
 
         let response = HTTPURLResponse(
             url: request.url!,
@@ -1189,6 +1685,126 @@ private final class URLProtocolTestTransport: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+private final class ConcurrentRefreshURLProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var pendingRejectedRequests: [ConcurrentRefreshURLProtocol] = []
+    private static var rejectedRequestCount = 0
+    private static var reissueRequestCount = 0
+    private static var retriedRequestCount = 0
+
+    static func reset() {
+        lock.lock()
+        pendingRejectedRequests = []
+        rejectedRequestCount = 0
+        reissueRequestCount = 0
+        retriedRequestCount = 0
+        lock.unlock()
+    }
+
+    static func requestCounts() -> (rejected: Int, reissue: Int, retried: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (rejectedRequestCount, reissueRequestCount, retriedRequestCount)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        let path = request.url?.path
+        let authorization = request.value(forHTTPHeaderField: "Authorization")
+
+        if path == "/api/v1/members/me", authorization == "Bearer real-access-token" {
+            Self.lock.lock()
+            Self.rejectedRequestCount += 1
+            Self.pendingRejectedRequests.append(self)
+            guard Self.pendingRejectedRequests.count == 2 else {
+                Self.lock.unlock()
+                return
+            }
+            let pendingRequests = Self.pendingRejectedRequests
+            Self.pendingRejectedRequests = []
+            Self.lock.unlock()
+            pendingRequests.forEach {
+                $0.respond(statusCode: 401, data: Self.unauthorizedData)
+            }
+            return
+        }
+
+        if path == "/api/v1/auth/reissue" {
+            Self.lock.lock()
+            Self.reissueRequestCount += 1
+            Self.lock.unlock()
+            respond(statusCode: 200, data: Self.tokenData)
+            return
+        }
+
+        if path == "/api/v1/members/me", authorization == "Bearer rotated-access" {
+            Self.lock.lock()
+            Self.retriedRequestCount += 1
+            Self.lock.unlock()
+            respond(statusCode: 200, data: Self.memberData)
+            return
+        }
+
+        respond(statusCode: 500, data: Data())
+    }
+
+    override func stopLoading() {
+        Self.lock.lock()
+        Self.pendingRejectedRequests.removeAll { $0 === self }
+        Self.lock.unlock()
+    }
+
+    private func respond(statusCode: Int, data: Data) {
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: statusCode,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private static let unauthorizedData = """
+    {
+      "success": false,
+      "data": null,
+      "error": { "code": "AUTH_001", "message": "auth.unauthorized", "detail": null }
+    }
+    """.data(using: .utf8)!
+
+    private static let tokenData = """
+    {
+      "success": true,
+      "data": { "accessToken": "rotated-access", "refreshToken": "rotated-refresh" },
+      "error": null
+    }
+    """.data(using: .utf8)!
+
+    private static let memberData = """
+    {
+      "success": true,
+      "data": {
+        "id": 7,
+        "nickname": "동시 사용자",
+        "displayName": "동시 사용자",
+        "profileImageId": null,
+        "profileImageUrl": null,
+        "profileSetupRequired": false
+      },
+      "error": null
+    }
+    """.data(using: .utf8)!
 }
 
 private extension InputStream {

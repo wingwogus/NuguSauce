@@ -334,6 +334,7 @@ protocol APIClientProtocol {
         userIdentifier: String?
     ) async throws -> SocialLoginResponseDTO
     func reissue(refreshToken: String) async throws -> TokenResponseDTO
+    func logout() async throws
     func fetchConsentStatus() async throws -> ConsentStatusDTO
     func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO
     func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO
