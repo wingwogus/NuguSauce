@@ -4,6 +4,7 @@ struct SettingsView: View {
     let apiClient: APIClientProtocol
     @ObservedObject var authStore: AuthSessionStore
     @StateObject private var viewModel: SettingsViewModel
+    @EnvironmentObject private var adConsentManager: AdConsentManager
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
@@ -34,6 +35,19 @@ struct SettingsView: View {
                         SettingsRow(title: "화면 모드", detail: themePreference.title, showsChevron: true)
                     }
                     .buttonStyle(.plain)
+                }
+
+                if adConsentManager.isPrivacyOptionsRequired {
+                    SettingsSection {
+                        Button {
+                            Task {
+                                await adConsentManager.presentPrivacyOptions()
+                            }
+                        } label: {
+                            SettingsRow(title: "광고 개인정보 선택", showsChevron: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 SettingsSection {

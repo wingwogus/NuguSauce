@@ -28,6 +28,7 @@ class SecurityConfig(
 
     companion object {
         private val PUBLIC_ENDPOINTS = listOf(
+            "/app-ads.txt",
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/actuator/health",

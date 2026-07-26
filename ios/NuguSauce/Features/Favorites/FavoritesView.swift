@@ -75,13 +75,17 @@ struct FavoritesView: View {
         } else if viewModel.recipes.isEmpty {
             emptyState
         } else {
-            LazyVGrid(columns: favoriteGridColumns, alignment: .center, spacing: 18) {
-                ForEach(viewModel.recipes) { recipe in
-                    NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
-                        RecipeCard(recipe: recipe)
+            VStack(alignment: .leading, spacing: SauceSpacing.section) {
+                LazyVGrid(columns: favoriteGridColumns, alignment: .center, spacing: 18) {
+                    ForEach(viewModel.recipes) { recipe in
+                        NavigationLink(value: AppRoute.recipeDetail(recipe.id)) {
+                            RecipeCard(recipe: recipe)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+
+                InlineAdaptiveBanner(placement: .favorites)
             }
         }
     }
