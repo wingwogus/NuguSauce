@@ -17,6 +17,7 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 24) {
                 SauceScreenTitle(title: "검색")
                 searchField
+                InlineAdaptiveBanner(placement: .search)
                 sortPicker
                 filterBar
                 results

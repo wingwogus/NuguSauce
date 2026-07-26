@@ -6,6 +6,7 @@ import KakaoSDKCommon
 struct NuguSauceApp: App {
     private let apiClient: APIClientProtocol
     @StateObject private var authStore: AuthSessionStore
+    @StateObject private var adConsentManager = AdConsentManager()
     @AppStorage(SauceThemePreference.storageKey) private var themePreferenceRawValue = SauceThemePreference.system.rawValue
 
     init() {
@@ -26,6 +27,7 @@ struct NuguSauceApp: App {
             StartupSplashContainer {
                 RootTabView(apiClient: apiClient, authStore: authStore)
             }
+            .environmentObject(adConsentManager)
             .tint(SauceColor.primaryContainer)
             .preferredColorScheme(themePreference.colorScheme)
             .scrollDismissesKeyboard(.interactively)
@@ -34,6 +36,9 @@ struct NuguSauceApp: App {
                 if AuthApi.isKakaoTalkLoginUrl(url) {
                     _ = AuthController.handleOpenUrl(url: url)
                 }
+            }
+            .task {
+                await adConsentManager.requestConsentAndStartAds()
             }
         }
     }

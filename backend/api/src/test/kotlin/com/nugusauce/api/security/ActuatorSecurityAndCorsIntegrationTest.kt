@@ -12,7 +12,9 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -75,5 +77,12 @@ class ActuatorSecurityAndCorsIntegrationTest(
                 .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, HttpMethod.GET.name())
         )
             .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `app ads file is publicly available at the domain root`() {
+        mockMvc.perform(get("/app-ads.txt"))
+            .andExpect(status().isOk)
+            .andExpect(content().string("google.com, pub-1193404666748763, DIRECT, f08c47fec0942fa0\n"))
     }
 }
