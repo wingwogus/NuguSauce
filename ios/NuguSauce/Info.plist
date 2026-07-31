@@ -107,6 +107,12 @@
 	<string>$(NUGUSAUCE_API_BASE_URL)</string>
 	<key>NUGUSAUCE_ADMOB_BOTTOM_BANNER_AD_UNIT_ID</key>
 	<string>$(NUGUSAUCE_ADMOB_BOTTOM_BANNER_AD_UNIT_ID)</string>
+	<key>NUGUSAUCE_ADMOB_HOME_BANNER_AD_UNIT_ID</key>
+	<string>$(NUGUSAUCE_ADMOB_HOME_BANNER_AD_UNIT_ID)</string>
+	<key>NUGUSAUCE_ADMOB_SEARCH_BANNER_AD_UNIT_ID</key>
+	<string>$(NUGUSAUCE_ADMOB_SEARCH_BANNER_AD_UNIT_ID)</string>
+	<key>NUGUSAUCE_ADMOB_FAVORITES_BANNER_AD_UNIT_ID</key>
+	<string>$(NUGUSAUCE_ADMOB_FAVORITES_BANNER_AD_UNIT_ID)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

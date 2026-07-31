@@ -20,6 +20,8 @@ struct SearchView: View {
                 sortPicker
                 filterBar
                 results
+                InlineFooterBanner()
+                    .padding(.top, 4)
             }
             .padding(.horizontal, SauceSpacing.screen)
             .padding(.bottom, 42)
