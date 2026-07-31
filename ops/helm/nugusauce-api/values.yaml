@@ -8,8 +8,7 @@ image:
   repository: docker.io/vantagac/nugusauce-api
   pullPolicy: IfNotPresent
   tag: "c8648d9c42e5958a8fe48a1cf7b97a4b7fad5eff"
-imagePullSecrets:
-- name: regcred
+imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 serviceAccount:
