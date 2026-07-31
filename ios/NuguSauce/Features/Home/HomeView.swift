@@ -29,8 +29,6 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SauceSpacing.section) {
                 homeTopBar
-                InlineAdaptiveBanner(placement: .home)
-                    .padding(.horizontal, SauceSpacing.screen)
                 homeBannerCarousel
 
                 if viewModel.isLoading && !hasRecipeContent {
@@ -45,8 +43,11 @@ struct HomeView: View {
                     popularRankingSection
                     latestSourceRailSection
                 }
+
+                InlineFooterBanner()
+                    .padding(.top, 4)
             }
-            .padding(.bottom, 34)
+            .padding(.bottom, 42)
         }
         .background(SauceColor.surfaceLowest.ignoresSafeArea())
         .navigationBarHidden(true)

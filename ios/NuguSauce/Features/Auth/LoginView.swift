@@ -181,6 +181,9 @@ final class LoginViewModel: ObservableObject {
 
         isLoggingIn = true
         errorMessage = nil
+        apiClient.recordAnalyticsEvent(
+            AnalyticsEventDTO(eventName: .loginStart, screen: .login, provider: "kakao")
+        )
         defer {
             isLoggingIn = false
         }
@@ -195,13 +198,19 @@ final class LoginViewModel: ObservableObject {
                     kakaoAccessToken: credential.kakaoAccessToken
                 )
             } catch {
+                apiClient.recordAnalyticsEvent(
+                    AnalyticsEventDTO(eventName: .loginFailure, screen: .login, provider: "kakao")
+                )
                 resetPendingLogin()
                 errorMessage = KakaoLoginErrorMessage.message(for: error)
                 return false
             }
 
-            return await handleSocialLoginResponse(tokens)
+            return await handleSocialLoginResponse(tokens, provider: "kakao")
         } catch {
+            apiClient.recordAnalyticsEvent(
+                AnalyticsEventDTO(eventName: .loginFailure, screen: .login, provider: "kakao")
+            )
             resetPendingLogin()
             errorMessage = KakaoLoginErrorMessage.message(for: error)
             return false
@@ -216,6 +225,9 @@ final class LoginViewModel: ObservableObject {
 
         isLoggingIn = true
         errorMessage = nil
+        apiClient.recordAnalyticsEvent(
+            AnalyticsEventDTO(eventName: .loginStart, screen: .login, provider: "apple")
+        )
         defer {
             isLoggingIn = false
         }
@@ -231,13 +243,19 @@ final class LoginViewModel: ObservableObject {
                     userIdentifier: credential.userIdentifier
                 )
             } catch {
+                apiClient.recordAnalyticsEvent(
+                    AnalyticsEventDTO(eventName: .loginFailure, screen: .login, provider: "apple")
+                )
                 resetPendingLogin()
                 errorMessage = AppleLoginErrorMessage.message(for: error)
                 return false
             }
 
-            return await handleSocialLoginResponse(tokens)
+            return await handleSocialLoginResponse(tokens, provider: "apple")
         } catch {
+            apiClient.recordAnalyticsEvent(
+                AnalyticsEventDTO(eventName: .loginFailure, screen: .login, provider: "apple")
+            )
             resetPendingLogin()
             errorMessage = AppleLoginErrorMessage.message(for: error)
             return false
@@ -245,12 +263,13 @@ final class LoginViewModel: ObservableObject {
     }
 
     @MainActor
-    private func handleSocialLoginResponse(_ tokens: SocialLoginResponseDTO) async -> Bool {
+    private func handleSocialLoginResponse(_ tokens: SocialLoginResponseDTO, provider: String) async -> Bool {
         let login = PendingLoginSession(
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             member: tokens.member,
-            requiredActions: tokens.onboarding.requiredActions
+            requiredActions: tokens.onboarding.requiredActions,
+            provider: provider
         )
         pendingLogin = login
         nicknameDraft = tokens.member.nickname ?? ""
@@ -406,6 +425,9 @@ final class LoginViewModel: ObservableObject {
             return false
         }
 
+        apiClient.recordAnalyticsEvent(
+            AnalyticsEventDTO(eventName: .loginSuccess, screen: .login, provider: login.provider)
+        )
         resetPendingLogin()
         return true
     }
@@ -448,6 +470,7 @@ private struct PendingLoginSession {
     let refreshToken: String?
     var member: MemberProfileDTO
     var requiredActions: [LoginOnboardingRequiredActionDTO]
+    let provider: String
 
     func requires(_ action: LoginOnboardingRequiredActionDTO) -> Bool {
         requiredActions.contains(action)

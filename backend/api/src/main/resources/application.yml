@@ -7,4 +7,4 @@ spring:
 
 logging:
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [traceId=%X{traceId}] [eventId=%X{eventId}] [userId=%X{userId}] [ip=%X{clientIp}] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [traceId=%X{traceId}] [eventId=%X{eventId}] [userId=%X{userId}] %-5level %logger{36} - %msg %kvp%n"

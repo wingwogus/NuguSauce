@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import org.springframework.web.servlet.HandlerMapping
 import org.springframework.web.servlet.HandlerInterceptor
 
 @Component
@@ -16,8 +17,7 @@ class LogInterceptor : HandlerInterceptor {
         response: HttpServletResponse,
         handler: Any
     ): Boolean {
-        request.setAttribute(START_TIME_ATTRIBUTE, System.currentTimeMillis())
-        logger.info("[REQ START] {} {}, client: {}", request.method, request.requestURI, resolveClientIp(request))
+        request.setAttribute(START_TIME_ATTRIBUTE, System.nanoTime())
         return true
     }
 
@@ -27,52 +27,22 @@ class LogInterceptor : HandlerInterceptor {
         handler: Any,
         ex: Exception?
     ) {
-        val startTime = request.getAttribute(START_TIME_ATTRIBUTE) as? Long ?: System.currentTimeMillis()
-        val duration = System.currentTimeMillis() - startTime
+        val startTime = request.getAttribute(START_TIME_ATTRIBUTE) as? Long ?: System.nanoTime()
+        val duration = (System.nanoTime() - startTime) / 1_000_000
         val status = response.status
-        val clientIp = resolveClientIp(request)
-
-        if (status >= 400) {
-            logger.warn(
-                "[REQ END] {} {}, status: {}, duration: {}ms, client: {}",
-                request.method,
-                request.requestURI,
-                status,
-                duration,
-                clientIp
-            )
-        } else {
-            logger.info(
-                "[REQ END] {} {}, status: {}, duration: {}ms, client: {}",
-                request.method,
-                request.requestURI,
-                status,
-                duration,
-                clientIp
-            )
-        }
-    }
-
-    private fun resolveClientIp(request: HttpServletRequest): String {
-        val headerValue = CLIENT_IP_HEADERS
-            .asSequence()
-            .mapNotNull { request.getHeader(it) }
-            .firstOrNull { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
-
-        return (headerValue ?: request.remoteAddr)
-            .substringBefore(",")
-            .trim()
+        val route = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String
+            ?: request.requestURI
+        val event = logger.atLevel(if (status >= 500) org.slf4j.event.Level.ERROR else org.slf4j.event.Level.INFO)
+            .addKeyValue("method", request.method)
+            .addKeyValue("route", route)
+            .addKeyValue("status", status)
+            .addKeyValue("duration_ms", duration)
+        ex?.let { event.setCause(it) }
+        event.log("http.request.completed")
     }
 
     companion object {
         private const val START_TIME_ATTRIBUTE = "nugusauce.requestStartTime"
 
-        private val CLIENT_IP_HEADERS = listOf(
-            "X-Forwarded-For",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_X_FORWARDED_FOR",
-        )
     }
 }

@@ -1,0 +1,150 @@
+{{- if .Values.grafanaDashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nugusauce-api.fullname" . }}-grafana-dashboard
+  labels:
+    {{- include "nugusauce-api.labels" . | nindent 4 }}
+    {{- with .Values.grafanaDashboard.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+data:
+  nugusauce-api.json: |-
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "graphTooltip": 1,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m]))", "legendFormat": "requests/s", "refId": "A"}],
+          "title": "Request rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "percentunit"}},
+          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 0},
+          "id": 2,
+          "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "5xx ratio", "refId": "A"}],
+          "title": "Server error ratio",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "s"}},
+          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 0},
+          "id": 3,
+          "targets": [
+            {"expr": "sum(rate(http_server_requests_seconds_sum{application=\"nugusauce-api\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "average", "refId": "A"},
+            {"expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application=\"nugusauce-api\"}[5m])))", "legendFormat": "p95", "refId": "B"},
+            {"expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{application=\"nugusauce-api\"}[5m])))", "legendFormat": "p99", "refId": "C"}
+          ],
+          "title": "API latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 7},
+          "id": 4,
+          "targets": [{"expr": "topk(10, sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])))", "legendFormat": "{{ `{{method}} {{uri}}` }}", "refId": "A"}],
+          "title": "Top API routes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "s"}},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 7},
+          "id": 5,
+          "targets": [
+            {"expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{application=\"nugusauce-api\"}[5m])) / clamp_min(sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "avg {{ `{{method}} {{uri}}` }}", "refId": "A"},
+            {"expr": "histogram_quantile(0.95, sum by (le, method, uri) (rate(http_server_requests_seconds_bucket{application=\"nugusauce-api\"}[5m])))", "legendFormat": "p95 {{ `{{method}} {{uri}}` }}", "refId": "B"}
+          ],
+          "title": "Latency by API route",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+          "id": 6,
+          "targets": [{"expr": "sum by (event_name) (increase(nugusauce_analytics_events_total[1h]))", "legendFormat": "{{ `{{event_name}}` }}", "refId": "A"}],
+          "title": "Product funnel events (1h)",
+          "type": "barchart"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}},
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 25},
+          "id": 11,
+          "targets": [{"expr": "clamp_max(sum(increase(nugusauce_analytics_events_total{event_name=\"login_success\"}[1h])) / clamp_min(sum(increase(nugusauce_analytics_events_total{event_name=\"login_start\"}[1h])), 1), 1)", "legendFormat": "completion", "refId": "A"}],
+          "title": "Login completion (1h)",
+          "type": "gauge"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}},
+          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 25},
+          "id": 12,
+          "targets": [{"expr": "clamp_max(sum(increase(nugusauce_analytics_events_total{event_name=\"recipe_create_success\"}[1h])) / clamp_min(sum(increase(nugusauce_analytics_events_total{event_name=\"recipe_create_start\"}[1h])), 1), 1)", "legendFormat": "completion", "refId": "A"}],
+          "title": "Recipe creation completion (1h)",
+          "type": "gauge"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "${loki}"},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+          "id": 7,
+          "options": {"showTime": true, "wrapLogMessage": true},
+          "targets": [{"expr": "{app=~\"nugusauce-api|nugusauce.*\"} | json | message = `http.request.completed` | status >= 500", "refId": "A"}],
+          "title": "Recent server errors",
+          "type": "logs"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 30},
+          "id": 8,
+          "targets": [{"expr": "sum(jvm_memory_used_bytes{application=\"nugusauce-api\",area=\"heap\"})", "legendFormat": "heap used", "refId": "A"}],
+          "title": "JVM heap",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "fieldConfig": {"defaults": {"unit": "percentunit"}},
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 30},
+          "id": 9,
+          "targets": [{"expr": "process_cpu_usage{application=\"nugusauce-api\"}", "legendFormat": "process", "refId": "A"}],
+          "title": "Process CPU",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 30},
+          "id": 10,
+          "targets": [
+            {"expr": "hikaricp_connections_active{application=\"nugusauce-api\"}", "legendFormat": "active", "refId": "A"},
+            {"expr": "hikaricp_connections_max{application=\"nugusauce-api\"}", "legendFormat": "max", "refId": "B"}
+          ],
+          "title": "DB connection pool",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["nugusauce", "api", "red"],
+      "templating": {
+        "list": [
+          {"current": {}, "label": "Prometheus", "name": "prometheus", "query": "prometheus", "type": "datasource"},
+          {"current": {}, "label": "Loki", "name": "loki", "query": "loki", "type": "datasource"}
+        ]
+      },
+      "time": {"from": "now-6h", "to": "now"},
+      "timezone": "browser",
+      "title": "NuguSauce API & Product Funnel",
+      "uid": "nugusauce-api",
+      "version": 1
+    }
+{{- end }}

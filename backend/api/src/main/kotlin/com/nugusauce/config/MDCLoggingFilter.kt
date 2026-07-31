@@ -21,7 +21,6 @@ class MDCLoggingFilter : OncePerRequestFilter() {
         try {
             MDC.put("traceId", UUID.randomUUID().toString())
             MDC.put("eventId", LoggingUtil.generateEventId())
-            MDC.put("clientIp", resolveClientIp(request))
             MDC.put("userId", resolveUserId())
 
             filterChain.doFilter(request, response)
@@ -40,27 +39,8 @@ class MDCLoggingFilter : OncePerRequestFilter() {
         }
     }
 
-    private fun resolveClientIp(request: HttpServletRequest): String {
-        val headerValue = CLIENT_IP_HEADERS
-            .asSequence()
-            .mapNotNull { request.getHeader(it) }
-            .firstOrNull { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
-
-        return (headerValue ?: request.remoteAddr)
-            .substringBefore(",")
-            .trim()
-    }
-
     companion object {
         private const val GUEST_USER_ID = "GUEST"
         private const val ANONYMOUS_PRINCIPAL = "anonymousUser"
-
-        private val CLIENT_IP_HEADERS = listOf(
-            "X-Forwarded-For",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_X_FORWARDED_FOR",
-        )
     }
 }

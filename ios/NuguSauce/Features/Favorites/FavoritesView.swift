@@ -28,6 +28,9 @@ struct FavoritesView: View {
                         systemImage: "heart.fill"
                     )
                 }
+
+                InlineFooterBanner()
+                    .padding(.top, 4)
             }
             .padding(.horizontal, SauceSpacing.screen)
             .padding(.bottom, 42)
@@ -85,7 +88,6 @@ struct FavoritesView: View {
                     }
                 }
 
-                InlineAdaptiveBanner(placement: .favorites)
             }
         }
     }

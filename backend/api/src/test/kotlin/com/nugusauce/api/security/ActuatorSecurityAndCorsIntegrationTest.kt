@@ -1,6 +1,7 @@
 package com.nugusauce.api.security
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -14,6 +15,9 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.http.MediaType
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -84,5 +88,36 @@ class ActuatorSecurityAndCorsIntegrationTest(
         mockMvc.perform(get("/app-ads.txt"))
             .andExpect(status().isOk)
             .andExpect(content().string("google.com, pub-1193404666748763, DIRECT, f08c47fec0942fa0\n"))
+    }
+
+    @Test
+    fun `analytics event endpoint is public and observable in prometheus`() {
+        mockMvc.perform(
+            post("/api/v1/analytics/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "eventName": "screen_view",
+                      "sessionId": "0f9ac6f7-67d1-4a73-9286-e9195a654e13",
+                      "screen": "home",
+                      "appVersion": "1.0.2"
+                    }
+                    """.trimIndent()
+                )
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(true))
+
+        val prometheus = restTemplate.getForEntity(
+            "http://localhost:$managementPort/actuator/prometheus",
+            String::class.java
+        )
+        assertEquals(HttpStatus.OK, prometheus.statusCode)
+        assertTrue(
+            prometheus.body.orEmpty().contains(
+                "nugusauce_analytics_events_total{event_name=\"screen_view\"} 1.0"
+            )
+        )
     }
 }

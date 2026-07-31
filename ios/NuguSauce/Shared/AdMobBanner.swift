@@ -1,22 +1,17 @@
 import GoogleMobileAds
 import SwiftUI
+import UIKit
 import UserMessagingPlatform
 
 enum AdMobPlacement {
-    case home
-    case search
-    case favorites
+    case bottomBanner
 
     var adUnitID: String? {
         let key: String
 
         switch self {
-        case .home:
-            key = "NUGUSAUCE_ADMOB_HOME_BANNER_AD_UNIT_ID"
-        case .search:
-            key = "NUGUSAUCE_ADMOB_SEARCH_BANNER_AD_UNIT_ID"
-        case .favorites:
-            key = "NUGUSAUCE_ADMOB_FAVORITES_BANNER_AD_UNIT_ID"
+        case .bottomBanner:
+            key = "NUGUSAUCE_ADMOB_BOTTOM_BANNER_AD_UNIT_ID"
         }
 
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
@@ -28,8 +23,7 @@ enum AdMobPlacement {
     }
 
     static var hasConfiguredAdUnit: Bool {
-        let placements: [AdMobPlacement] = [.home, .search, .favorites]
-        return placements.contains { $0.adUnitID != nil }
+        bottomBanner.adUnitID != nil
     }
 }
 
@@ -82,29 +76,26 @@ final class AdConsentManager: ObservableObject {
     }
 }
 
-struct InlineAdaptiveBanner: View {
-    let placement: AdMobPlacement
+struct InlineFooterBanner: View {
     @EnvironmentObject private var consentManager: AdConsentManager
-    @State private var availableWidth: CGFloat = 0
+    @State private var availableWidth = UIScreen.main.bounds.width
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if consentManager.canRequestAds, let adUnitID = placement.adUnitID, availableWidth > 0 {
-                let adSize = currentOrientationInlineAdaptiveBanner(width: availableWidth)
+        Group {
+            if consentManager.canRequestAds,
+               let adUnitID = AdMobPlacement.bottomBanner.adUnitID,
+               availableWidth > 0 {
+                let adSize = adSizeFor(cgSize: CGSize(width: min(availableWidth, 320), height: 50))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("광고")
-                        .font(SauceTypography.badge(.semibold))
-                        .foregroundStyle(SauceColor.onSurfaceVariant)
-
-                    AdMobBannerView(adUnitID: adUnitID, adSize: adSize)
-                        .frame(width: adSize.size.width, height: adSize.size.height)
-                        .frame(maxWidth: .infinity)
-                }
-                .accessibilityIdentifier("admob.banner.\(placement.accessibilityIdentifier)")
+                AdMobBannerView(adUnitID: adUnitID, adSize: adSize)
+                    .frame(width: adSize.size.width, height: adSize.size.height)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                    .background(SauceColor.surfaceContainerLow)
+                .accessibilityIdentifier("admob.banner.footer")
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .background {
             GeometryReader { proxy in
                 Color.clear
@@ -113,19 +104,6 @@ struct InlineAdaptiveBanner: View {
                         availableWidth = newWidth
                     }
             }
-        }
-    }
-}
-
-private extension AdMobPlacement {
-    var accessibilityIdentifier: String {
-        switch self {
-        case .home:
-            return "home"
-        case .search:
-            return "search"
-        case .favorites:
-            return "favorites"
         }
     }
 }

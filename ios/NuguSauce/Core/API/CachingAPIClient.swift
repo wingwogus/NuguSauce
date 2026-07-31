@@ -57,6 +57,10 @@ final class CachingAPIClient: APIClientProtocol, CacheControllingAPIClient {
         self.cache = APIResponseCache(now: now)
     }
 
+    func recordAnalyticsEvent(_ event: AnalyticsEventDTO) {
+        upstream.recordAnalyticsEvent(event)
+    }
+
     func invalidate(scope: CacheInvalidationScope) async {
         let bucket = await currentBucket()
         await cache.handleBucketIfChanged(bucket)

@@ -121,6 +121,16 @@ final class SearchViewModel: ObservableObject {
         results = page.items
         nextCursor = page.nextCursor
         hasNext = page.hasNext
+        apiClient.recordAnalyticsEvent(
+            AnalyticsEventDTO(
+                eventName: .searchSubmitted,
+                screen: .search,
+                hasQuery: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                tagCount: selectedTagIDs.count,
+                ingredientCount: selectedIngredientIDs.count,
+                resultCount: page.items.count
+            )
+        )
     }
 
     func loadNextPage() async {

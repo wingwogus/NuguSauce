@@ -15,12 +15,14 @@ class LogInterceptorTest {
     private val interceptor = LogInterceptor()
 
     @Test
-    fun `logs request start and successful completion with status duration and client ip`(
+    fun `logs one structured completion event with route status and duration`(
         output: CapturedOutput
     ) {
-        val request = MockHttpServletRequest("GET", "/api/v1/recipes").apply {
-            remoteAddr = "10.0.0.10"
-            addHeader("X-Forwarded-For", "203.0.113.10, 10.0.0.11")
+        val request = MockHttpServletRequest("GET", "/api/v1/recipes/42").apply {
+            setAttribute(
+                org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE,
+                "/api/v1/recipes/{recipeId}"
+            )
         }
         val response = MockHttpServletResponse().apply {
             status = 200
@@ -29,18 +31,20 @@ class LogInterceptorTest {
         interceptor.preHandle(request, response, handler())
         interceptor.afterCompletion(request, response, handler(), null)
 
-        assertTrue(output.out.contains("[REQ START] GET /api/v1/recipes, client: 203.0.113.10"))
-        assertTrue(output.out.contains("[REQ END] GET /api/v1/recipes, status: 200, duration: "))
-        assertTrue(output.out.contains("ms, client: 203.0.113.10"))
+        assertTrue(output.out.contains("http.request.completed"))
+        assertTrue(output.out.contains("method=\"GET\""))
+        assertTrue(output.out.contains("route=\"/api/v1/recipes/{recipeId}\""))
+        assertTrue(output.out.contains("status=\"200\""))
+        assertTrue(output.out.contains("duration_ms=\""))
+        assertTrue(!output.out.contains("REQ START"))
+        assertTrue(!output.out.contains("client"))
     }
 
     @Test
     fun `logs failed completion with warn-shaped request end line`(
         output: CapturedOutput
     ) {
-        val request = MockHttpServletRequest("POST", "/api/v1/recipes").apply {
-            remoteAddr = "10.0.0.10"
-        }
+        val request = MockHttpServletRequest("POST", "/api/v1/recipes")
         val response = MockHttpServletResponse().apply {
             status = 401
         }
@@ -48,8 +52,10 @@ class LogInterceptorTest {
         interceptor.preHandle(request, response, handler())
         interceptor.afterCompletion(request, response, handler(), null)
 
-        assertTrue(output.out.contains("[REQ END] POST /api/v1/recipes, status: 401, duration: "))
-        assertTrue(output.out.contains("ms, client: 10.0.0.10"))
+        assertTrue(output.out.contains("http.request.completed"))
+        assertTrue(output.out.contains("method=\"POST\""))
+        assertTrue(output.out.contains("route=\"/api/v1/recipes\""))
+        assertTrue(output.out.contains("status=\"401\""))
     }
 
     private fun handler(): HandlerMethod {

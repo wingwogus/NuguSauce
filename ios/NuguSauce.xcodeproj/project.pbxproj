@@ -42,6 +42,7 @@
 		F00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */; };
 		F00000000000000000000135 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000135 /* InfoPlist.strings */; };
 		F00000000000000000000138 /* Features/Profile/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000138 /* Features/Profile/SettingsView.swift */; };
+		F00000000000000000000139 /* Shared/AdMobBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000139 /* Shared/AdMobBanner.swift */; };
 		F00000000000000000000201 /* APIContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000201 /* APIContractTests.swift */; };
 		F00000000000000000000202 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000202 /* ViewModelTests.swift */; };
 		F00000000000000000000203 /* CachingAPIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000203 /* CachingAPIClientTests.swift */; };
@@ -51,7 +52,6 @@
 		F00000000000000000000403 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = P00000000000000000000403 /* KakaoSDKUser */; };
 		F00000000000000000000404 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = P00000000000000000000404 /* GoogleMobileAds */; };
 		F00000000000000000000405 /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = P00000000000000000000405 /* GoogleUserMessagingPlatform */; };
-		F00000000000000000000139 /* Shared/AdMobBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000139 /* Shared/AdMobBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -106,10 +106,10 @@
 		A00000000000000000000132 /* Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_terms_of_service_2026-05-01.md"; sourceTree = "<group>"; };
 		A00000000000000000000133 /* Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_privacy_policy_2026-05-01.md"; sourceTree = "<group>"; };
 		A00000000000000000000134 /* Resources/LegalPolicies/legal_content_policy_2026-05-01.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LegalPolicies/legal_content_policy_2026-05-01.md"; sourceTree = "<group>"; };
-		A00000000000000000000138 /* Features/Profile/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Profile/SettingsView.swift; sourceTree = "<group>"; };
-		A00000000000000000000139 /* Shared/AdMobBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AdMobBanner.swift; sourceTree = "<group>"; };
 		A00000000000000000000136 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A00000000000000000000137 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		A00000000000000000000138 /* Features/Profile/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Profile/SettingsView.swift; sourceTree = "<group>"; };
+		A00000000000000000000139 /* Shared/AdMobBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AdMobBanner.swift; sourceTree = "<group>"; };
 		A00000000000000000000201 /* APIContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIContractTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000202 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000203 /* CachingAPIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachingAPIClientTests.swift; sourceTree = "<group>"; };
@@ -507,15 +507,12 @@
 		A00000000000000000002110 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ADMOB_APP_ID = "ca-app-pub-3940256099942544~1458002511";
-				NUGUSAUCE_ADMOB_FAVORITES_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/2435281174";
-				NUGUSAUCE_ADMOB_HOME_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/2435281174";
-				NUGUSAUCE_ADMOB_SEARCH_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/2435281174";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_ENTITLEMENTS = NuguSauce/NuguSauce.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = MDXGG9N5VC;
 				ENABLE_PREVIEWS = YES;
@@ -528,7 +525,8 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				KAKAO_NATIVE_APP_KEY = 220dd123265c8d0cffcbee57f081cc9e;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
+				NUGUSAUCE_ADMOB_BOTTOM_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/2435281174";
 				NUGUSAUCE_API_BASE_URL = "http://192.168.0.65:8080";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nugusauce.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -545,15 +543,12 @@
 		A00000000000000000002111 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ADMOB_APP_ID = "ca-app-pub-1193404666748763~4970985569";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ADMOB_APP_ID = "";
-				NUGUSAUCE_ADMOB_FAVORITES_BANNER_AD_UNIT_ID = "";
-				NUGUSAUCE_ADMOB_HOME_BANNER_AD_UNIT_ID = "";
-				NUGUSAUCE_ADMOB_SEARCH_BANNER_AD_UNIT_ID = "";
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGN_ENTITLEMENTS = NuguSauce/NuguSauce.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MDXGG9N5VC;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NuguSauce/Info.plist;
@@ -564,7 +559,8 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				KAKAO_NATIVE_APP_KEY = 220dd123265c8d0cffcbee57f081cc9e;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
+				NUGUSAUCE_ADMOB_BOTTOM_BANNER_AD_UNIT_ID = "ca-app-pub-1193404666748763/6837379819";
 				NUGUSAUCE_API_BASE_URL = "https://nugusauce.jaehyuns.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nugusauce.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";

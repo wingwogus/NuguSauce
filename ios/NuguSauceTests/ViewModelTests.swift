@@ -87,6 +87,38 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(url?.absoluteString, "https://cdn.example.test/profile/1.jpg?size=small&nugusauceAvatarRetry=2")
     }
 
+    func testRemoteImageLoaderCoalescesConcurrentRequestsAndCachesTheDecodedImage() async throws {
+        let requestCounter = ImageRequestCounter()
+        let url = try XCTUnwrap(URL(string: "https://cdn.example.test/recipe/1.jpg"))
+        let imageData = try XCTUnwrap(Self.noisyImage(width: 1, height: 1).pngData())
+        let loader = RemoteImageLoader { request in
+            await requestCounter.increment()
+            try await Task.sleep(for: .milliseconds(20))
+            guard let requestURL = request.url,
+                  let response = HTTPURLResponse(
+                      url: requestURL,
+                      statusCode: 200,
+                      httpVersion: nil,
+                      headerFields: ["Content-Type": "image/png"]
+                  ) else {
+                throw URLError(.badServerResponse)
+            }
+            return (imageData, response)
+        }
+
+        async let firstImage = loader.image(for: url)
+        async let secondImage = loader.image(for: url)
+        let first = try await firstImage
+        let second = try await secondImage
+        let cachedImage = try await loader.image(for: url)
+        let requestCount = await requestCounter.value
+
+        XCTAssertNotNil(first.cgImage)
+        XCTAssertNotNil(second.cgImage)
+        XCTAssertNotNil(cachedImage.cgImage)
+        XCTAssertEqual(requestCount, 1)
+    }
+
     func testLightSurfaceTokensRemainTonallySeparated() {
         let traits = UITraitCollection(userInterfaceStyle: .light)
 
@@ -2873,5 +2905,13 @@ private final class ReadUnavailableAuthTokenStore: AuthTokenStore {
 
     func delete(account: KeychainAccount) -> Bool {
         true
+    }
+}
+
+private actor ImageRequestCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
     }
 }

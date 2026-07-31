@@ -253,6 +253,16 @@ final class CreateRecipeViewModel: ObservableObject {
             return nil
         }
 
+        if !isEditing {
+            apiClient.recordAnalyticsEvent(
+                AnalyticsEventDTO(
+                    eventName: .recipeCreateStart,
+                    screen: .create,
+                    ingredientCount: ingredients.count
+                )
+            )
+        }
+
         do {
             isSubmitting = true
             defer {
@@ -274,6 +284,14 @@ final class CreateRecipeViewModel: ObservableObject {
             } else {
                 recipe = try await apiClient.createRecipe(makeRequest(imageId: imageId))
                 let createdRecipeID = recipe.id
+                apiClient.recordAnalyticsEvent(
+                    AnalyticsEventDTO(
+                        eventName: .recipeCreateSuccess,
+                        screen: .create,
+                        recipeId: createdRecipeID,
+                        ingredientCount: ingredients.count
+                    )
+                )
                 resetDraftAfterSuccessfulCreate()
                 return createdRecipeID
             }

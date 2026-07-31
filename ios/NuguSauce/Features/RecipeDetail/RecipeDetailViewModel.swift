@@ -68,6 +68,13 @@ final class RecipeDetailViewModel: ObservableObject {
             self.detail = loadedDetail
             isFavorite = loadedDetail.isFavorited
             self.reviews = try await reviews
+            apiClient.recordAnalyticsEvent(
+                AnalyticsEventDTO(
+                    eventName: .recipeDetailView,
+                    screen: .recipeDetail,
+                    recipeId: recipeID
+                )
+            )
         } catch {
             errorMessage = "상세 정보를 불러오지 못했어요."
         }
@@ -177,6 +184,14 @@ final class RecipeDetailViewModel: ObservableObject {
             } else {
                 try await apiClient.deleteFavorite(recipeID: recipeID)
             }
+            apiClient.recordAnalyticsEvent(
+                AnalyticsEventDTO(
+                    eventName: .favoriteSuccess,
+                    screen: .recipeDetail,
+                    recipeId: recipeID,
+                    favoriteState: nextFavoriteState
+                )
+            )
         } catch {
             if let apiError = error as? ApiError {
                 switch apiError.code {

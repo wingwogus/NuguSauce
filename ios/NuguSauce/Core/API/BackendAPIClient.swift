@@ -41,6 +41,18 @@ final class BackendAPIClient: APIClientProtocol {
         self.encoder = encoder
     }
 
+    func recordAnalyticsEvent(_ event: AnalyticsEventDTO) {
+        Task { [weak self] in
+            guard let self else { return }
+            let _: EmptyResponse? = try? await send(
+                path: "/api/v1/analytics/events",
+                method: "POST",
+                body: AnyEncodable(event),
+                refreshPolicy: .never
+            )
+        }
+    }
+
     func fetchHome() async throws -> HomeDTO {
         do {
             return try await send(

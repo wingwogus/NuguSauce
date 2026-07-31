@@ -288,6 +288,70 @@ struct ConsentPolicyAcceptanceDTO: Codable, Equatable {
     let version: String
 }
 
+enum AnalyticsEventName: String, Codable {
+    case screenView = "screen_view"
+    case searchSubmitted = "search_submitted"
+    case recipeDetailView = "recipe_detail_view"
+    case favoriteSuccess = "favorite_success"
+    case recipeCreateStart = "recipe_create_start"
+    case recipeCreateSuccess = "recipe_create_success"
+    case loginStart = "login_start"
+    case loginSuccess = "login_success"
+    case loginFailure = "login_failure"
+}
+
+enum AnalyticsScreen: String, Codable {
+    case home
+    case favorites
+    case create
+    case search
+    case profile
+    case recipeDetail = "recipe_detail"
+    case login
+}
+
+struct AnalyticsEventDTO: Codable {
+    let eventName: AnalyticsEventName
+    let sessionId: String
+    let screen: AnalyticsScreen
+    let provider: String?
+    let recipeId: Int?
+    let favoriteState: Bool?
+    let hasQuery: Bool?
+    let tagCount: Int?
+    let ingredientCount: Int?
+    let resultCount: Int?
+    let appVersion: String?
+
+    init(
+        eventName: AnalyticsEventName,
+        screen: AnalyticsScreen,
+        provider: String? = nil,
+        recipeId: Int? = nil,
+        favoriteState: Bool? = nil,
+        hasQuery: Bool? = nil,
+        tagCount: Int? = nil,
+        ingredientCount: Int? = nil,
+        resultCount: Int? = nil
+    ) {
+        self.eventName = eventName
+        sessionId = AnalyticsSession.id
+        self.screen = screen
+        self.provider = provider
+        self.recipeId = recipeId
+        self.favoriteState = favoriteState
+        self.hasQuery = hasQuery
+        self.tagCount = tagCount
+        self.ingredientCount = ingredientCount
+        self.resultCount = resultCount
+        appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    }
+}
+
+private enum AnalyticsSession {
+    static let id = UUID().uuidString
+}
+
 enum APIClientError: Error, Equatable {
     case invalidBaseURL(String)
     case invalidURL
@@ -299,6 +363,7 @@ enum APIClientError: Error, Equatable {
 }
 
 protocol APIClientProtocol {
+    func recordAnalyticsEvent(_ event: AnalyticsEventDTO)
     func fetchHome() async throws -> HomeDTO
     func fetchRecipeSearchPage(query: RecipeListQuery, cursor: String?, limit: Int) async throws -> RecipeSearchPageDTO
     func fetchRecipeDetail(id: Int) async throws -> RecipeDetailDTO
@@ -339,4 +404,8 @@ protocol APIClientProtocol {
     func fetchConsentStatus(accessToken: String) async throws -> ConsentStatusDTO
     func acceptConsents(_ request: ConsentAcceptRequestDTO) async throws -> ConsentStatusDTO
     func acceptConsents(_ request: ConsentAcceptRequestDTO, accessToken: String) async throws -> ConsentStatusDTO
+}
+
+extension APIClientProtocol {
+    func recordAnalyticsEvent(_ event: AnalyticsEventDTO) {}
 }

@@ -89,6 +89,9 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                InlineFooterBanner()
+                    .padding(.top, 4)
             }
             .padding(.top, 10)
             .padding(.bottom, 36)

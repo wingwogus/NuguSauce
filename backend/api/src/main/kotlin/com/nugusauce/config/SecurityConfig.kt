@@ -41,6 +41,7 @@ class SecurityConfig(
             "/api/v1/auth/kakao/login",
             "/api/v1/auth/apple/login",
             "/api/v1/auth/reissue",
+            "/api/v1/analytics/events",
             "/error",                // 스프링 내부 오류 페이지
         )
 

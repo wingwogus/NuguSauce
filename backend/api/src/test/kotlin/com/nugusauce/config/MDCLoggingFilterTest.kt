@@ -24,23 +24,20 @@ class MDCLoggingFilterTest {
     }
 
     @Test
-    fun `adds request ids client ip and authenticated user id to MDC`() {
+    fun `adds request ids and authenticated user id to MDC without client ip`() {
         SecurityContextHolder.getContext().authentication = UsernamePasswordAuthenticationToken(
             "42",
             null,
             listOf(SimpleGrantedAuthority("ROLE_USER"))
         )
 
-        val request = MockHttpServletRequest("GET", "/api/v1/test/me").apply {
-            remoteAddr = "10.0.0.10"
-            addHeader("X-Forwarded-For", "203.0.113.10, 10.0.0.11")
-        }
+        val request = MockHttpServletRequest("GET", "/api/v1/test/me")
         val response = MockHttpServletResponse()
 
         val chain = FilterChain { _, _ ->
             assertNotNull(MDC.get("traceId"))
             assertNotNull(MDC.get("eventId"))
-            assertEquals("203.0.113.10", MDC.get("clientIp"))
+            assertNull(MDC.get("clientIp"))
             assertEquals("42", MDC.get("userId"))
         }
 
@@ -48,21 +45,17 @@ class MDCLoggingFilterTest {
 
         assertNull(MDC.get("traceId"))
         assertNull(MDC.get("eventId"))
-        assertNull(MDC.get("clientIp"))
         assertNull(MDC.get("userId"))
     }
 
     @Test
     fun `uses GUEST user id when request is unauthenticated`() {
-        val request = MockHttpServletRequest("GET", "/api/v1/recipes").apply {
-            remoteAddr = "10.0.0.10"
-        }
+        val request = MockHttpServletRequest("GET", "/api/v1/recipes")
         val response = MockHttpServletResponse()
 
         val chain = FilterChain { _, _ ->
             assertNotNull(MDC.get("traceId"))
             assertNotNull(MDC.get("eventId"))
-            assertEquals("10.0.0.10", MDC.get("clientIp"))
             assertEquals("GUEST", MDC.get("userId"))
         }
 

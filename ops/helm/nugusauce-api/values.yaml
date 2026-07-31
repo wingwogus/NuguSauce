@@ -53,6 +53,13 @@ serviceMonitor:
   interval: 30s
   scrapeTimeout: 10s
   path: /actuator/prometheus
+grafanaDashboard:
+  enabled: true
+  labels:
+    grafana_dashboard: "1"
+prometheusRule:
+  enabled: true
+  labels: {}
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness

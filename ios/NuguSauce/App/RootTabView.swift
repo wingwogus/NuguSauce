@@ -173,6 +173,7 @@ struct RootTabView: View {
             .presentationDragIndicator(.visible)
         }
         .onAppear {
+            recordScreenView(tabSelection.selectedTab)
             tabSelection.authenticationDidChange(isAuthenticated: authStore.isAuthenticated)
             if let loginRequiredTab = tabSelection.loginRequiredTab {
                 routeToLogin(for: loginRequiredTab)
@@ -183,6 +184,9 @@ struct RootTabView: View {
             if let loginRequiredTab {
                 routeToLogin(for: loginRequiredTab)
             }
+        }
+        .onChange(of: tabSelection.selectedTab) { _, selectedTab in
+            recordScreenView(selectedTab)
         }
         .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in
             tabSelection.authenticationDidChange(isAuthenticated: isAuthenticated)
@@ -196,6 +200,25 @@ struct RootTabView: View {
         .onChange(of: authStore.requiresProfileSetup) { _, requiresProfileSetup in
             tabSelection.profileSetupRequirementDidChange(isRequired: requiresProfileSetup)
         }
+    }
+
+    private func recordScreenView(_ tab: RootTab) {
+        let screen: AnalyticsScreen
+        switch tab {
+        case .home:
+            screen = .home
+        case .favorites:
+            screen = .favorites
+        case .create:
+            screen = .create
+        case .search:
+            screen = .search
+        case .profile:
+            screen = .profile
+        }
+        apiClient.recordAnalyticsEvent(
+            AnalyticsEventDTO(eventName: .screenView, screen: screen)
+        )
     }
 
     private var selectedTabBinding: Binding<RootTab> {

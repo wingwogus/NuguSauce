@@ -1,0 +1,47 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "nugusauce-api.fullname" . }}
+  labels:
+    {{- include "nugusauce-api.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: nugusauce-api
+      rules:
+        - alert: NuguSauceApiHighServerErrorRate
+          expr: |
+            sum(rate(http_server_requests_seconds_count{application="nugusauce-api",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{application="nugusauce-api"}[5m])), 0.001)
+            > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: NuguSauce API 5xx 비율이 5%를 초과했습니다
+            description: 10분 동안 사용자 요청의 서버 오류 비율이 5%를 넘었습니다.
+        - alert: NuguSauceApiHighP95Latency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (rate(http_server_requests_seconds_bucket{application="nugusauce-api"}[5m]))
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: NuguSauce API p95 응답시간이 1초를 초과했습니다
+            description: 10분 동안 전체 API의 p95 응답시간이 1초를 넘었습니다.
+        - alert: NuguSauceApiTargetDown
+          expr: up{service=~".*nugusauce-api.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: NuguSauce API Prometheus target이 내려갔습니다
+            description: Prometheus가 NuguSauce API를 5분 동안 수집하지 못했습니다.
+{{- end }}

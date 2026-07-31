@@ -1,4 +1,130 @@
 import SwiftUI
+import UIKit
+
+actor RemoteImageLoader {
+    typealias DataLoader = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
+    static let shared = RemoteImageLoader()
+
+    private let memoryCache: NSCache<NSURL, UIImage>
+    private let loadData: DataLoader
+    private var inFlightLoads: [URL: Task<UIImage, Error>] = [:]
+
+    init(dataLoader: DataLoader? = nil) {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.countLimit = 120
+        cache.totalCostLimit = 60 * 1024 * 1024
+        memoryCache = cache
+
+        if let dataLoader {
+            loadData = dataLoader
+        } else {
+            let session = Self.makeSession()
+            loadData = { request in
+                try await session.data(for: request)
+            }
+        }
+    }
+
+    func image(for url: URL) async throws -> UIImage {
+        if let cachedImage = memoryCache.object(forKey: url as NSURL) {
+            return cachedImage
+        }
+
+        if let inFlightLoad = inFlightLoads[url] {
+            return try await inFlightLoad.value
+        }
+
+        let dataLoader = loadData
+        let load = Task {
+            var request = URLRequest(url: url)
+            request.cachePolicy = .useProtocolCachePolicy
+
+            let (data, response) = try await dataLoader(request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode),
+                  let image = UIImage(data: data) else {
+                throw RemoteImageLoadingError.invalidResponse
+            }
+            return image
+        }
+        inFlightLoads[url] = load
+
+        do {
+            let image = try await load.value
+            memoryCache.setObject(image, forKey: url as NSURL, cost: Self.cacheCost(for: image))
+            inFlightLoads[url] = nil
+            return image
+        } catch {
+            inFlightLoads[url] = nil
+            throw error
+        }
+    }
+
+    private static func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.urlCache = URLCache(
+            memoryCapacity: 20 * 1024 * 1024,
+            diskCapacity: 200 * 1024 * 1024,
+            diskPath: "NuguSauceImageCache"
+        )
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        return URLSession(configuration: configuration)
+    }
+
+    private static func cacheCost(for image: UIImage) -> Int {
+        let pixelCount = image.size.width * image.scale * image.size.height * image.scale
+        return max(1, Int(pixelCount * 4))
+    }
+}
+
+private enum RemoteImageLoadingError: Error {
+    case invalidResponse
+}
+
+struct CachedRemoteImage<Content: View, Placeholder: View, Failure: View>: View {
+    let url: URL?
+    @ViewBuilder let content: (Image) -> Content
+    @ViewBuilder let placeholder: () -> Placeholder
+    @ViewBuilder let failure: () -> Failure
+
+    @State private var loadedImage: UIImage?
+    @State private var didFail = false
+
+    var body: some View {
+        Group {
+            if let loadedImage {
+                content(Image(uiImage: loadedImage))
+            } else if didFail {
+                failure()
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: url) {
+            await loadImage()
+        }
+    }
+
+    @MainActor
+    private func loadImage() async {
+        loadedImage = nil
+        didFail = false
+
+        guard let url else {
+            didFail = true
+            return
+        }
+
+        do {
+            loadedImage = try await RemoteImageLoader.shared.image(for: url)
+        } catch is CancellationError {
+            return
+        } catch {
+            didFail = true
+        }
+    }
+}
 
 struct SauceChip: View {
     let title: String
@@ -386,24 +512,19 @@ struct ProfileAvatar: View {
     var body: some View {
         Group {
             if let imageURL, let url = remoteURL(for: imageURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        fallback
-                            .onAppear {
-                                scheduleRetry(for: imageURL)
-                            }
-                    case .empty:
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(SauceColor.surfaceContainerLow)
-                    @unknown default:
-                        fallback
-                    }
+                CachedRemoteImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(SauceColor.surfaceContainerLow)
+                } failure: {
+                    fallback
+                        .onAppear {
+                            scheduleRetry(for: imageURL)
+                        }
                 }
             } else {
                 fallback
@@ -577,21 +698,16 @@ struct RecipeImage: View {
         GeometryReader { proxy in
             Group {
                 if let imageURL, let url = URL(string: imageURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        case .failure:
-                            SauceArtwork(recipeID: recipeID, height: height)
-                        case .empty:
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(SauceColor.surfaceContainerLow)
-                        @unknown default:
-                            SauceArtwork(recipeID: recipeID, height: height)
-                        }
+                    CachedRemoteImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(SauceColor.surfaceContainerLow)
+                    } failure: {
+                        SauceArtwork(recipeID: recipeID, height: height)
                     }
                 } else {
                     SauceArtwork(recipeID: recipeID, height: height)

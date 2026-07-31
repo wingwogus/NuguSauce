@@ -94,6 +94,12 @@ Failure responses use:
 
 The Kotlin source of truth is `backend/api/src/main/kotlin/com/nugusauce/api/common/ApiResponse.kt`.
 
+## Product Analytics Events
+
+`POST /api/v1/analytics/events` is a public, best-effort mobile telemetry endpoint. It accepts only the allowlisted event and field schema documented in `docs/runbooks/monitoring.md`. The endpoint must not accept free-form properties or product/user content. It returns the standard empty success envelope.
+
+Analytics delivery failure never blocks the user action that produced the event. Prometheus aggregates only the bounded event name; session, recipe, screen, provider, version, and numeric context remain structured log fields for Loki investigation.
+
 ## Auth Endpoints
 
 ### `POST /api/v1/auth/kakao/login`
