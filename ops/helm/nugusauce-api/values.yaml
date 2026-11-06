@@ -7,7 +7,7 @@ autoscaling:
 image:
   repository: docker.io/vantagac/nugusauce-api
   pullPolicy: IfNotPresent
-  tag: "c8648d9c42e5958a8fe48a1cf7b97a4b7fad5eff"
+  tag: "870e77036614a17dc86629f77705d4a749fd1be5"
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
