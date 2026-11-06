@@ -17,8 +17,62 @@ data:
       "panels": [
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "description": "Apple 또는 카카오로 로그인한 적이 있는 고유 계정 수. 로컬·시드 계정 제외. 두 제공자에 연결된 계정도 전체에서는 한 번만 집계합니다. 60초마다 수집하고 30초마다 화면을 새로 고칩니다. 3분 넘게 갱신되지 않은 값은 표시하지 않습니다.",
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0, "noValue": "수집 대기/지연"}},
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+          "id": 13,
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "max(nugusauce_users_registered{application=\"nugusauce-api\",namespace=\"nugusauce\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "instant": true, "range": false, "refId": "A"}],
+          "title": "전체 소셜 사용자",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "description": "만료되지 않은 NuguSauce 리프레시 세션을 보유한 소셜 계정 수. 리프레시 유효기간은 14일이며 재발급 시 갱신됩니다. 현재 앱을 사용 중인 동시 접속자 수가 아닙니다. 60초마다 수집하고 30초마다 화면을 새로 고칩니다. 3분 넘게 갱신되지 않은 값은 표시하지 않습니다.",
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0, "noValue": "수집 대기/지연"}},
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+          "id": 14,
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "max(nugusauce_users_logged_in{application=\"nugusauce-api\",namespace=\"nugusauce\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "instant": true, "range": false, "refId": "A"}],
+          "title": "로그인 유지 중인 사용자",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "description": "Apple에 연결된 고유 계정 수. 여러 제공자에 연결된 계정은 각 제공자에 포함될 수 있습니다. 60초마다 수집하고 30초마다 화면을 새로 고칩니다. 3분 넘게 갱신되지 않은 값은 표시하지 않습니다.",
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0, "noValue": "수집 대기/지연"}},
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+          "id": 15,
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "max(nugusauce_users_registered_by_provider{application=\"nugusauce-api\",namespace=\"nugusauce\",provider=\"APPLE\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "instant": true, "range": false, "refId": "A"}],
+          "title": "Apple 사용자",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "description": "카카오에 연결된 고유 계정 수. 여러 제공자에 연결된 계정은 각 제공자에 포함될 수 있습니다. 60초마다 수집하고 30초마다 화면을 새로 고칩니다. 3분 넘게 갱신되지 않은 값은 표시하지 않습니다.",
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0, "noValue": "수집 대기/지연"}},
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+          "id": 16,
+          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "max(nugusauce_users_registered_by_provider{application=\"nugusauce-api\",namespace=\"nugusauce\",provider=\"KAKAO\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "instant": true, "range": false, "refId": "A"}],
+          "title": "카카오 사용자",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
+          "description": "고유 소셜 계정 수와 유효한 리프레시 세션을 가진 계정 수의 변화. API 복제본의 동일 집계는 합산하지 않습니다. 수집 실패로 3분이 지나면 차트에 공백이 생깁니다.",
+          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "min": 0}},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 44},
+          "id": 17,
+          "targets": [{"expr": "max(nugusauce_users_registered{application=\"nugusauce-api\",namespace=\"nugusauce\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "legendFormat": "전체 소셜 사용자", "refId": "A"}, {"expr": "max(nugusauce_users_logged_in{application=\"nugusauce-api\",namespace=\"nugusauce\"} and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application=\"nugusauce-api\",namespace=\"nugusauce\"} < 180))", "legendFormat": "로그인 유지 중인 사용자", "refId": "B"}],
+          "title": "사용자 수 추이",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "reqps"}},
-          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0},
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 6},
           "id": 1,
           "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m]))", "legendFormat": "requests/s", "refId": "A"}],
           "title": "Request rate",
@@ -27,7 +81,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "percentunit"}},
-          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 0},
+          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 6},
           "id": 2,
           "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "5xx ratio", "refId": "A"}],
           "title": "Server error ratio",
@@ -36,7 +90,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "s"}},
-          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 0},
+          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 6},
           "id": 3,
           "targets": [
             {"expr": "sum(rate(http_server_requests_seconds_sum{application=\"nugusauce-api\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "average", "refId": "A"},
@@ -49,7 +103,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "reqps"}},
-          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 7},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 13},
           "id": 4,
           "targets": [{"expr": "topk(10, sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])))", "legendFormat": "{{ `{{method}} {{uri}}` }}", "refId": "A"}],
           "title": "Top API routes",
@@ -58,7 +112,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "s"}},
-          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 7},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 13},
           "id": 5,
           "targets": [
             {"expr": "sum by (method, uri) (rate(http_server_requests_seconds_sum{application=\"nugusauce-api\"}[5m])) / clamp_min(sum by (method, uri) (rate(http_server_requests_seconds_count{application=\"nugusauce-api\"}[5m])), 0.001)", "legendFormat": "avg {{ `{{method}} {{uri}}` }}", "refId": "A"},
@@ -69,7 +123,7 @@ data:
         },
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
-          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 22},
           "id": 6,
           "targets": [{"expr": "sum by (event_name) (increase(nugusauce_analytics_events_total[1h]))", "legendFormat": "{{ `{{event_name}}` }}", "refId": "A"}],
           "title": "Product funnel events (1h)",
@@ -78,7 +132,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}},
-          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 25},
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 31},
           "id": 11,
           "targets": [{"expr": "clamp_max(sum(increase(nugusauce_analytics_events_total{event_name=\"login_success\"}[1h])) / clamp_min(sum(increase(nugusauce_analytics_events_total{event_name=\"login_start\"}[1h])), 1), 1)", "legendFormat": "completion", "refId": "A"}],
           "title": "Login completion (1h)",
@@ -87,7 +141,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}},
-          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 25},
+          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 31},
           "id": 12,
           "targets": [{"expr": "clamp_max(sum(increase(nugusauce_analytics_events_total{event_name=\"recipe_create_success\"}[1h])) / clamp_min(sum(increase(nugusauce_analytics_events_total{event_name=\"recipe_create_start\"}[1h])), 1), 1)", "legendFormat": "completion", "refId": "A"}],
           "title": "Recipe creation completion (1h)",
@@ -95,7 +149,7 @@ data:
         },
         {
           "datasource": {"type": "loki", "uid": "${loki}"},
-          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 22},
           "id": 7,
           "options": {"showTime": true, "wrapLogMessage": true},
           "targets": [{"expr": "{app=~\"nugusauce-api|nugusauce.*\"} | json | message = `http.request.completed` | status >= 500", "refId": "A"}],
@@ -105,7 +159,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "bytes"}},
-          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 30},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 36},
           "id": 8,
           "targets": [{"expr": "sum(jvm_memory_used_bytes{application=\"nugusauce-api\",area=\"heap\"})", "legendFormat": "heap used", "refId": "A"}],
           "title": "JVM heap",
@@ -114,7 +168,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
           "fieldConfig": {"defaults": {"unit": "percentunit"}},
-          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 30},
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 36},
           "id": 9,
           "targets": [{"expr": "process_cpu_usage{application=\"nugusauce-api\"}", "legendFormat": "process", "refId": "A"}],
           "title": "Process CPU",
@@ -122,7 +176,7 @@ data:
         },
         {
           "datasource": {"type": "prometheus", "uid": "${prometheus}"},
-          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 30},
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 36},
           "id": 10,
           "targets": [
             {"expr": "hikaricp_connections_active{application=\"nugusauce-api\"}", "legendFormat": "active", "refId": "A"},
@@ -134,7 +188,7 @@ data:
       ],
       "refresh": "30s",
       "schemaVersion": 39,
-      "tags": ["nugusauce", "api", "red"],
+      "tags": ["nugusauce", "api", "red", "users"],
       "templating": {
         "list": [
           {"current": {}, "label": "Prometheus", "name": "prometheus", "query": "prometheus", "type": "datasource"},
@@ -145,6 +199,6 @@ data:
       "timezone": "browser",
       "title": "NuguSauce API & Product Funnel",
       "uid": "nugusauce-api",
-      "version": 1
+      "version": 2
     }
 {{- end }}

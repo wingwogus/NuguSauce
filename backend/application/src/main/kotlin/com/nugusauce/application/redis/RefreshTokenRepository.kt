@@ -6,4 +6,6 @@ interface RefreshTokenRepository {
     fun get(userId: Long): String?
 
     fun delete(userId: Long)
+
+    fun findActiveMemberIds(): Set<Long>
 }

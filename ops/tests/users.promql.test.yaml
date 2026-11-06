@@ -1,0 +1,186 @@
+---
+rule_files: []
+evaluation_interval: 1m
+tests:
+- name: replicas-and-stale
+  interval: 1m
+  input_series:
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 0+60x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 471+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 62+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="APPLE"}
+    values: 238+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="KAKAO"}
+    values: 233+0x5
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 0+60x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 471+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 62+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b",provider="APPLE"}
+    values: 238+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b",provider="KAKAO"}
+    values: 233+0x5
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 0+0x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 9999+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 9999+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale",provider="APPLE"}
+    values: 9999+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale",provider="KAKAO"}
+    values: 9999+0x5
+  promql_expr_test:
+  - expr: max(nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 471
+  - expr: max(nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 62
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="APPLE"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 238
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="KAKAO"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 233
+- name: expired
+  interval: 1m
+  input_series:
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 0+60x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 471+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 62+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="APPLE"}
+    values: 238+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="KAKAO"}
+    values: 233+0x5
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 0+60x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 471+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b"}
+    values: 62+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b",provider="APPLE"}
+    values: 238+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="b",provider="KAKAO"}
+    values: 233+0x5
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 0+0x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 9999+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale"}
+    values: 9999+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale",provider="APPLE"}
+    values: 9999+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="stale",provider="KAKAO"}
+    values: 9999+0x5
+  promql_expr_test:
+  - expr: max(nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 8m
+    exp_samples: []
+  - expr: max(nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 8m
+    exp_samples: []
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="APPLE"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 8m
+    exp_samples: []
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="KAKAO"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 8m
+    exp_samples: []
+- name: zero
+  interval: 1m
+  input_series:
+  - series: nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 0+60x5
+  - series: nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 0+0x5
+  - series: nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a"}
+    values: 0+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="APPLE"}
+    values: 0+0x5
+  - series: nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",job="nugusauce-api",instance="a",provider="KAKAO"}
+    values: 0+0x5
+  promql_expr_test:
+  - expr: max(nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 0
+  - expr: max(nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 0
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="APPLE"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 0
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="KAKAO"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples:
+    - labels: "{}"
+      value: 0
+- name: missing
+  interval: 1m
+  input_series: []
+  promql_expr_test:
+  - expr: max(nugusauce_users_registered{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples: []
+  - expr: max(nugusauce_users_logged_in{application="nugusauce-api",namespace="nugusauce"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples: []
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="APPLE"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples: []
+  - expr: max(nugusauce_users_registered_by_provider{application="nugusauce-api",namespace="nugusauce",provider="KAKAO"}
+      and on (job, instance, namespace) (time() - nugusauce_users_metrics_last_success_timestamp_seconds{application="nugusauce-api",namespace="nugusauce"}
+      < 180))
+    eval_time: 5m
+    exp_samples: []
